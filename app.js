@@ -962,7 +962,7 @@ async function saveListeningTest(event, profile) {
                 test_id: test.id,
                 section_number: 1,
                 title: "Listening Part 1",
-
+                instructions: "Questions 1–10",
                 content: null,
                 audio_url: null,
                 image_url: null
@@ -971,7 +971,7 @@ async function saveListeningTest(event, profile) {
                 test_id: test.id,
                 section_number: 2,
                 title: "Listening Part 2",
-
+                instructions: "Questions 11–20",
                 content: null,
                 audio_url: null,
                 image_url: null
@@ -980,7 +980,7 @@ async function saveListeningTest(event, profile) {
                 test_id: test.id,
                 section_number: 3,
                 title: "Listening Part 3",
-
+                instructions: "Questions 21–30",
                 content: null,
                 audio_url: null,
                 image_url: null
@@ -989,7 +989,7 @@ async function saveListeningTest(event, profile) {
                 test_id: test.id,
                 section_number: 4,
                 title: "Listening Part 4",
-
+                instructions: "Questions 31–40",
                 content: null,
                 audio_url: null,
                 image_url: null
@@ -1108,7 +1108,7 @@ async function openListeningTestEditor(testId, profile) {
         } = await supabaseClient
             .from("sections")
             .select(
-                "id, test_id, section_number, title, content, audio_url, image_url"
+                "id, test_id, section_number, title, instructions, content, audio_url, image_url"
             )
             .eq("test_id", testId)
             .order("section_number", { ascending: true });
@@ -1423,7 +1423,7 @@ async function openListeningSectionEditor(
         } = await supabaseClient
             .from("sections")
             .select(
-                "id, test_id, section_number, title, content, audio_url, image_url"
+                "id, test_id, section_number, title, instructions, content, audio_url, image_url"
             )
             .eq("id", sectionId)
             .single();
@@ -1567,6 +1567,8 @@ async function openListeningSectionEditor(
                                     .getElementById("sectionTitle")
                                     .value.trim(),
 
+                            instructions:
+                                document
                                     .getElementById("sectionInstructions")
                                     .value.trim(),
 
@@ -2512,7 +2514,7 @@ async function openStudentListeningTest(
         } = await supabaseClient
             .from("sections")
             .select(
-                "id, section_number, title, content, audio_url, image_url"
+                "id, section_number, title, instructions, content, audio_url, image_url"
             )
             .eq("test_id", testId)
             .order("section_number", { ascending: true });
