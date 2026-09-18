@@ -979,12 +979,12 @@ async function openStudents() {
                     </div>
 
                     <button
-                        type="button"
-                        class="add-student-button"
-                        disabled
-                    >
-                        + Add Student
-                    </button>
+    type="button"
+    id="addStudentButton"
+    class="add-student-button"
+>
+    + Add Student
+</button>
 
                 </div>
 
