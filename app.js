@@ -1202,7 +1202,22 @@ function openAddStudentForm() {
 
                 </div>
 
+<div class="form-group">
 
+    <label for="studentPassword">
+        Student Login Password
+    </label>
+
+    <input
+        type="password"
+        id="studentPassword"
+        placeholder="Minimum 8 characters"
+        autocomplete="new-password"
+        minlength="8"
+        required
+    >
+
+</div>
                 <div class="student-form-actions">
 
                     <button
