@@ -1,91 +1,118 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
+    <!-- =========================================
+         BASIC META
+         ========================================= -->
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Universal Education IELTS</title>
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-    <link rel="stylesheet" href="styles.css">
+    <meta
+        name="description"
+        content="Universal Education IELTS Testing Platform"
+    >
 
-    <!-- Supabase -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <meta
+        name="theme-color"
+        content="#173f8a"
+    >
+
+
+    <!-- =========================================
+         PAGE TITLE
+         ========================================= -->
+
+    <title>
+        Universal Education IELTS Testing Platform
+    </title>
+
+
+    <!-- =========================================
+         STYLESHEET
+         ========================================= -->
+
+    <link
+        rel="stylesheet"
+        href="styles.css"
+    >
+
+
+    <!-- =========================================
+         SUPABASE
+         ========================================= -->
+
+    <script
+        src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+    ></script>
+
 </head>
+
 
 <body>
 
-    <main class="login-page">
 
-        <section class="login-card">
+    <!-- =========================================
+         MAIN APPLICATION CONTAINER
+         ========================================= -->
 
-            <div class="brand">
-                <div class="brand-logo">UE</div>
+    <div id="app">
 
-                <h1>Universal Education</h1>
-                <p>IELTS Testing Platform</p>
-            </div>
+        <!-- Loading screen -->
 
-            <div class="login-tabs">
-                <button
-                    id="studentTab"
-                    class="login-tab active"
-                    type="button">
-                    Student Login
-                </button>
+        <div
+            class="login-page"
+            id="initialLoading"
+        >
 
-                <button
-                    id="staffTab"
-                    class="login-tab"
-                    type="button">
-                    Admin / Tutor
-                </button>
-            </div>
+            <section class="login-card">
 
-            <form id="loginForm">
+                <div class="brand">
 
-                <div class="form-group">
-                    <label for="email">Email Address</label>
+                    <div class="brand-logo">
+                        UE
+                    </div>
 
-                    <input
-                        type="email"
-                        id="email"
-                        placeholder="Enter your email"
-                        autocomplete="email"
-                        required>
+                    <h1>
+                        Universal Education
+                    </h1>
+
+                    <p>
+                        IELTS Testing Platform
+                    </p>
+
                 </div>
 
-                <div class="form-group">
-                    <label for="password">Password</label>
-
-                    <input
-                        type="password"
-                        id="password"
-                        placeholder="Enter your password"
-                        autocomplete="current-password"
-                        required>
+                <div
+                    style="
+                        text-align:center;
+                        color:#64748b;
+                        font-size:14px;
+                    "
+                >
+                    Loading...
                 </div>
 
-                <button
-                    type="submit"
-                    id="loginButton"
-                    class="login-button">
-                    Login
-                </button>
+            </section>
 
-            </form>
+        </div>
 
-            <div id="loginMessage" class="login-message"></div>
+    </div>
 
-            <div class="login-footer">
-                <p>Universal Education</p>
-                <span>IELTS Testing Platform</span>
-            </div>
 
-        </section>
-
-    </main>
+    <!-- =========================================
+         MAIN JAVASCRIPT
+         ========================================= -->
 
     <script src="app.js"></script>
 
+
 </body>
+
 </html>
