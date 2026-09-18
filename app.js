@@ -566,6 +566,13 @@ document
                 return;
             }
 
+            if (module === "listening") {
+
+                await openAdminListeningTests(profile);
+
+                return;
+            }
+
             document
                 .getElementById("dashboardMessage")
                 .innerHTML = `
@@ -588,6 +595,439 @@ document
 
     });
 
+}
+
+
+// ============================================
+// ADMIN LISTENING TEST MANAGEMENT
+// ============================================
+
+async function openAdminListeningTests(profile) {
+
+    const message =
+        document.getElementById("dashboardMessage");
+
+    if (!message) {
+        return;
+    }
+
+    message.innerHTML = `
+        <div class="students-panel">
+
+            <div class="students-panel-header">
+
+                <div>
+                    <h2>🎧 Listening Tests</h2>
+
+                    <p>
+                        Create and manage Listening Tests
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    class="add-student-button"
+                    id="createListeningTestButton"
+                >
+                    + Create Listening Test
+                </button>
+
+            </div>
+
+            <div id="listeningTestsContent">
+                <div class="coming-soon">
+                    Loading Listening Tests...
+                </div>
+            </div>
+
+        </div>
+    `;
+
+    document
+        .getElementById("createListeningTestButton")
+        .addEventListener(
+            "click",
+            () => openCreateListeningTestForm(profile)
+        );
+
+    try {
+
+        const {
+            data: tests,
+            error
+        } = await supabaseClient
+            .from("tests")
+            .select("*")
+            .eq("module", "listening")
+            .order("created_at", { ascending: false });
+
+        if (error) {
+            throw error;
+        }
+
+        const content =
+            document.getElementById("listeningTestsContent");
+
+        if (!tests || tests.length === 0) {
+
+            content.innerHTML = `
+                <div class="empty-test-state">
+
+                    <div class="empty-icon">🎧</div>
+
+                    <h2>No Listening Tests Yet</h2>
+
+                    <p>
+                        Create your first Listening Test
+                        to continue.
+                    </p>
+
+                </div>
+            `;
+
+            return;
+        }
+
+        const rows = tests.map(test => `
+
+            <tr>
+
+                <td>
+                    ${escapeHtml(test.title || "-")}
+                </td>
+
+                <td>
+                    ${escapeHtml(test.status || "draft")}
+                </td>
+
+                <td>
+                    ${test.duration_minutes || 40} min
+                </td>
+
+                <td>
+                    ${test.created_at
+                        ? new Date(test.created_at).toLocaleDateString()
+                        : "-"
+                    }
+                </td>
+
+            </tr>
+
+        `).join("");
+
+        content.innerHTML = `
+
+            <div class="students-table-wrapper">
+
+                <table class="students-table">
+
+                    <thead>
+                        <tr>
+                            <th>Test Title</th>
+                            <th>Status</th>
+                            <th>Duration</th>
+                            <th>Created</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        ${rows}
+                    </tbody>
+
+                </table>
+
+            </div>
+        `;
+
+    } catch (error) {
+
+        console.error(
+            "Listening Tests Error:",
+            error
+        );
+
+        document
+            .getElementById("listeningTestsContent")
+            .innerHTML = `
+
+                <div class="coming-soon">
+
+                    <strong>
+                        Unable to load Listening Tests
+                    </strong>
+
+                    <p>
+                        ${escapeHtml(
+                            error.message ||
+                            "Unknown error"
+                        )}
+                    </p>
+
+                </div>
+            `;
+    }
+}
+
+
+// ============================================
+// CREATE LISTENING TEST
+// ============================================
+
+function openCreateListeningTestForm(profile) {
+
+    const message =
+        document.getElementById("dashboardMessage");
+
+    if (!message) {
+        return;
+    }
+
+    message.innerHTML = `
+
+        <div class="students-panel">
+
+            <div class="students-panel-header">
+
+                <div>
+                    <h2>🎧 Create Listening Test</h2>
+
+                    <p>
+                        Enter the basic test information.
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    class="cancel-button"
+                    id="cancelListeningTestButton"
+                >
+                    Cancel
+                </button>
+
+            </div>
+
+
+            <form
+                id="createListeningTestForm"
+                class="student-form"
+            >
+
+                <div class="form-group">
+
+                    <label for="listeningTestTitle">
+                        Test Title
+                    </label>
+
+                    <input
+                        type="text"
+                        id="listeningTestTitle"
+                        placeholder="Example: Listening Test 01"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="listeningTestInstructions">
+                        Instructions
+                    </label>
+
+                    <textarea
+                        id="listeningTestInstructions"
+                        rows="5"
+                        placeholder="Enter test instructions"
+                    ></textarea>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="listeningTestDuration">
+                        Duration (Minutes)
+                    </label>
+
+                    <input
+                        type="number"
+                        id="listeningTestDuration"
+                        value="40"
+                        min="1"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="student-form-actions">
+
+                    <button
+                        type="button"
+                        id="cancelListeningTestButton2"
+                        class="cancel-button"
+                    >
+                        Cancel
+                    </button>
+
+                    <button
+                        type="submit"
+                        id="saveListeningTestButton"
+                        class="save-button"
+                    >
+                        Create Listening Test
+                    </button>
+
+                </div>
+
+
+                <div
+                    id="listeningTestFormMessage"
+                    class="login-message"
+                ></div>
+
+            </form>
+
+        </div>
+    `;
+
+    document
+        .getElementById("cancelListeningTestButton")
+        .addEventListener(
+            "click",
+            () => openAdminListeningTests(profile)
+        );
+
+    document
+        .getElementById("cancelListeningTestButton2")
+        .addEventListener(
+            "click",
+            () => openAdminListeningTests(profile)
+        );
+
+    document
+        .getElementById("createListeningTestForm")
+        .addEventListener(
+            "submit",
+            (event) =>
+                saveListeningTest(event, profile)
+        );
+}
+
+
+// ============================================
+// SAVE LISTENING TEST
+// ============================================
+
+async function saveListeningTest(event, profile) {
+
+    event.preventDefault();
+
+    const title =
+        document
+            .getElementById("listeningTestTitle")
+            .value
+            .trim();
+
+    const instructions =
+        document
+            .getElementById("listeningTestInstructions")
+            .value
+            .trim();
+
+    const duration =
+        Number(
+            document
+                .getElementById("listeningTestDuration")
+                .value
+        );
+
+    const saveButton =
+        document.getElementById(
+            "saveListeningTestButton"
+        );
+
+    const formMessage =
+        document.getElementById(
+            "listeningTestFormMessage"
+        );
+
+    if (!title) {
+
+        formMessage.textContent =
+            "Please enter a test title.";
+
+        formMessage.style.color =
+            "#dc2626";
+
+        return;
+    }
+
+    if (!duration || duration < 1) {
+
+        formMessage.textContent =
+            "Please enter a valid duration.";
+
+        formMessage.style.color =
+            "#dc2626";
+
+        return;
+    }
+
+    saveButton.disabled = true;
+    saveButton.textContent = "Creating Test...";
+    formMessage.textContent = "";
+
+    try {
+
+        const {
+            data: test,
+            error
+        } = await supabaseClient
+            .from("tests")
+            .insert({
+                title: title,
+                module: "listening",
+                instructions: instructions || null,
+                duration_minutes: duration,
+                status: "draft"
+            })
+            .select()
+            .single();
+
+        if (error) {
+            throw error;
+        }
+
+        formMessage.textContent =
+            "Listening Test created successfully.";
+
+        formMessage.style.color =
+            "#15803d";
+
+        setTimeout(
+            () => openAdminListeningTests(profile),
+            700
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Create Listening Test Error:",
+            error
+        );
+
+        formMessage.textContent =
+            error.message ||
+            "Unable to create Listening Test.";
+
+        formMessage.style.color =
+            "#dc2626";
+
+        saveButton.disabled = false;
+        saveButton.textContent =
+            "Create Listening Test";
+    }
 }
 
 
@@ -784,38 +1224,21 @@ function openStudentDashboard(profile) {
                 "click",
                 () => {
 
-                    const module =
-                        card.dataset.module;
+                    const module = card.dataset.module;
 
-                    // LISTENING
                     if (module === "listening") {
                         openListeningTests(profile);
                         return;
                     }
 
-                    // Other modules — for now
                     document
-                        .getElementById(
-                            "dashboardMessage"
-                        )
+                        .getElementById("dashboardMessage")
                         .innerHTML = `
-
                             <div class="coming-soon">
-
-                                <strong>
-                                    ${escapeHtml(
-                                        module.toUpperCase()
-                                    )}
-                                </strong>
-
-                                <p>
-                                    This module will be connected next.
-                                </p>
-
+                                <strong>${escapeHtml(module.toUpperCase())}</strong>
+                                <p>This module will be connected next.</p>
                             </div>
-
                         `;
-
                 }
             );
 
@@ -839,53 +1262,29 @@ function openListeningTests(profile) {
         <div class="students-panel">
 
             <div class="students-panel-header">
-
                 <div>
                     <h2>🎧 Listening Tests</h2>
-
-                    <p>
-                        Select a Listening Test to begin.
-                    </p>
+                    <p>Select a Listening Test to begin.</p>
                 </div>
 
-                <button
-                    type="button"
-                    class="cancel-button"
-                    id="backToStudentDashboard"
-                >
+                <button type="button" class="cancel-button" id="backToStudentDashboard">
                     ← Dashboard
                 </button>
-
             </div>
 
             <div class="empty-test-state">
-
-                <div class="empty-icon">
-                    🎧
-                </div>
-
-                <h2>
-                    No Listening Tests Available
-                </h2>
-
-                <p>
-                    Listening tests created by Admin
-                    will appear here.
-                </p>
-
+                <div class="empty-icon">🎧</div>
+                <h2>No Listening Tests Available</h2>
+                <p>Listening tests created by Admin will appear here.</p>
             </div>
 
         </div>
     `;
 
-    const backButton =
-        document.getElementById("backToStudentDashboard");
+    const backButton = document.getElementById("backToStudentDashboard");
 
     if (backButton) {
-        backButton.addEventListener(
-            "click",
-            () => openStudentDashboard(profile)
-        );
+        backButton.addEventListener("click", () => openStudentDashboard(profile));
     }
 }
 
