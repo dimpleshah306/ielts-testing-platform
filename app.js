@@ -551,44 +551,42 @@ function openStaffDashboard(profile) {
     // MODULE BUTTONS
     // ========================================
 
-    document
-        .querySelectorAll(".dashboard-card")
-        .forEach(card => {
+document
+    .querySelectorAll(".dashboard-card")
+    .forEach(card => {
 
-            card.addEventListener(
-                "click",
-                () => {
+        card.addEventListener("click", async () => {
 
-                    const module =
-                        card.dataset.module;
+            const module = card.dataset.module;
 
+            if (module === "students") {
 
-                    document
-                        .getElementById(
-                            "dashboardMessage"
-                        )
-                        .innerHTML = `
+                await openStudents();
 
-                            <div class="coming-soon">
+                return;
+            }
 
-                                <strong>
-                                    ${escapeHtml(
-                                        module.toUpperCase()
-                                    )}
-                                </strong>
+            document
+                .getElementById("dashboardMessage")
+                .innerHTML = `
 
-                                <p>
-                                    This module will be connected next.
-                                </p>
+                    <div class="coming-soon">
 
-                            </div>
+                        <strong>
+                            ${escapeHtml(module.toUpperCase())}
+                        </strong>
 
-                        `;
+                        <p>
+                            This module will be connected next.
+                        </p>
 
-                }
-            );
+                    </div>
+
+                `;
 
         });
+
+    });
 
 }
 
@@ -858,3 +856,214 @@ function escapeHtml(value) {
         .replaceAll("'", "&#039;");
 
 }
+// ============================================
+// STUDENTS MANAGEMENT
+// ============================================
+
+async function openStudents() {
+
+    const message =
+        document.getElementById("dashboardMessage");
+
+    message.innerHTML = `
+        <div class="coming-soon">
+            Loading students...
+        </div>
+    `;
+
+
+    try {
+
+        const { data: students, error } =
+            await supabaseClient
+                .from("students")
+                .select(
+                    "id, student_id, full_name, email, active, created_at"
+                )
+                .order(
+                    "created_at",
+                    { ascending: false }
+                );
+
+
+        if (error) {
+            throw error;
+        }
+
+
+        let rows = "";
+
+
+        if (!students || students.length === 0) {
+
+            rows = `
+                <tr>
+                    <td
+                        colspan="5"
+                        style="
+                            text-align:center;
+                            padding:30px;
+                            color:#64748b;
+                        "
+                    >
+                        No students found.
+                    </td>
+                </tr>
+            `;
+
+        } else {
+
+            rows = students.map(student => `
+
+                <tr>
+
+                    <td>
+                        ${escapeHtml(student.student_id)}
+                    </td>
+
+                    <td>
+                        ${escapeHtml(student.full_name)}
+                    </td>
+
+                    <td>
+                        ${escapeHtml(student.email || "-")}
+                    </td>
+
+                    <td>
+
+                        <span class="${
+                            student.active
+                                ? "status-active"
+                                : "status-inactive"
+                        }">
+
+                            ${
+                                student.active
+                                    ? "Active"
+                                    : "Inactive"
+                            }
+
+                        </span>
+
+                    </td>
+
+                    <td>
+                        ${new Date(
+                            student.created_at
+                        ).toLocaleDateString()}
+                    </td>
+
+                </tr>
+
+            `).join("");
+
+        }
+
+
+        message.innerHTML = `
+
+            <div class="students-panel">
+
+                <div class="students-panel-header">
+
+                    <div>
+
+                        <h2>
+                            Students
+                        </h2>
+
+                        <p>
+                            Manage registered students
+                        </p>
+
+                    </div>
+
+                    <button
+                        type="button"
+                        class="add-student-button"
+                        disabled
+                    >
+                        + Add Student
+                    </button>
+
+                </div>
+
+
+                <div class="students-table-wrapper">
+
+                    <table class="students-table">
+
+                        <thead>
+
+                            <tr>
+
+                                <th>
+                                    Student ID
+                                </th>
+
+                                <th>
+                                    Name
+                                </th>
+
+                                <th>
+                                    Email
+                                </th>
+
+                                <th>
+                                    Status
+                                </th>
+
+                                <th>
+                                    Created
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            ${rows}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        `;
+
+
+    } catch (error) {
+
+        console.error(
+            "Students Error:",
+            error
+        );
+
+
+        message.innerHTML = `
+
+            <div class="coming-soon">
+
+                <strong>
+                    Unable to load students
+                </strong>
+
+                <p>
+                    ${escapeHtml(
+                        error.message ||
+                        "Unknown error"
+                    )}
+                </p>
+
+            </div>
+
+        `;
+
+    }
+
+}
+
