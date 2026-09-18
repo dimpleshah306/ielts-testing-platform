@@ -787,7 +787,13 @@ function openStudentDashboard(profile) {
                     const module =
                         card.dataset.module;
 
+                    // LISTENING
+                    if (module === "listening") {
+                        openListeningTests(profile);
+                        return;
+                    }
 
+                    // Other modules — for now
                     document
                         .getElementById(
                             "dashboardMessage"
@@ -815,6 +821,72 @@ function openStudentDashboard(profile) {
 
         });
 
+}
+
+
+// ============================================
+// STUDENT LISTENING TESTS
+// ============================================
+
+function openListeningTests(profile) {
+    const message = document.getElementById("dashboardMessage");
+
+    if (!message) {
+        return;
+    }
+
+    message.innerHTML = `
+        <div class="students-panel">
+
+            <div class="students-panel-header">
+
+                <div>
+                    <h2>🎧 Listening Tests</h2>
+
+                    <p>
+                        Select a Listening Test to begin.
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    class="cancel-button"
+                    id="backToStudentDashboard"
+                >
+                    ← Dashboard
+                </button>
+
+            </div>
+
+            <div class="empty-test-state">
+
+                <div class="empty-icon">
+                    🎧
+                </div>
+
+                <h2>
+                    No Listening Tests Available
+                </h2>
+
+                <p>
+                    Listening tests created by Admin
+                    will appear here.
+                </p>
+
+            </div>
+
+        </div>
+    `;
+
+    const backButton =
+        document.getElementById("backToStudentDashboard");
+
+    if (backButton) {
+        backButton.addEventListener(
+            "click",
+            () => openStudentDashboard(profile)
+        );
+    }
 }
 
 
