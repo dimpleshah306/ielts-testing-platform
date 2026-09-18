@@ -124,10 +124,13 @@ loginForm.addEventListener("submit", async (event) => {
             showMessage("Student login successful.");
         }
 
-        // Temporary success screen
-        setTimeout(() => {
+// ============================================
+// OPEN DASHBOARD
+// ============================================
 
-            document.getElementById("app").innerHTML = `
+setTimeout(() => {
+    openDashboard(profile);
+}, 500);
                 <div style="
                     min-height:100vh;
                     display:flex;
@@ -240,4 +243,110 @@ function escapeHtml(value) {
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
+}
+// ============================================
+// ADMIN / TUTOR DASHBOARD
+// ============================================
+
+function openDashboard(profile) {
+
+    document.getElementById("app").innerHTML = `
+        <div class="dashboard">
+
+            <header class="dashboard-header">
+
+                <div>
+                    <h1>Universal Education IELTS</h1>
+                    <p>Testing Platform</p>
+                </div>
+
+                <div class="user-area">
+                    <div>
+                        <strong>${escapeHtml(profile.full_name)}</strong>
+                        <span>${escapeHtml(profile.role)}</span>
+                    </div>
+
+                    <button id="dashboardLogout">
+                        Logout
+                    </button>
+                </div>
+
+            </header>
+
+            <main class="dashboard-content">
+
+                <div class="dashboard-title">
+                    <h2>Admin Dashboard</h2>
+                    <p>Manage your IELTS testing platform</p>
+                </div>
+
+                <section class="dashboard-grid">
+
+                    <button class="dashboard-card" data-module="students">
+                        <span class="card-icon">👨‍🎓</span>
+                        <strong>Students</strong>
+                        <small>Manage students</small>
+                    </button>
+
+                    <button class="dashboard-card" data-module="tests">
+                        <span class="card-icon">📝</span>
+                        <strong>Tests</strong>
+                        <small>Create and manage tests</small>
+                    </button>
+
+                    <button class="dashboard-card" data-module="listening">
+                        <span class="card-icon">🎧</span>
+                        <strong>Listening</strong>
+                        <small>Manage listening tests</small>
+                    </button>
+
+                    <button class="dashboard-card" data-module="reading">
+                        <span class="card-icon">📖</span>
+                        <strong>Reading</strong>
+                        <small>Manage reading tests</small>
+                    </button>
+
+                    <button class="dashboard-card" data-module="writing">
+                        <span class="card-icon">✍️</span>
+                        <strong>Writing</strong>
+                        <small>Manage writing tasks</small>
+                    </button>
+
+                    <button class="dashboard-card" data-module="results">
+                        <span class="card-icon">📊</span>
+                        <strong>Results</strong>
+                        <small>View student results</small>
+                    </button>
+
+                </section>
+
+                <div id="dashboardMessage"></div>
+
+            </main>
+
+        </div>
+    `;
+
+    document
+        .getElementById("dashboardLogout")
+        .addEventListener("click", logout);
+
+    document
+        .querySelectorAll(".dashboard-card")
+        .forEach(card => {
+
+            card.addEventListener("click", () => {
+
+                const module = card.dataset.module;
+
+                document.getElementById("dashboardMessage").innerHTML = `
+                    <div class="coming-soon">
+                        <strong>${module.toUpperCase()}</strong>
+                        <p>This module will be connected next.</p>
+                    </div>
+                `;
+
+            });
+
+        });
 }
