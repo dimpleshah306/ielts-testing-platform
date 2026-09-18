@@ -3,10 +3,6 @@
 
 <head>
 
-    <!-- =========================================
-         BASIC META
-         ========================================= -->
-
     <meta charset="UTF-8">
 
     <meta
@@ -24,30 +20,16 @@
         content="#173f8a"
     >
 
-
-    <!-- =========================================
-         PAGE TITLE
-         ========================================= -->
-
     <title>
         Universal Education IELTS Testing Platform
     </title>
-
-
-    <!-- =========================================
-         STYLESHEET
-         ========================================= -->
 
     <link
         rel="stylesheet"
         href="styles.css"
     >
 
-
-    <!-- =========================================
-         SUPABASE
-         ========================================= -->
-
+    <!-- Supabase JavaScript Library -->
     <script
         src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
     ></script>
@@ -59,19 +41,19 @@
 
 
     <!-- =========================================
-         MAIN APPLICATION CONTAINER
+         APPLICATION
          ========================================= -->
 
     <div id="app">
 
-        <!-- Loading screen -->
-
-        <div
-            class="login-page"
-            id="initialLoading"
-        >
+        <main class="login-page">
 
             <section class="login-card">
+
+
+                <!-- =================================
+                     BRAND
+                     ================================= -->
 
                 <div class="brand">
 
@@ -89,25 +71,130 @@
 
                 </div>
 
-                <div
-                    style="
-                        text-align:center;
-                        color:#64748b;
-                        font-size:14px;
-                    "
-                >
-                    Loading...
+
+                <!-- =================================
+                     LOGIN TABS
+                     ================================= -->
+
+                <div class="login-tabs">
+
+                    <button
+                        id="studentTab"
+                        class="login-tab active"
+                        type="button"
+                    >
+                        Student Login
+                    </button>
+
+
+                    <button
+                        id="staffTab"
+                        class="login-tab"
+                        type="button"
+                    >
+                        Admin / Tutor
+                    </button>
+
                 </div>
+
+
+                <!-- =================================
+                     LOGIN FORM
+                     ================================= -->
+
+                <form id="loginForm">
+
+
+                    <!-- EMAIL -->
+
+                    <div class="form-group">
+
+                        <label for="email">
+                            Email Address
+                        </label>
+
+                        <input
+                            type="email"
+                            id="email"
+                            name="email"
+                            placeholder="Enter your email"
+                            autocomplete="email"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- PASSWORD -->
+
+                    <div class="form-group">
+
+                        <label for="password">
+                            Password
+                        </label>
+
+                        <input
+                            type="password"
+                            id="password"
+                            name="password"
+                            placeholder="Enter your password"
+                            autocomplete="current-password"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- LOGIN BUTTON -->
+
+                    <button
+                        type="submit"
+                        id="loginButton"
+                        class="login-button"
+                    >
+                        Login
+                    </button>
+
+
+                </form>
+
+
+                <!-- =================================
+                     LOGIN MESSAGE
+                     ================================= -->
+
+                <div
+                    id="loginMessage"
+                    class="login-message"
+                ></div>
+
+
+                <!-- =================================
+                     FOOTER
+                     ================================= -->
+
+                <div class="login-footer">
+
+                    <p>
+                        Universal Education
+                    </p>
+
+                    <span>
+                        IELTS Testing Platform
+                    </span>
+
+                </div>
+
 
             </section>
 
-        </div>
+        </main>
 
     </div>
 
 
     <!-- =========================================
-         MAIN JAVASCRIPT
+         APPLICATION JAVASCRIPT
          ========================================= -->
 
     <script src="app.js"></script>
