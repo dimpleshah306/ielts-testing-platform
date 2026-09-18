@@ -865,6 +865,11 @@ async function openStudents() {
     const message =
         document.getElementById("dashboardMessage");
 
+
+    // ----------------------------------------
+    // LOADING
+    // ----------------------------------------
+
     message.innerHTML = `
         <div class="coming-soon">
             Loading students...
@@ -873,6 +878,10 @@ async function openStudents() {
 
 
     try {
+
+        // ------------------------------------
+        // GET STUDENTS FROM SUPABASE
+        // ------------------------------------
 
         const { data: students, error } =
             await supabaseClient
@@ -891,6 +900,10 @@ async function openStudents() {
         }
 
 
+        // ------------------------------------
+        // CREATE TABLE ROWS
+        // ------------------------------------
+
         let rows = "";
 
 
@@ -898,6 +911,7 @@ async function openStudents() {
 
             rows = `
                 <tr>
+
                     <td
                         colspan="5"
                         style="
@@ -908,6 +922,7 @@ async function openStudents() {
                     >
                         No students found.
                     </td>
+
                 </tr>
             `;
 
@@ -918,15 +933,21 @@ async function openStudents() {
                 <tr>
 
                     <td>
-                        ${escapeHtml(student.student_id)}
+                        ${escapeHtml(
+                            student.student_id
+                        )}
                     </td>
 
                     <td>
-                        ${escapeHtml(student.full_name)}
+                        ${escapeHtml(
+                            student.full_name
+                        )}
                     </td>
 
                     <td>
-                        ${escapeHtml(student.email || "-")}
+                        ${escapeHtml(
+                            student.email || "-"
+                        )}
                     </td>
 
                     <td>
@@ -960,17 +981,16 @@ async function openStudents() {
         }
 
 
+        // ------------------------------------
+        // STUDENTS SCREEN
+        // ------------------------------------
+
         message.innerHTML = `
 
-        const addStudentButton =
-    document.getElementById("addStudentButton");
-
-addStudentButton.addEventListener(
-    "click",
-    openAddStudentForm
-);
-
             <div class="students-panel">
+
+
+                <!-- HEADER -->
 
                 <div class="students-panel-header">
 
@@ -986,16 +1006,19 @@ addStudentButton.addEventListener(
 
                     </div>
 
+
                     <button
-    type="button"
-    id="addStudentButton"
-    class="add-student-button"
->
-    + Add Student
-</button>
+                        type="button"
+                        id="addStudentButton"
+                        class="add-student-button"
+                    >
+                        + Add Student
+                    </button>
 
                 </div>
 
+
+                <!-- TABLE -->
 
                 <div class="students-table-wrapper">
 
@@ -1029,6 +1052,7 @@ addStudentButton.addEventListener(
 
                         </thead>
 
+
                         <tbody>
 
                             ${rows}
@@ -1039,9 +1063,26 @@ addStudentButton.addEventListener(
 
                 </div>
 
+
             </div>
 
         `;
+
+
+        // ------------------------------------
+        // ADD STUDENT BUTTON
+        // ------------------------------------
+
+        const addStudentButton =
+            document.getElementById(
+                "addStudentButton"
+            );
+
+
+        addStudentButton.addEventListener(
+            "click",
+            openAddStudentForm
+        );
 
 
     } catch (error) {
