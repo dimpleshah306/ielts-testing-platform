@@ -2,9 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>Universal Education IELTS</title>
 
@@ -16,9 +14,76 @@
 
 <body>
 
-    <div id="app">
-        Loading...
-    </div>
+    <main class="login-page">
+
+        <section class="login-card">
+
+            <div class="brand">
+                <div class="brand-logo">UE</div>
+
+                <h1>Universal Education</h1>
+                <p>IELTS Testing Platform</p>
+            </div>
+
+            <div class="login-tabs">
+                <button
+                    id="studentTab"
+                    class="login-tab active"
+                    type="button">
+                    Student Login
+                </button>
+
+                <button
+                    id="staffTab"
+                    class="login-tab"
+                    type="button">
+                    Admin / Tutor
+                </button>
+            </div>
+
+            <form id="loginForm">
+
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+
+                    <input
+                        type="email"
+                        id="email"
+                        placeholder="Enter your email"
+                        autocomplete="email"
+                        required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+
+                    <input
+                        type="password"
+                        id="password"
+                        placeholder="Enter your password"
+                        autocomplete="current-password"
+                        required>
+                </div>
+
+                <button
+                    type="submit"
+                    id="loginButton"
+                    class="login-button">
+                    Login
+                </button>
+
+            </form>
+
+            <div id="loginMessage" class="login-message"></div>
+
+            <div class="login-footer">
+                <p>Universal Education</p>
+                <span>IELTS Testing Platform</span>
+            </div>
+
+        </section>
+
+    </main>
 
     <script src="app.js"></script>
 
