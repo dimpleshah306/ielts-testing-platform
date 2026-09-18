@@ -1075,3 +1075,266 @@ addStudentButton.addEventListener(
 
 }
 
+// ============================================
+// ADD STUDENT FORM
+// ============================================
+
+function openAddStudentForm() {
+
+    const message =
+        document.getElementById("dashboardMessage");
+
+    message.innerHTML = `
+
+        <div class="students-panel">
+
+            <div class="students-panel-header">
+
+                <div>
+                    <h2>Add New Student</h2>
+
+                    <p>
+                        Enter student information
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    id="cancelStudentButton"
+                    class="cancel-button"
+                >
+                    Cancel
+                </button>
+
+            </div>
+
+
+            <form
+                id="addStudentForm"
+                class="student-form"
+            >
+
+                <div class="form-group">
+
+                    <label for="studentId">
+                        Student ID
+                    </label>
+
+                    <input
+                        type="text"
+                        id="studentId"
+                        placeholder="Example: UE001"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="studentFullName">
+                        Full Name
+                    </label>
+
+                    <input
+                        type="text"
+                        id="studentFullName"
+                        placeholder="Enter student's full name"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="studentEmail">
+                        Email Address
+                    </label>
+
+                    <input
+                        type="email"
+                        id="studentEmail"
+                        placeholder="Enter student's email"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="student-form-actions">
+
+                    <button
+                        type="button"
+                        id="cancelStudentButton2"
+                        class="cancel-button"
+                    >
+                        Cancel
+                    </button>
+
+                    <button
+                        type="submit"
+                        id="saveStudentButton"
+                        class="save-button"
+                    >
+                        Save Student
+                    </button>
+
+                </div>
+
+                <div
+                    id="studentFormMessage"
+                    class="login-message"
+                ></div>
+
+            </form>
+
+        </div>
+
+    `;
+
+
+    // ----------------------------------------
+    // CANCEL
+    // ----------------------------------------
+
+    document
+        .getElementById("cancelStudentButton")
+        .addEventListener(
+            "click",
+            openStudents
+        );
+
+    document
+        .getElementById("cancelStudentButton2")
+        .addEventListener(
+            "click",
+            openStudents
+        );
+
+
+    // ----------------------------------------
+    // FORM SUBMIT
+    // ----------------------------------------
+
+    document
+        .getElementById("addStudentForm")
+        .addEventListener(
+            "submit",
+            saveStudent
+        );
+
+}
+
+
+// ============================================
+// SAVE STUDENT
+// ============================================
+
+async function saveStudent(event) {
+
+    event.preventDefault();
+
+
+    const studentId =
+        document
+            .getElementById("studentId")
+            .value
+            .trim()
+            .toUpperCase();
+
+    const fullName =
+        document
+            .getElementById("studentFullName")
+            .value
+            .trim();
+
+    const email =
+        document
+            .getElementById("studentEmail")
+            .value
+            .trim();
+
+
+    const saveButton =
+        document.getElementById(
+            "saveStudentButton"
+        );
+
+    const formMessage =
+        document.getElementById(
+            "studentFormMessage"
+        );
+
+
+    if (!studentId || !fullName || !email) {
+
+        formMessage.textContent =
+            "Please fill all required fields.";
+
+        formMessage.style.color =
+            "#dc2626";
+
+        return;
+    }
+
+
+    saveButton.disabled = true;
+    saveButton.textContent = "Saving...";
+
+
+    try {
+
+        const { error } =
+            await supabaseClient
+                .from("students")
+                .insert({
+                    student_id: studentId,
+                    full_name: fullName,
+                    email: email,
+                    active: true
+                });
+
+
+        if (error) {
+            throw error;
+        }
+
+
+        formMessage.textContent =
+            "Student added successfully.";
+
+        formMessage.style.color =
+            "#15803d";
+
+
+        setTimeout(() => {
+
+            openStudents();
+
+        }, 800);
+
+
+    } catch (error) {
+
+        console.error(
+            "Add Student Error:",
+            error
+        );
+
+
+        formMessage.textContent =
+            error.message ||
+            "Unable to add student.";
+
+        formMessage.style.color =
+            "#dc2626";
+
+
+        saveButton.disabled = false;
+        saveButton.textContent =
+            "Save Student";
+
+    }
+
+}
