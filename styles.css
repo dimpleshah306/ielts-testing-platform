@@ -507,3 +507,73 @@ body {
     }
 
 }
+/* ============================================
+   ADD STUDENT FORM
+   ============================================ */
+
+.student-form {
+    padding: 28px;
+    max-width: 650px;
+}
+
+.student-form .form-group {
+    margin-bottom: 20px;
+}
+
+.student-form input {
+    background: #ffffff;
+}
+
+.student-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 25px;
+}
+
+.save-button,
+.cancel-button {
+    padding: 11px 18px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.save-button {
+    border: none;
+    background: #173f8a;
+    color: #ffffff;
+}
+
+.save-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.cancel-button {
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    color: #374151;
+}
+
+.cancel-button:hover {
+    background: #f8fafc;
+}
+
+@media (max-width: 600px) {
+
+    .student-form {
+        padding: 20px;
+    }
+
+    .student-form-actions {
+        flex-direction: column-reverse;
+    }
+
+    .save-button,
+    .cancel-button {
+        width: 100%;
+    }
+
+}
