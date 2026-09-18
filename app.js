@@ -1135,7 +1135,7 @@ function openAddStudentForm() {
                     <h2>Add New Student</h2>
 
                     <p>
-                        Enter student information
+                        Create student login account
                     </p>
                 </div>
 
@@ -1197,27 +1197,31 @@ function openAddStudentForm() {
                         type="email"
                         id="studentEmail"
                         placeholder="Enter student's email"
+                        autocomplete="email"
                         required
                     >
 
                 </div>
 
-<div class="form-group">
 
-    <label for="studentPassword">
-        Student Login Password
-    </label>
+                <div class="form-group">
 
-    <input
-        type="password"
-        id="studentPassword"
-        placeholder="Minimum 8 characters"
-        autocomplete="new-password"
-        minlength="8"
-        required
-    >
+                    <label for="studentPassword">
+                        Student Login Password
+                    </label>
 
-</div>
+                    <input
+                        type="password"
+                        id="studentPassword"
+                        placeholder="Minimum 8 characters"
+                        autocomplete="new-password"
+                        minlength="8"
+                        required
+                    >
+
+                </div>
+
+
                 <div class="student-form-actions">
 
                     <button
@@ -1233,10 +1237,11 @@ function openAddStudentForm() {
                         id="saveStudentButton"
                         class="save-button"
                     >
-                        Save Student
+                        Create Student Account
                     </button>
 
                 </div>
+
 
                 <div
                     id="studentFormMessage"
@@ -1250,9 +1255,9 @@ function openAddStudentForm() {
     `;
 
 
-    // ----------------------------------------
-    // CANCEL
-    // ----------------------------------------
+    // ========================================
+    // CANCEL BUTTONS
+    // ========================================
 
     document
         .getElementById("cancelStudentButton")
@@ -1260,6 +1265,7 @@ function openAddStudentForm() {
             "click",
             openStudents
         );
+
 
     document
         .getElementById("cancelStudentButton2")
@@ -1269,9 +1275,9 @@ function openAddStudentForm() {
         );
 
 
-    // ----------------------------------------
+    // ========================================
     // FORM SUBMIT
-    // ----------------------------------------
+    // ========================================
 
     document
         .getElementById("addStudentForm")
@@ -1284,7 +1290,7 @@ function openAddStudentForm() {
 
 
 // ============================================
-// SAVE STUDENT
+// SAVE STUDENT THROUGH EDGE FUNCTION
 // ============================================
 
 async function saveStudent(event) {
@@ -1299,17 +1305,26 @@ async function saveStudent(event) {
             .trim()
             .toUpperCase();
 
+
     const fullName =
         document
             .getElementById("studentFullName")
             .value
             .trim();
 
+
     const email =
         document
             .getElementById("studentEmail")
             .value
-            .trim();
+            .trim()
+            .toLowerCase();
+
+
+    const password =
+        document
+            .getElementById("studentPassword")
+            .value;
 
 
     const saveButton =
@@ -1317,13 +1332,23 @@ async function saveStudent(event) {
             "saveStudentButton"
         );
 
+
     const formMessage =
         document.getElementById(
             "studentFormMessage"
         );
 
 
-    if (!studentId || !fullName || !email) {
+    // ========================================
+    // VALIDATION
+    // ========================================
+
+    if (
+        !studentId ||
+        !fullName ||
+        !email ||
+        !password
+    ) {
 
         formMessage.textContent =
             "Please fill all required fields.";
@@ -1332,33 +1357,135 @@ async function saveStudent(event) {
             "#dc2626";
 
         return;
+
     }
 
 
+    if (password.length < 8) {
+
+        formMessage.textContent =
+            "Password must contain at least 8 characters.";
+
+        formMessage.style.color =
+            "#dc2626";
+
+        return;
+
+    }
+
+
+    // ========================================
+    // LOADING
+    // ========================================
+
     saveButton.disabled = true;
-    saveButton.textContent = "Saving...";
+
+    saveButton.textContent =
+        "Creating Account...";
+
+    formMessage.textContent = "";
 
 
     try {
 
-        const { error } =
+        // ====================================
+        // GET CURRENT SESSION
+        // ====================================
+
+        const {
+            data: sessionData,
+            error: sessionError
+        } =
             await supabaseClient
-                .from("students")
-                .insert({
-                    student_id: studentId,
-                    full_name: fullName,
-                    email: email,
-                    active: true
-                });
+                .auth
+                .getSession();
 
 
-        if (error) {
-            throw error;
+        if (sessionError) {
+            throw sessionError;
         }
 
 
+        const session =
+            sessionData.session;
+
+
+        if (!session) {
+
+            throw new Error(
+                "Your login session has expired. Please login again."
+            );
+
+        }
+
+
+        // ====================================
+        // CALL EDGE FUNCTION
+        // ====================================
+
+        const response =
+            await fetch(
+                `${SUPABASE_URL}/functions/v1/create-student`,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+
+                        "Authorization":
+                            `Bearer ${session.access_token}`,
+
+                        "apikey":
+                            SUPABASE_PUBLISHABLE_KEY
+                    },
+
+                    body: JSON.stringify({
+
+                        student_id:
+                            studentId,
+
+                        full_name:
+                            fullName,
+
+                        email:
+                            email,
+
+                        password:
+                            password
+
+                    })
+                }
+            );
+
+
+        // ====================================
+        // READ RESPONSE
+        // ====================================
+
+        const result =
+            await response.json();
+
+
+        if (
+            !response.ok ||
+            !result.success
+        ) {
+
+            throw new Error(
+                result.error ||
+                "Unable to create student account."
+            );
+
+        }
+
+
+        // ====================================
+        // SUCCESS
+        // ====================================
+
         formMessage.textContent =
-            "Student added successfully.";
+            "Student account created successfully.";
 
         formMessage.style.color =
             "#15803d";
@@ -1368,28 +1495,29 @@ async function saveStudent(event) {
 
             openStudents();
 
-        }, 800);
+        }, 1000);
 
 
     } catch (error) {
 
         console.error(
-            "Add Student Error:",
+            "Create Student Error:",
             error
         );
 
 
         formMessage.textContent =
             error.message ||
-            "Unable to add student.";
+            "Unable to create student account.";
 
         formMessage.style.color =
             "#dc2626";
 
 
         saveButton.disabled = false;
+
         saveButton.textContent =
-            "Save Student";
+            "Create Student Account";
 
     }
 
