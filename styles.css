@@ -404,3 +404,106 @@ body {
     }
 }
 }
+
+/* ============================================
+   STUDENTS MANAGEMENT
+   ============================================ */
+
+.students-panel {
+    margin-top: 28px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.students-panel-header {
+    padding: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.students-panel-header h2 {
+    font-size: 21px;
+}
+
+.students-panel-header p {
+    margin-top: 5px;
+    color: #64748b;
+    font-size: 13px;
+}
+
+.add-student-button {
+    padding: 11px 18px;
+    border: none;
+    border-radius: 8px;
+    background: #173f8a;
+    color: #ffffff;
+    font-weight: 600;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.students-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.students-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 650px;
+}
+
+.students-table th,
+.students-table td {
+    padding: 14px 18px;
+    text-align: left;
+    border-bottom: 1px solid #eef2f7;
+    font-size: 14px;
+}
+
+.students-table th {
+    background: #f8fafc;
+    color: #475569;
+    font-size: 13px;
+}
+
+.students-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.status-active,
+.status-inactive {
+    display: inline-block;
+    padding: 5px 9px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status-active {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.status-inactive {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+@media (max-width: 600px) {
+
+    .students-panel-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .add-student-button {
+        width: 100%;
+    }
+
+}
