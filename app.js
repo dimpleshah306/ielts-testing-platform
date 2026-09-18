@@ -962,6 +962,14 @@ async function openStudents() {
 
         message.innerHTML = `
 
+        const addStudentButton =
+    document.getElementById("addStudentButton");
+
+addStudentButton.addEventListener(
+    "click",
+    openAddStudentForm
+);
+
             <div class="students-panel">
 
                 <div class="students-panel-header">
