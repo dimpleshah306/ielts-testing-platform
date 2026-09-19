@@ -2782,3 +2782,112 @@ window.v3AddQuestionToGroup = masterV3AddQuestionToGroup;
 window.addAdminQuestionToGroup = masterV3AddQuestionToGroup;
 window.v3SaveGroup = masterV3SaveGroup;
 window.saveAdminQuestionGroup = masterV3SaveGroup;
+
+/* =====================================================================
+   INLINE BLANK ENGINE — Listening/Reading Completion Groups
+   Use [BLANK 1], [BLANK 2] ... inside Group Content. Each token maps
+   to the corresponding Question in that group, in question-number order.
+   ===================================================================== */
+(function installInlineBlankEngine(){
+  const style = document.createElement('style');
+  style.textContent = `
+    .inline-blank-input{display:inline-block!important;width:150px!important;min-width:90px!important;max-width:220px!important;margin:0 4px!important;padding:3px 6px!important;border:0!important;border-bottom:2px solid #111827!important;border-radius:0!important;background:transparent!important;vertical-align:baseline!important;box-shadow:none!important;font:inherit!important}
+    .inline-blank-input:focus{outline:none!important;border-bottom-color:#2563eb!important;background:#eff6ff!important}
+    .inline-blank-number{font-size:.72em;color:#475569;margin-right:2px;vertical-align:super}
+    .inline-blank-builder{border:1px dashed #94a3b8;background:#f8fafc;border-radius:8px;padding:10px;margin-top:8px}
+    .inline-blank-builder code{background:#e2e8f0;padding:2px 5px;border-radius:4px}
+  `;
+  document.head.appendChild(style);
+})();
+
+function insertInlineBlankToken(groupId){
+  const ta = document.getElementById(`v3-gcontent-${groupId}`) || document.getElementById(`group-content-${groupId}`);
+  if(!ta) return;
+  const matches = String(ta.value||'').match(/\[BLANK\s+\d+\]/gi) || [];
+  const next = matches.length + 1;
+  const token = `[BLANK ${next}]`;
+  const start = typeof ta.selectionStart === 'number' ? ta.selectionStart : ta.value.length;
+  const end = typeof ta.selectionEnd === 'number' ? ta.selectionEnd : ta.value.length;
+  ta.value = ta.value.slice(0,start) + token + ta.value.slice(end);
+  ta.focus();
+  const pos = start + token.length;
+  try { ta.setSelectionRange(pos,pos); } catch(e){}
+}
+window.insertInlineBlankToken = insertInlineBlankToken;
+
+function inlineBlankHelpV3(groupId){
+  return `<div class="inline-blank-builder"><strong>Inline Blank Builder</strong><div style="margin-top:5px">Place answer boxes directly inside the notes/sentence by using <code>[BLANK 1]</code>, <code>[BLANK 2]</code>, etc. Use the button to insert the next blank at the cursor. Each blank uses the matching Question's answer configuration.</div><div style="margin-top:8px"><button type="button" onclick="insertInlineBlankToken('${groupId}')">＋ Insert Next Blank</button></div></div>`;
+}
+
+function renderInlineBlankContentV3(content, questions, groupId, opts={}){
+  let html = v3Esc(String(content||''));
+  const qs = (questions||[]).slice().sort((a,b)=>Number(a.question_number||0)-Number(b.question_number||0));
+  html = html.replace(/\[BLANK\s+(\d+)\]/gi, (full,n)=>{
+    const idx = Math.max(0, Number(n)-1);
+    const q = qs[idx];
+    if(!q){ return `<span style="display:inline-block;padding:2px 7px;border-bottom:2px solid #ef4444;color:#ef4444">[BLANK ${Number(n)}]</span>`; }
+    const ans = studentTestState?.answers?.[q.id] ?? '';
+    const cfg = v3Json(q.question_config,{});
+    const limit = Number(cfg.word_limit||0);
+    const width = limit > 2 ? 190 : 145;
+    const placeholder = opts.preview ? '' : `Answer ${Number(q.question_number||n)}`;
+    return `<span class="inline-blank-wrap"><span class="inline-blank-number">${Number(q.question_number||n)}</span><input class="inline-blank-input" style="width:${width}px" data-inline-blank="${v3Attr(q.id)}" value="${v3Attr(ans)}" placeholder="${v3Attr(placeholder)}" ${limit>0?`data-word-limit="${limit}"`:''} oninput="v3SetAnswerValue('${q.id}',this.value)" autocomplete="off"></span>`;
+  });
+  return html;
+}
+window.renderInlineBlankContentV3 = renderInlineBlankContentV3;
+
+/* Override the final Group Editor so completion groups have a real inline-blank authoring workflow. */
+adminQuestionGroupEditor = function(g, sectionLabel){
+  const typeMap = adminCurrentTest?.module==='listening' ? IELTS_V3_LISTENING_TYPES : IELTS_V3_READING_TYPES;
+  const qs = v3GroupQuestions(g);
+  const typeOptions = Object.entries(typeMap).map(([k,v])=>`<option value="${k}" ${g.question_type===k?'selected':''}>${v3Esc(v)}</option>`).join('');
+  const cfg = v3Json(g.configuration,{});
+  const isCompletion = /completion|summary_completion|sentence_completion/.test(String(g.question_type||''));
+  return `<div class="v3-group">
+    <div class="v3-row"><div><strong>${v3Esc(g.group_title||`Question Group ${g.group_order||1}`)}</strong><div class="muted">${v3Esc(sectionLabel)} • Questions ${Number(g.start_question)}–${Number(g.end_question)}</div></div>
+    <div class="v3-actions"><button type="button" onclick="v3AddQuestionToGroup('${g.id}')">+ Add Question / Blank</button><button type="button" class="danger" onclick="v3DeleteGroup('${g.id}')">Delete Group</button></div></div>
+    <div class="v3-grid">
+      <label>Group Title<input id="v3-gt-${g.id}" value="${v3Attr(g.group_title||'')}" placeholder="e.g. Questions 1–4"></label>
+      <label>Start Question No.<input id="v3-gstart-${g.id}" type="number" min="1" value="${Number(g.start_question||1)}"></label>
+      <label>End Question No.<input id="v3-gend-${g.id}" type="number" min="1" value="${Number(g.end_question||1)}"></label>
+      <label>Group Order<input id="v3-gorder-${g.id}" type="number" min="1" value="${Number(g.group_order||1)}"></label>
+      <label>Question Type<select id="v3-gtype-${g.id}" onchange="v3RefreshGroupType('${g.id}')">${typeOptions}</select></label>
+    </div>
+    <label>Instructions<textarea id="v3-ginst-${g.id}" style="min-height:80px" placeholder="e.g. Complete the notes below.\nWrite ONE WORD AND/OR A NUMBER for each answer.">${v3Esc(g.instructions||'')}</textarea></label>
+    <label>Group Content / Notes / Heading<textarea id="v3-gcontent-${g.id}" style="min-height:170px" placeholder="Example:\nEasylet Accommodation Agency\n\nCheapest properties: £ [BLANK 1] per week\n\nMinimum period of contract: [BLANK 2]\n\nOffice open Saturdays until [BLANK 3]\n\nList of properties available on the [BLANK 4]">${v3Esc(g.content||'')}</textarea></label>
+    ${isCompletion ? inlineBlankHelpV3(g.id) : ''}
+    <div class="v3-grid"><label>Image URL<input id="v3-gimage-${g.id}" value="${v3Attr(g.image_url||'')}"></label><label>Audio Start (sec)<input id="v3-gastart-${g.id}" type="number" min="0" step="0.1" value="${g.audio_start_seconds??''}"></label><label>Audio End (sec)<input id="v3-gaend-${g.id}" type="number" min="0" step="0.1" value="${g.audio_end_seconds??''}"></label></div>
+    <div id="v3-gtypepanel-${g.id}">${v3TypeFields(g)}</div>
+    <div class="v3-row"><button type="button" class="save-button" onclick="v3SaveGroup('${g.id}')">💾 Save Group + Options</button><span class="muted">${qs.length} question(s) / blank(s)</span></div>
+    <div id="v3-gquestions-${g.id}">${qs.map(q=>v3QuestionEditor(q,g)).join('')||'<div class="muted" style="padding:12px">No questions yet. Click + Add Question / Blank.</div>'}</div>
+  </div>`;
+};
+
+/* Override Student renderer: completion/sentence/summary groups render their answer boxes inline. */
+function renderStudentTestRunnerInlineBlanks(){
+  const app=document.getElementById('app'), state=studentTestState;
+  if(!app||!state?.data) return;
+  const {test,sections}=state.data;
+  if(test.module==='writing') return renderV3WritingRunner();
+  const s=sections[state.currentSection];
+  const isL=test.module==='listening';
+  const groups=state.data.groups.filter(g=>g.section_id===s.id).sort((a,b)=>Number(a.group_order)-Number(b.group_order));
+  const qs=state.data.questions.filter(q=>q.section_id===s.id).sort((a,b)=>Number(a.question_number)-Number(b.question_number));
+  const groupBlock = groups.map(g=>{
+    const gqs=qs.filter(q=>q.group_id===g.id || (Number(q.question_number)>=Number(g.start_question)&&Number(q.question_number)<=Number(g.end_question)));
+    const type=String(g.question_type||'');
+    const inline=/completion|summary_completion|sentence_completion/.test(type);
+    if(inline){
+      return `<div class="v3-inline-group"><h3>Questions ${Number(g.start_question)}–${Number(g.end_question)}</h3>${g.instructions?`<div class="v3-instructions">${v3Esc(g.instructions)}</div>`:''}<div class="v3-rich inline-blank-content">${renderInlineBlankContentV3(g.content||'',gqs,g.id)}</div>${g.image_url?`<img src="${v3Attr(g.image_url)}" style="max-width:100%;margin-top:12px">`:''}</div>`;
+    }
+    return `<div class="v3-inline-group"><h3>Questions ${Number(g.start_question)}–${Number(g.end_question)}</h3>${g.instructions?`<div class="v3-instructions">${v3Esc(g.instructions)}</div>`:''}${g.content?`<div class="v3-rich">${v3Esc(g.content)}</div>`:''}${g.image_url?`<img src="${v3Attr(g.image_url)}" style="max-width:100%;margin-top:12px">`:''}<div class="v3-question-list">${gqs.map(q=>v3RenderQuestion(q,g)).join('')}</div></div>`;
+  }).join('');
+  const standalone=groups.length?'':qs.map(q=>v3RenderQuestion(q,null)).join('');
+  app.innerHTML=`<div class="dashboard"><header class="dashboard-header"><div><h1>${v3Esc(test.title)}</h1><p>${state.preview?'Student View Preview':'Student Test'}</p></div><div class="user-area"><button type="button" onclick="exitStudentTest()">← ${state.preview?'Back to Admin':'Dashboard'}</button></div></header><main class="dashboard-content">${state.preview?'<div class="v3-preview-banner">Preview Mode — same renderer as Student Test.</div>':''}<div class="v3-nav">${sections.map((x,i)=>`<button type="button" class="${i===state.currentSection?'save-button':'cancel-button'}" onclick="switchStudentSection(${i})">${isL?'Part':'Passage'} ${i+1}</button>`).join('')}</div><div class="v3-split"><section class="v3-pane">${isL&&s.audio_url?`<audio id="v3-audio" controls ${v3Json(s.audio_config,{}).controlled?'controlsList="nodownload noplaybackrate"':''} src="${v3Attr(s.audio_url)}" style="width:100%"></audio>`:''}<h2>${v3Esc(s.title||'')}</h2>${s.instructions?`<div class="v3-instructions">${v3Esc(s.instructions)}</div>`:''}${s.image_url?`<img src="${v3Attr(s.image_url)}" style="max-width:100%;border-radius:8px">`:''}${s.content?`<div class="v3-rich">${v3Esc(s.content)}</div>`:''}</section><section class="v3-pane"><h2>Questions</h2>${groupBlock||standalone}</section></div><div class="v3-nav"><button type="button" class="cancel-button" ${state.currentSection===0?'disabled':''} onclick="switchStudentSection(${state.currentSection-1})">← Previous</button>${state.currentSection<sections.length-1?`<button type="button" class="save-button" onclick="switchStudentSection(${state.currentSection+1})">Next →</button>`:state.preview?`<button type="button" class="save-button" onclick="exitStudentTest()">Finish Preview</button>`:`<button type="button" class="save-button" onclick="submitStudentTest()">Submit Test</button>`}</div></main></div>`;
+}
+window.renderStudentTestRunner = renderStudentTestRunnerInlineBlanks;
+
+/* Make the inline blank feature available to existing Preview/Test flows. */
+window.adminQuestionGroupEditor = adminQuestionGroupEditor;
+
