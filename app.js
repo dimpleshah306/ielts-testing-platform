@@ -1,282 +1,2027 @@
-const SUPABASE_URL = "https://gbmoqbqniwjtxbzunrtm.supabase.co";
-const SUPABASE_KEY = "sb_publishable_jRqTb_uDMFbH9T-z5xI1oA_EmdQvfBL";
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-/* Universal Education — GitHub Pages / Local Storage edition */
-const UE_STORAGE_KEY='ue_ielts_github_pages_v1';
-const UE_SEED={"version":1,"settings":{"admin_pin":"1234"},"next":{"test":4,"question":81,"result":1,"writing":1,"student":2},"tests":[{"id":1,"section":"Listening","title":"Universal Education \u2014 IELTS Listening Mock Test 1","duration":40,"status":"published","audio":"","instructions":"Complete all 40 questions. Part 1 = Q1\u201310, Part 2 = Q11\u201320, Part 3 = Q21\u201330, Part 4 = Q31\u201340. Add your licensed/owned single combined audio in Tutor/Admin.","task1":"","task2":""},{"id":2,"section":"Reading","title":"Universal Education \u2014 IELTS Academic Reading Mock Test 1","duration":60,"status":"published","passages":[{"id":1,"title":"The Impact of Wilderness Tourism","content":"The Impact of Wilderness Tourism\n\nA\n\nThe market for tourism in remote areas is booming as never before. Countries all across the world are actively promoting their 'wilderness' regions - such as mountains, Arctic lands, deserts, small islands and wetlands - to highspending tourists. The attraction of these areas is obvious: by definition, wilderness tourism requires little or no initial investment. But that does not mean that there is no cost. As the 1992 United Nations Conference on Environment and Development recognised, these regions are fragile (i.e. highly vulnerable to abnormal pressures) not just in terms of their ecology, but also in terms of the culture of their inhabitants. The three most significant types of fragile environment in these respects, and also in terms of the proportion of the Earth's surface they cover, are deserts, mountains and Arctic areas. An important characteristic is their marked seasonality, with harsh conditions prevailing for many months each year. Consequently, most human activities, including tourism, are limited to quite clearly defined parts of the year. Tourists are drawn to these regions by their natural landscape beauty and the unique cultures of their indigenous people. And poor governments in these isolated areas have welcomed the new breed of 'adventure tourist', grateful for the hard currency they bring. For several years now, tourism has been the prime source of foreign exchange in Nepal and Bhutan. Tourism is also a key element in the economies of Arctic zones such as Lapland and Alaska and in desert areas such as Ayers Rock in Australia and Arizona's Monument Valley.\n\nB\n\nOnce a location is established as a main tourist destination, the effects on the local community are profound. When hill-farmers, for example, can make more money in a few weeks working as porters for foreign trekkers than they can in a year working in their fields, it is not surprising that many of them give up their farm-work, which is thus left to other members of the family. In some hill-regions, this has led to a serious decline in farm output and a change in the local diet, because there is insufficient labour to maintain terraces and irrigation systems and tend to crops. The result has been that many people in these regions have turned to outside supplies of rice and other foods. In Arctic and desert societies, year-round survival has traditionally depended on hunting animals and fish and collecting fruit over a relatively short season. However, as some inhabitants become involved in tourism, they no longer have time to collect wild food; this has led to increasing dependence on bought food and stores. Tourism is not always the culprit behind such changes. All kinds of wage labour, or government handouts, tend to undermine traditional survival systems. Whatever the cause, the dilemma is always the same: what happens if these new, external sources of income dry up? The physical impact of visitors is another serious problem associated with the growth in adventure tourism. Much attention has focused on erosion along major trails, but perhaps more important are the deforestation and impacts on water supplies arising from the need to provide tourists with cooked food and hot showers. In both mountains and deserts, slow-growing trees are often the main sources of fuel and water supplies may be limited or vulnerable to degradation through heavy use.\n\nC\n\nStories about the problems of tourism have become legion in the last few years. Yet it does not have to be a problem. Although tourism inevitably affects the region in which it takes place, the costs to these fragile environments and\n\ntheir local cultures can be minimized. Indeed, it can even be a vehicle for reinvigorating local cultures, as has happened with the Sherpas of Nepal's Khumbu Valley and in some Alpine villages. And a growing number of adventure tourism operators are trying to ensure that their activities benefit the local population and environment over the long term. In the Swiss Alps, communities have decided that their future depends on integrating tourism more effectively with the local economy. Local concern about the rising number of second home developments in the Swiss Pays d'Enhaut resulted in limits being imposed on their growth. There has also been a renaissance in communal cheese production in the area, providing the locals with a reliable source of income that does not depend on outside. Many of the Arctic tourist destinations have been exploited by outside companies, who employ transient workers and repatriate most of the profits to their home base. But some Arctic communities are now operating tour businesses themselves, thereby ensuring that the benefits accrue locally. For instance, a native corporation in Alaska, employing local people, is running an air tour from Anchorage to Kotzebue, where tourists eat Arctic food, walk on the tundra and watch local musicians and dancers. Native people in the desert regions of the American Southwest have followed similar strategies, encouraging tourists to visit their pueblos and reservations to purchase high-quality handicrafts and artwork. The Acoma and San Ildefonso pueblos have established highly profitable pottery businesses, while the Navajo and Hopi groups have been similarly successful with jewellery. Too many people living in fragile environments have lost control over their economies, their culture and their environment when tourism has penetrated their homelands. Merely restricting tourism cannot be the solution to the imbalance, because people's desire to see new places will not just disappear. Instead, communities in fragile environments must achieve greater control over tourism ventures in their regions; in order to balance their needs and aspirations with the demands of tourism. A growing number of communities are demonstrating that, with firm communal decision-making, this is possible. The critical question now is whether this can become the norm, rather than the exception."},{"id":2,"title":"Flawed Beauty: the problem with toughened glass","content":"Flawed Beauty: the problem with toughened glass On 2nd August 1999, a particularly hot day in the town of Cirencester in the UK, a large pane of toughened glass in the roof of a shopping centre at Bishops Walk shattered without warning and fell from its frame. When fragments were analysed by experts at the giant glass manufacturer Pilkington, which had made the pane, they found that minute crystals of nickel sulphide trapped inside the glass had almost certainly caused the failure. 'The glass industry is aware of the issue,' says Brian Waldron, chairman of the standards committee at the Glass and Glazing Federation, a British trade association, and standards development officer at Pilkington. But he insists that cases are few and far between. 'It's a very rare phenomenon,' he says. Others disagree. 'On average I see about one or two buildings a month suffering from nickel sulphide related failures,' says Barrie Josie, a consultant engineer involved in the Bishops Walk investigation. Other experts tell of similar experiences. Tony Wilmott of London-based consulting engineers Sandberg, and Simon Armstrong at CladTech Associates in Hampshire both say they know of hundreds of cases. 'What you hear is only the tip of the iceberg,' says Trevor Ford, a glass expert at Resolve Engineering in Brisbane, Queensland. He believes the reason is simple: 'No-one wants bad press.'\n\nToughened glass is found everywhere, from cars and bus shelters to the windows, walls and roofs of thousands of buildings around the world. It's easy to see why. This glass has five times the strength of standard glass, and when it does break it shatters into tiny cubes rather than large, razor-sharp shards. Architects love it because large panels can be bolted together to make transparent walls, and turning it into ceilings and floors is almost as easy. It is made by heating a sheet of ordinary glass to about 620\u00b0C to soften it slightly, allowing its structure to expand, and then cooling it rapidly with jets of cold air. This causes the outer layer of the pane to contract and solidify before the interior. When the interior finally solidifies and shrinks, it exerts a pull on the outer layer that leaves it in permanent compression and produces a tensile force inside the glass. As cracks propagate best in materials under tension, the compressive force on the surface must be overcome before the pane will break, making it more resistant to cracking. The problem starts when glass contains nickel sulphide impurities. Trace amounts of nickel and sulphur are usually present in the raw materials used to make glass, and nickel can also be introduced by fragments of nickel alloys falling into the molten glass. As the glass is heated, these atoms react to form tiny crystals of nickel sulphide. Just a tenth of a gram of nickel in the furnace can create up to 50,000 crystals. These crystals can exist in two forms: a dense form called the alpha phase, which is stable at high temperatures, and a less dense form called the beta phase, which is stable at room temperatures. The high temperatures used in the toughening process convert all the crystals to the dense, compact alpha form. But the subsequent cooling is so rapid that the crystals don't have time to change back to the beta phase. This leaves unstable alpha crystals in the glass, primed like a coiled spring, ready to revert to the beta phase without warning. When this happens, the crystals expand by up to 4%. And if they are within the central, tensile region of the pane, the stresses this unleashes can shatter the whole sheet. The time that elapses before failure occurs is unpredictable. It could happen just months after manufacture, or decades later, although if the glass is heated - by sunlight, for example - the process is speeded up. Ironically, says Graham Dodd, of consulting engineers Arup in London, the oldest pane of toughened glass known to have failed due to nickel sulphide inclusions was in Pilkington's glass research building in Lathom, Lancashire. The pane was 27 years old. Data showing the scale of the nickel sulphide problem is almost impossible to find. The picture is made more complicated by the fact that these crystals occur in batches. So even if, on average, there is only one inclusion in 7 tonnes of glass, if you experience one nickel sulphide failure in your building, that probably means you've got a problem in more than one pane. Josie says that in the last decade he has worked on over 15 buildings with the number of failures into double figures. One of the worst examples of this is Waterfront Place, which was completed in 1990. Over the following decade the 40 storey Brisbane block suffered a rash of failures. Eighty panes of its toughened glass shattered due to inclusions before experts were finally called in. John Barry, an expert in nickel sulphide contamination at the University of Queensland, analysed every glass pane in the building. Using a studio camera, a photographer went up in a cradle to take photos of every pane. These were scanned under a modified microfiche reader for signs of nickel sulphide crystals. 'We discovered at least another 120 panes with potentially dangerous inclusions which were then replaced,' says Barry. 'It was a very expensive and time-consuming process that took around six months to complete.' Though the project cost $1.6\n\nmillion (nearly 700,000 Pounds), the alternative - re-cladding the entire building - would have cost ten times as much."},{"id":3,"title":"The effects of light on plant and animal species","content":"The effects of light on plant and animal species Light is important to organisms for two different reasons. Firstly it is used as a cue for the timing of daily and seasonal rhythms in both plants and animals, and secondly it is used to assist growth in plants. Breeding in most organisms occurs during a part of the year only, and so a reliable cue is needed to trigger breeding behaviour. Day length is an excellent cue, because it provides a perfectly predictable pattern of change within the year. In the temperate zone in spring, temperatures fluctuate greatly from day to day, but day length increases steadily by a predictable amount. The seasonal impact of day length on physiological responses is called photoperiodism, and the amount of experimental evidence for this phenomenon is considerable. For example, some species of birds' breeding can be induced even in midwinter simply by increasing day length artificially (Wolfson 1964). Other examples of photoperiodism occur in plants. A short-day plant flowers when the day is less than a certain critical length. A long-day plant flowers after a certain critical day length is exceeded. In both cases the critical day length differs from species to species. Plant which flower after a period of vegetative growth, regardless of photoperiod, are known as day-neutral plants. Breeding seasons in animals such as birds have evolved to occupy the part of the year in which offspring have the greatest chances of survival. Before the breeding season begins, food reserves must be built up to support the energy cost of reproduction, and to provide for young birds both when they are in the nest and after fledging. Thus many temperate-zone birds use the increasing day lengths in spring as a cue to begin the nesting cycle, because this is a point when adequate food resources will be assured. The adaptive significance of photoperiodism in plants is also clear. Short-day plants that flower in spring in the temperate zone are adapted to maximising seedling growth during the growing season. Long-day plants are adapted for situations that require fertilization by insects, or a long period of seed ripening. Short-day plants that flower in the autumn in the temperate zone are able to build up food reserves over the growing season and over winter as seeds. Day-neutral plants have an evolutionary advantage when the connection between the favourable period for reproduction and day length is much less certain. For example, desert annuals germinate, flower and seed whenever suitable rainfall occurs, regardless of the day length. The breeding season of some plants can be delayed to extraordinary lengths. Bamboos are perennial grasses that remain in a vegetative state for many years and then suddenly flower, fruit and die (Evans 1976). Every bamboo of the species Chusquea abietifolio on the island of Jamaica flowered, set seed and died during 1884. The next generation of bamboo flowered and died between 1916 and 1918, which suggests a vegetative cycle of about 31 years. The climatic trigger for this flowering cycle is not yet known, but the adaptive significance is clear. The simultaneous production of masses of bamboo seeds (in some cases lying 12 to 15 centimetres deep on the ground) is more than all the seed-eating animals can cope with at the time, so that some seeds escape being eaten and grow up to form the next generation (Evans 1976).\n\nThe second reason light is important to organisms is that it is essential for photosynthesis. This is the process by which plants use energy from the sun to convert carbon from soil or water into organic material for growth. The rate of photosynthesis in a plant can be measured by calculating the rate of its uptake of carbon. There is a wide range of photosynthetic responses of plants to variations in light intensity. Some plants reach maximal photosynthesis at onequarter full sunlight, and others, like sugarcane, never reach a maximum, but continue to increase photosynthesis rate as light intensity rises. Plants in general can be divided into two groups: shade-tolerant species and shade-intolerant species. This classification is commonly used in forestry and horticulture. Shade-tolerant plants have lower photosynthetic rates and hence have lower growth rates than those of shade-intolerant species. Plant species become adapted to living in a certain kind of habitat, and in the process evolve a series of characteristics that prevent them from occupying other habitats. Grime (1966) suggests that light may be one of the major components directing these adaptations. For example, eastern hemlock seedlings are shade-tolerant. They can survive in the forest understorey under very low light levels because they have a low photosynthetic rate."}],"instructions":"Answer all 40 questions. Passage 1 = Q1\u201313, Passage 2 = Q14\u201326, Passage 3 = Q27\u201340. You have 60:00 for the whole Reading Test.","audio":"","task1":"","task2":""},{"id":3,"section":"Writing","title":"Universal Education \u2014 IELTS Academic Writing Test 1","duration":60,"status":"published","task1":"Write your Task 1 response here.","task2":"Write your Task 2 response here.","instructions":"Complete both Task 1 and Task 2.","audio":""}],"questions":[{"id":1,"test_id":1,"q_no":1,"part_no":1,"passage_no":null,"type":"summary","title":"","format":"form","section_heading":"Questions 1\u201310","instruction":"Complete the notes below.\nAdd the licensed source question text and answer key in Tutor/Admin.","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":2,"test_id":1,"q_no":2,"part_no":1,"passage_no":null,"type":"multi","title":"","format":"","section_heading":"","instruction":"","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":3,"test_id":1,"q_no":3,"part_no":1,"passage_no":null,"type":"map","title":"","format":"","section_heading":"","instruction":"","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":4,"test_id":1,"q_no":4,"part_no":1,"passage_no":null,"type":"multi","title":"","format":"","section_heading":"","instruction":"","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":5,"test_id":1,"q_no":5,"part_no":1,"passage_no":null,"type":"summary","title":"","format":"form","section_heading":"","instruction":"Choose THREE letters A\u2013G.","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":6,"test_id":1,"q_no":6,"part_no":1,"passage_no":null,"type":"summary","title":"","format":"form","section_heading":"","instruction":"","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":7,"test_id":1,"q_no":7,"part_no":1,"passage_no":null,"type":"summary","title":"","format":"form","section_heading":"","instruction":"","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":8,"test_id":1,"q_no":8,"part_no":1,"passage_no":null,"type":"summary","title":"","format":"form","section_heading":"","instruction":"Label the map below. Choose the correct letters.","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":9,"test_id":1,"q_no":9,"part_no":1,"passage_no":null,"type":"summary","title":"","format":"form","section_heading":"","instruction":"","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":10,"test_id":1,"q_no":10,"part_no":1,"passage_no":null,"type":"summary","title":"","format":"form","section_heading":"","instruction":"","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":11,"test_id":1,"q_no":11,"part_no":2,"passage_no":null,"type":"multi","title":"","format":"","section_heading":"Questions 11\u201320","instruction":"For each question choose two letters A\u2013E.","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":12,"test_id":1,"q_no":12,"part_no":2,"passage_no":null,"type":"multi","title":"","format":"","section_heading":"","instruction":"","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":13,"test_id":1,"q_no":13,"part_no":2,"passage_no":null,"type":"summary","title":"","format":"table","section_heading":"","instruction":"Complete the table below.\nAdd the licensed source question text and answer key in Tutor/Admin.","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":14,"test_id":1,"q_no":14,"part_no":2,"passage_no":null,"type":"summary","title":"","format":"table","section_heading":"","instruction":"","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":15,"test_id":1,"q_no":15,"part_no":2,"passage_no":null,"type":"summary","title":"","format":"table","section_heading":"","instruction":"","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":16,"test_id":1,"q_no":16,"part_no":2,"passage_no":null,"type":"summary","title":"","format":"table","section_heading":"","instruction":"","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":17,"test_id":1,"q_no":17,"part_no":2,"passage_no":null,"type":"summary","title":"","format":"table","section_heading":"","instruction":"","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":18,"test_id":1,"q_no":18,"part_no":2,"passage_no":null,"type":"map","title":"","format":"","section_heading":"","instruction":"Label the plan below. Choose three answers from the box.","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":19,"test_id":1,"q_no":19,"part_no":2,"passage_no":null,"type":"map","title":"","format":"","section_heading":"","instruction":"","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":20,"test_id":1,"q_no":20,"part_no":2,"passage_no":null,"type":"map","title":"","format":"","section_heading":"","instruction":"","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":21,"test_id":1,"q_no":21,"part_no":3,"passage_no":null,"type":"single","title":"","format":"","section_heading":"Questions 21\u201330","instruction":"Choose the correct letter, A, B or C.","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":22,"test_id":1,"q_no":22,"part_no":3,"passage_no":null,"type":"single","title":"","format":"","section_heading":"","instruction":"","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":23,"test_id":1,"q_no":23,"part_no":3,"passage_no":null,"type":"single","title":"","format":"","section_heading":"","instruction":"","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":24,"test_id":1,"q_no":24,"part_no":3,"passage_no":null,"type":"single","title":"","format":"","section_heading":"","instruction":"","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":25,"test_id":1,"q_no":25,"part_no":3,"passage_no":null,"type":"single","title":"","format":"","section_heading":"","instruction":"","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":26,"test_id":1,"q_no":26,"part_no":3,"passage_no":null,"type":"matching","title":"","format":"","section_heading":"","instruction":"Who will do the following tasks? Write the correct letter, A, B or C.","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":27,"test_id":1,"q_no":27,"part_no":3,"passage_no":null,"type":"matching","title":"","format":"","section_heading":"","instruction":"","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":28,"test_id":1,"q_no":28,"part_no":3,"passage_no":null,"type":"matching","title":"","format":"","section_heading":"","instruction":"","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":29,"test_id":1,"q_no":29,"part_no":3,"passage_no":null,"type":"matching","title":"","format":"","section_heading":"","instruction":"","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":30,"test_id":1,"q_no":30,"part_no":3,"passage_no":null,"type":"matching","title":"","format":"","section_heading":"","instruction":"","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":31,"test_id":1,"q_no":31,"part_no":4,"passage_no":null,"type":"short","title":"","format":"","section_heading":"Questions 31\u201340","instruction":"Answer the questions below. Write NO MORE THAN ONE WORD AND/OR A NUMBER for each answer.","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":32,"test_id":1,"q_no":32,"part_no":4,"passage_no":null,"type":"short","title":"","format":"","section_heading":"","instruction":"","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":33,"test_id":1,"q_no":33,"part_no":4,"passage_no":null,"type":"short","title":"","format":"","section_heading":"","instruction":"","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":34,"test_id":1,"q_no":34,"part_no":4,"passage_no":null,"type":"short","title":"","format":"","section_heading":"","instruction":"","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":35,"test_id":1,"q_no":35,"part_no":4,"passage_no":null,"type":"short","title":"","format":"","section_heading":"","instruction":"List THREE factors. Write NO MORE THAN TWO WORDS for each answer.","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":36,"test_id":1,"q_no":36,"part_no":4,"passage_no":null,"type":"short","title":"","format":"","section_heading":"","instruction":"","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":37,"test_id":1,"q_no":37,"part_no":4,"passage_no":null,"type":"short","title":"","format":"","section_heading":"","instruction":"","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":38,"test_id":1,"q_no":38,"part_no":4,"passage_no":null,"type":"single","title":"","format":"","section_heading":"","instruction":"Choose your answers from the box and write the letters A\u2013F.","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":39,"test_id":1,"q_no":39,"part_no":4,"passage_no":null,"type":"single","title":"","format":"","section_heading":"","instruction":"","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"id":40,"test_id":1,"q_no":40,"part_no":4,"passage_no":null,"type":"single","title":"","format":"","section_heading":"","instruction":"","prompt":"","options":[],"answer":"","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":""},{"q_no":1,"passage_no":1,"part_no":1,"type":"matching","format":"","section_heading":"Questions 1\u20133","instruction":"Reading Passage 1 has three sections, A\u2013C.\nChoose the correct heading for each section from the list of headings below.\nWrite the correct number I\u2013VI.","prompt":"Section A","options":["I. The expansion of international tourism in recent years","II. How local communities can balance their own needs with the demands of wilderness tourism","III. Fragile regions and the reasons for the expansion of tourism there","IV. Traditional methods of food-supply in fragile regions","V. Some of the disruptive effects of wilderness tourism","VI. The economic benefits of mass tourism"],"answer":"III","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":41,"test_id":2},{"q_no":2,"passage_no":1,"part_no":1,"type":"matching","format":"","section_heading":"","instruction":"","prompt":"Section B","options":["I. The expansion of international tourism in recent years","II. How local communities can balance their own needs with the demands of wilderness tourism","III. Fragile regions and the reasons for the expansion of tourism there","IV. Traditional methods of food-supply in fragile regions","V. Some of the disruptive effects of wilderness tourism","VI. The economic benefits of mass tourism"],"answer":"V","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":42,"test_id":2},{"q_no":3,"passage_no":1,"part_no":1,"type":"matching","format":"","section_heading":"","instruction":"","prompt":"Section C","options":["I. The expansion of international tourism in recent years","II. How local communities can balance their own needs with the demands of wilderness tourism","III. Fragile regions and the reasons for the expansion of tourism there","IV. Traditional methods of food-supply in fragile regions","V. Some of the disruptive effects of wilderness tourism","VI. The economic benefits of mass tourism"],"answer":"II","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":43,"test_id":2},{"q_no":4,"passage_no":1,"part_no":1,"type":"single","format":"","section_heading":"","instruction":"Do the following statements reflect the claims of the writer in Reading Passage 1?\nYES if the statement reflects the claims of the writer\nNO if the statement contradicts the claims of the writer\nNOT GIVEN if it is impossible to say what the writer thinks about this","prompt":"The low financial cost of setting up wilderness tourism makes it attractive to many countries.","options":["A. YES","B. NO","C. NOT GIVEN"],"answer":"A","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":44,"test_id":2},{"q_no":5,"passage_no":1,"part_no":1,"type":"single","format":"","section_heading":"","instruction":"","prompt":"Deserts, mountains and Arctic regions are examples of environments that are both ecologically and culturally fragile.","options":["A. YES","B. NO","C. NOT GIVEN"],"answer":"A","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":45,"test_id":2},{"q_no":6,"passage_no":1,"part_no":1,"type":"single","format":"","section_heading":"","instruction":"","prompt":"Wilderness tourism operates throughout the year in fragile areas.","options":["A. YES","B. NO","C. NOT GIVEN"],"answer":"B","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":46,"test_id":2},{"q_no":7,"passage_no":1,"part_no":1,"type":"single","format":"","section_heading":"","instruction":"","prompt":"The spread of tourism in certain hill-regions has resulted in a fall in the amount of food produced locally.","options":["A. YES","B. NO","C. NOT GIVEN"],"answer":"A","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":47,"test_id":2},{"q_no":8,"passage_no":1,"part_no":1,"type":"single","format":"","section_heading":"","instruction":"","prompt":"Traditional food-gathering in desert societies was distributed evenly over the year.","options":["A. YES","B. NO","C. NOT GIVEN"],"answer":"B","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":48,"test_id":2},{"q_no":9,"passage_no":1,"part_no":1,"type":"single","format":"","section_heading":"","instruction":"","prompt":"Government handouts do more damage than tourism does to traditional patterns of food-gathering.","options":["A. YES","B. NO","C. NOT GIVEN"],"answer":"C","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":49,"test_id":2},{"q_no":10,"passage_no":1,"part_no":1,"type":"summary","format":"table","section_heading":"","instruction":"Complete the notes below.\nChoose ONE WORD from Reading Passage 1 for each answer.","prompt":"Swiss Pays d\u2019Enhaut \u2014 Revived production of [BLANK]","options":[],"answer":"cheese","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":50,"test_id":2},{"q_no":11,"passage_no":1,"part_no":1,"type":"summary","format":"table","section_heading":"","instruction":"","prompt":"Arctic communities \u2014 Operate [BLANK] businesses","options":[],"answer":"tour","accepted_answers":["tourist","tourism","tour businesses"],"pairs":[],"image":"","explanation":"","word_limit":"","id":51,"test_id":2},{"q_no":12,"passage_no":1,"part_no":1,"type":"summary","format":"table","section_heading":"","instruction":"","prompt":"Acoma and San Ildefonso \u2014 Produce and sell [BLANK]","options":[],"answer":"pottery","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":52,"test_id":2},{"q_no":13,"passage_no":1,"part_no":1,"type":"summary","format":"table","section_heading":"","instruction":"","prompt":"Navajo and Hopi \u2014 Produce and sell [BLANK]","options":[],"answer":"jewellery","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":53,"test_id":2},{"q_no":14,"passage_no":2,"part_no":2,"type":"matching","format":"","section_heading":"","instruction":"Look at the following people and the list of statements below.\nMatch each person with the correct statement.","prompt":"Brian Waldron","options":["A. suggests that publicity about nickel sulphide failure has been suppressed","B. regularly sees cases of nickel sulphide failure","C. closely examined all the glass in one building","D. was involved with the construction of Bishops Walk","E. recommended the rebuilding of Waterfront Place","F. thinks the benefits of toughened glass are exaggerated","G. claims that nickel sulphide failure is very unusual","H. refers to the most extreme case of delayed failure"],"answer":"G","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":54,"test_id":2},{"q_no":15,"passage_no":2,"part_no":2,"type":"matching","format":"","section_heading":"","instruction":"","prompt":"Trevor Ford","options":["A. suggests that publicity about nickel sulphide failure has been suppressed","B. regularly sees cases of nickel sulphide failure","C. closely examined all the glass in one building","D. was involved with the construction of Bishops Walk","E. recommended the rebuilding of Waterfront Place","F. thinks the benefits of toughened glass are exaggerated","G. claims that nickel sulphide failure is very unusual","H. refers to the most extreme case of delayed failure"],"answer":"A","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":55,"test_id":2},{"q_no":16,"passage_no":2,"part_no":2,"type":"matching","format":"","section_heading":"","instruction":"","prompt":"Graham Dodd","options":["A. suggests that publicity about nickel sulphide failure has been suppressed","B. regularly sees cases of nickel sulphide failure","C. closely examined all the glass in one building","D. was involved with the construction of Bishops Walk","E. recommended the rebuilding of Waterfront Place","F. thinks the benefits of toughened glass are exaggerated","G. claims that nickel sulphide failure is very unusual","H. refers to the most extreme case of delayed failure"],"answer":"H","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":56,"test_id":2},{"q_no":17,"passage_no":2,"part_no":2,"type":"matching","format":"","section_heading":"","instruction":"","prompt":"John Barry","options":["A. suggests that publicity about nickel sulphide failure has been suppressed","B. regularly sees cases of nickel sulphide failure","C. closely examined all the glass in one building","D. was involved with the construction of Bishops Walk","E. recommended the rebuilding of Waterfront Place","F. thinks the benefits of toughened glass are exaggerated","G. claims that nickel sulphide failure is very unusual","H. refers to the most extreme case of delayed failure"],"answer":"C","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":57,"test_id":2},{"q_no":18,"passage_no":2,"part_no":2,"type":"matching","format":"","section_heading":"","instruction":"Complete the summary with the list of words A\u2013P below.","prompt":"the fragments are not as [BLANK] when it breaks.","options":["A. numerous","B. detected","C. quickly","D. agreed","E. warm","F. sharp","G. expands","H. slowly","I. unexpectedly","J. removed","K. contracts","L. disputed","M. cold","N. moved","O. small","P. calculated"],"answer":"F","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":58,"test_id":2},{"q_no":19,"passage_no":2,"part_no":2,"type":"matching","format":"","section_heading":"","instruction":"","prompt":"it can shatter [BLANK].","options":["A. numerous","B. detected","C. quickly","D. agreed","E. warm","F. sharp","G. expands","H. slowly","I. unexpectedly","J. removed","K. contracts","L. disputed","M. cold","N. moved","O. small","P. calculated"],"answer":"I","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":59,"test_id":2},{"q_no":20,"passage_no":2,"part_no":2,"type":"matching","format":"","section_heading":"","instruction":"","prompt":"then cooled very [BLANK].","options":["A. numerous","B. detected","C. quickly","D. agreed","E. warm","F. sharp","G. expands","H. slowly","I. unexpectedly","J. removed","K. contracts","L. disputed","M. cold","N. moved","O. small","P. calculated"],"answer":"C","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":60,"test_id":2},{"q_no":21,"passage_no":2,"part_no":2,"type":"matching","format":"","section_heading":"","instruction":"","prompt":"The outer layer [BLANK] before the inner layer.","options":["A. numerous","B. detected","C. quickly","D. agreed","E. warm","F. sharp","G. expands","H. slowly","I. unexpectedly","J. removed","K. contracts","L. disputed","M. cold","N. moved","O. small","P. calculated"],"answer":"K","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":61,"test_id":2},{"q_no":22,"passage_no":2,"part_no":2,"type":"matching","format":"","section_heading":"","instruction":"","prompt":"the weather is [BLANK].","options":["A. numerous","B. detected","C. quickly","D. agreed","E. warm","F. sharp","G. expands","H. slowly","I. unexpectedly","J. removed","K. contracts","L. disputed","M. cold","N. moved","O. small","P. calculated"],"answer":"E","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":62,"test_id":2},{"q_no":23,"passage_no":2,"part_no":2,"type":"matching","format":"","section_heading":"","instruction":"","prompt":"The frequency with which such problems occur is [BLANK] by glass experts.","options":["A. numerous","B. detected","C. quickly","D. agreed","E. warm","F. sharp","G. expands","H. slowly","I. unexpectedly","J. removed","K. contracts","L. disputed","M. cold","N. moved","O. small","P. calculated"],"answer":"L","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":63,"test_id":2},{"q_no":24,"passage_no":2,"part_no":2,"type":"single","format":"","section_heading":"","instruction":"Do the following statements agree with the information given in Reading Passage 2?\nTRUE if the statement agrees with the information\nFALSE if the statement contradicts the information\nNOT GIVEN if there is no information on this","prompt":"Little doubt was expressed about the reason for the Bishops Walk accident.","options":["A. TRUE","B. FALSE","C. NOT GIVEN"],"answer":"A","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":64,"test_id":2},{"q_no":25,"passage_no":2,"part_no":2,"type":"single","format":"","section_heading":"","instruction":"","prompt":"Toughened glass has the same appearance as ordinary glass.","options":["A. TRUE","B. FALSE","C. NOT GIVEN"],"answer":"C","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":65,"test_id":2},{"q_no":26,"passage_no":2,"part_no":2,"type":"single","format":"","section_heading":"","instruction":"","prompt":"There is plenty of documented evidence available about the incidence of nickel sulphide failure.","options":["A. TRUE","B. FALSE","C. NOT GIVEN"],"answer":"B","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":66,"test_id":2},{"q_no":27,"passage_no":3,"part_no":3,"type":"single","format":"","section_heading":"","instruction":"Do the following statements agree with the information given in Reading Passage 3?\nTRUE if the statement agrees with the information\nFALSE if the statement contradicts the information\nNOT GIVEN if there is no information on this","prompt":"There is plenty of scientific evidence to support photoperiodism.","options":["A. TRUE","B. FALSE","C. NOT GIVEN"],"answer":"A","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":67,"test_id":2},{"q_no":28,"passage_no":3,"part_no":3,"type":"single","format":"","section_heading":"","instruction":"","prompt":"Some types of bird can be encouraged to breed out of season.","options":["A. TRUE","B. FALSE","C. NOT GIVEN"],"answer":"A","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":68,"test_id":2},{"q_no":29,"passage_no":3,"part_no":3,"type":"single","format":"","section_heading":"","instruction":"","prompt":"Photoperiodism is restricted to certain geographic areas.","options":["A. TRUE","B. FALSE","C. NOT GIVEN"],"answer":"C","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":69,"test_id":2},{"q_no":30,"passage_no":3,"part_no":3,"type":"single","format":"","section_heading":"","instruction":"","prompt":"Desert annuals are examples of long-day plants.","options":["A. TRUE","B. FALSE","C. NOT GIVEN"],"answer":"B","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":70,"test_id":2},{"q_no":31,"passage_no":3,"part_no":3,"type":"single","format":"","section_heading":"","instruction":"","prompt":"Bamboos flower several times during their life cycle.","options":["A. TRUE","B. FALSE","C. NOT GIVEN"],"answer":"B","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":71,"test_id":2},{"q_no":32,"passage_no":3,"part_no":3,"type":"single","format":"","section_heading":"","instruction":"","prompt":"Scientists have yet to determine the cue for Chusquea abietifolia's seasonal rhythm.","options":["A. TRUE","B. FALSE","C. NOT GIVEN"],"answer":"A","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":72,"test_id":2},{"q_no":33,"passage_no":3,"part_no":3,"type":"single","format":"","section_heading":"","instruction":"","prompt":"Eastern hemlock is a fast-growing plant.","options":["A. TRUE","B. FALSE","C. NOT GIVEN"],"answer":"B","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":73,"test_id":2},{"q_no":34,"passage_no":3,"part_no":3,"type":"sentence","format":"","section_heading":"","instruction":"Complete the sentences.\nChoose NO MORE THAN THREE WORDS from the passage for each answer.","prompt":"Day length is a useful cue for breeding in areas where [BLANK] are unpredictable.","options":[],"answer":"temperatures","accepted_answers":["temperature"],"pairs":[],"image":"","explanation":"","word_limit":"","id":74,"test_id":2},{"q_no":35,"passage_no":3,"part_no":3,"type":"sentence","format":"","section_heading":"","instruction":"","prompt":"Plants which do not respond to light levels are referred to as [BLANK].","options":[],"answer":"day-neutral","accepted_answers":["day neutral","day-neutral plants"],"pairs":[],"image":"","explanation":"","word_limit":"","id":75,"test_id":2},{"q_no":36,"passage_no":3,"part_no":3,"type":"sentence","format":"","section_heading":"","instruction":"","prompt":"Birds in temperate climates associate longer days with nesting and the availability of [BLANK].","options":[],"answer":"food resources","accepted_answers":["food","adequate food resources"],"pairs":[],"image":"","explanation":"","word_limit":"","id":76,"test_id":2},{"q_no":37,"passage_no":3,"part_no":3,"type":"sentence","format":"","section_heading":"","instruction":"","prompt":"Plants that flower when days are long often depend on [BLANK] to help them reproduce.","options":[],"answer":"insects","accepted_answers":["fertilization by insects"],"pairs":[],"image":"","explanation":"","word_limit":"","id":77,"test_id":2},{"q_no":38,"passage_no":3,"part_no":3,"type":"sentence","format":"","section_heading":"","instruction":"","prompt":"Desert annuals respond to [BLANK] as a signal for reproduction.","options":[],"answer":"rainfall","accepted_answers":["suitable rainfall"],"pairs":[],"image":"","explanation":"","word_limit":"","id":78,"test_id":2},{"q_no":39,"passage_no":3,"part_no":3,"type":"sentence","format":"","section_heading":"","instruction":"","prompt":"There is no limit to the photosynthetic rate in plants such as [BLANK].","options":[],"answer":"sugarcane","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":79,"test_id":2},{"q_no":40,"passage_no":3,"part_no":3,"type":"sentence","format":"","section_heading":"","instruction":"","prompt":"Tolerance to shade is one criterion for the [BLANK] of plants in forestry and horticulture.","options":[],"answer":"classification","accepted_answers":[],"pairs":[],"image":"","explanation":"","word_limit":"","id":80,"test_id":2}],"results":[],"writing_submissions":[],"students":[{"id":1,"student_id":"UE001","name":"Demo Student","password":"1234","active":true,"created_at":"2026-09-17T00:00:00.000Z"}]};
-function ueClone(x){return JSON.parse(JSON.stringify(x));}
-function ueLoad(){try{const raw=localStorage.getItem(UE_STORAGE_KEY);if(raw)return JSON.parse(raw);}catch(e){} const d=ueClone(UE_SEED);localStorage.setItem(UE_STORAGE_KEY,JSON.stringify(d));return d;}
-function ueSave(d){localStorage.setItem(UE_STORAGE_KEY,JSON.stringify(d));}
-let UE_DB=ueLoad();
-function ueToken(prefix){return prefix+'_'+Math.random().toString(36).slice(2)+Date.now().toString(36);}
-function ueBody(o){try{return o&&o.body?JSON.parse(o.body):{};}catch(e){return {};}}
-function ueJsonResponse(data,status=200){return {ok:status>=200&&status<300,status,json:async()=>ueClone(data),blob:async()=>new Blob([typeof data==='string'?data:JSON.stringify(data)],{type:'application/octet-stream'})};}
-function ueFail(msg,status=400){const e=new Error(msg);e.status=status;throw e;}
-function ueFail(msg,status=400){const e=new Error(msg);e.status=status;throw e;}
+// ============================================
+// UNIVERSAL EDUCATION IELTS
+// MAIN APP.JS
+// ============================================
 
-// Supabase-backed data layer. The UI below continues to use the existing /api/* routes.
-function ueBody(o){try{return o&&o.body?JSON.parse(o.body):{};}catch(e){return {};}}
-function ueJsonResponse(data,status=200){return {ok:status>=200&&status<300,status,json:async()=>data,blob:async()=>new Blob([typeof data==='string'?data:JSON.stringify(data)],{type:'application/octet-stream'})};}
-function ueAdminRequired(){if(sessionStorage.getItem('adminToken')!=='ok')ueFail('Admin login required',401);}
-function ueStudentRequired(){const raw=sessionStorage.getItem('studentInfo');if(!raw)ueFail('Student login required',401);try{return JSON.parse(raw);}catch(e){sessionStorage.removeItem('studentInfo');ueFail('Student login required',401);}}
-function ueMetaParse(description){try{const x=JSON.parse(description||'');if(x&&x.__ue_meta===1)return x;}catch(e){}return {__ue_meta:1,status:'published',instructions:'',task1:'',task2:''};}
-function ueMetaString(meta){return JSON.stringify({...meta,__ue_meta:1});}
-function ueOptionsMap(rows){const m=new Map();for(const r of rows||[]){if(!m.has(r.question_id))m.set(r.question_id,[]);m.get(r.question_id).push(r);}for(const [k,v] of m)m.set(k,v.sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)).map(x=>x.option_text));return m;}
+// ============================================
+// SUPABASE CONFIGURATION
+// ============================================
 
-async function ueReadTest(row){
-  const {data:sections,error:se}=await supabaseClient.from('sections').select('*').eq('test_id',row.id).order('section_number',{ascending:true});
-  if(se)throw se;
-  const sectionIds=(sections||[]).map(x=>x.id);
-  let questions=[];
-  if(sectionIds.length){
-    const {data:qs,error:qe}=await supabaseClient.from('questions').select('*').in('section_id',sectionIds).order('question_number',{ascending:true});
-    if(qe)throw qe;
-    questions=qs||[];
-  }
-  const qids=questions.map(q=>q.id);
-  let optionRows=[];
-  if(qids.length){const {data:os,error:oe}=await supabaseClient.from('options').select('*').in('question_id',qids).order('sort_order',{ascending:true});if(oe)throw oe;optionRows=os||[];}
-  const om=ueOptionsMap(optionRows);
-  const meta=ueMetaParse(row.description);
-  const module=row.module;
-  const first=sections?.[0]||{};
-  const passages=module==='Reading'?(sections||[]).sort((a,b)=>a.section_number-b.section_number).map(s=>({id:s.section_number,title:s.passage_title||`Passage ${s.section_number}`,content:s.passage_text||'',image:s.image_url||''})):[];
-  return {
-    id:row.id, section:module, title:row.title, duration:row.duration_minutes,
-    status:meta.status|| (row.active?'published':'draft'), audio:first.audio_url||'',
-    instructions:first.instructions||meta.instructions||'', task1:meta.task1||'', task2:meta.task2||'',
-    passages,
-    questions:questions.map(q=>{const sec=(sections||[]).find(s=>s.id===q.section_id);return {
-      id:q.id,q_no:q.question_number,part_no:module==='Listening'?sec?.section_number:q.section_number||sec?.section_number,
-      passage_no:module==='Reading'?sec?.section_number:null,type:q.question_type,format:'',section_heading:'',
-      instruction:q.instructions||'',prompt:q.question_text||'',options:om.get(q.id)||[],answer:q.correct_answer||'',
-      accepted_answers:Array.isArray(q.accepted_answers)?q.accepted_answers:[],pairs:[],image:q.image_url||'',
-      explanation:'',word_limit:'',points:q.points||1
-    };})
-  };
-}
+const SUPABASE_URL = "https://fmwcvwgcwisdxiudlstq.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_ibtCq2hamnZkRNWPsxlddQ_JfexwHYM";
 
-async function ueFindTest(id){const {data,error}=await supabaseClient.from('tests').select('*').eq('id',Number(id)).maybeSingle();if(error)throw error;if(!data)ueFail('Test not found',404);return ueReadTest(data);}
-async function ueTests(admin=false){
-  const q=supabaseClient.from('tests').select('*').order('id',{ascending:false});
-  const result=admin ? await q : await q.eq('active',true);
-  const {data,error}=result;
-  if(error)throw error;
-  const out=[];for(const row of data||[])out.push(await ueReadTest(row));return out;
-}
+const supabaseClient = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_PUBLISHABLE_KEY
+);
 
-async function ueEnsureSections(testId,module){
-  const count=module==='Listening'?4:module==='Reading'?3:1;
-  const rows=Array.from({length:count},(_,i)=>({test_id:testId,section_number:i+1,title:module==='Listening'?`Part ${i+1}`:module==='Reading'?`Passage ${i+1}`:'Writing',instructions:'',audio_url:null,passage_title:module==='Reading'?`Passage ${i+1}`:null,passage_text:'',image_url:null}));
-  const {data,error}=await supabaseClient.from('sections').insert(rows).select();if(error)throw error;return data;
-}
-async function ueCreateQuestions(testId,module,sections){
-  if(module==='Writing')return;
-  const rows=[];for(let n=1;n<=40;n++){const sec=module==='Listening'?Math.ceil(n/10):(n<=13?1:n<=26?2:3);const sid=sections.find(x=>x.section_number===sec).id;rows.push({section_id:sid,question_number:n,question_type:module==='Reading'?'single':'short',question_text:`New ${module} Question ${n}`,instructions:'',image_url:null,correct_answer:'',accepted_answers:[],points:1});}
-  const {data,error}=await supabaseClient.from('questions').insert(rows).select();if(error)throw error;return data||[];
-}
 
-async function ueRoute(url,opts={}){
-  const method=(opts.method||'GET').toUpperCase();const path=url.split('?')[0];const body=ueBody(opts);let m;
-  if(path==='/api/admin/login'&&method==='POST'){
-    // Keep the existing Tutor PIN flow for now; all test/student/result data is central in Supabase.
-    if(String(body.pin||'')!=='1234')return ueJsonResponse({ok:false});
-    sessionStorage.setItem('adminToken','ok');return ueJsonResponse({ok:true,token:'ok'});
-  }
-  if(path==='/api/student/login'&&method==='POST'){
-    const sid=String(body.student_id||'').trim();const pw=String(body.password||'');
-    const {data,error}=await supabaseClient.from('students').select('id,student_id,full_name,email,active,password').eq('student_id',sid).maybeSingle();
-    if(error)throw error;
-    if(!data||!data.active||String(data.password)!==pw)return ueJsonResponse({ok:false,error:'Invalid Student ID or Password'});
-    const student={id:data.id,student_id:data.student_id,name:data.full_name,email:data.email||null,active:data.active};
-    sessionStorage.setItem('studentToken','supabase-'+data.id);sessionStorage.setItem('studentInfo',JSON.stringify(student));
-    return ueJsonResponse({ok:true,token:'supabase-'+data.id,student});
-  }
-  if(path==='/api/student/logout'&&method==='POST'){sessionStorage.removeItem('studentToken');sessionStorage.removeItem('studentInfo');return ueJsonResponse({ok:true});}
-  if(path==='/api/tests'&&method==='GET'){const admin=url.includes('admin=1');if(admin)ueAdminRequired();else ueStudentRequired();return ueJsonResponse(await ueTests(admin));}
-  m=path.match(/^\/api\/tests\/(\d+)$/);if(m&&method==='GET'){const admin=url.includes('admin=1');if(admin)ueAdminRequired();else ueStudentRequired();return ueJsonResponse(await ueFindTest(m[1]));}
-  if(path==='/api/admin/students'&&method==='GET'){ueAdminRequired();const {data,error}=await supabaseClient.from('students').select('id,student_id,full_name,email,active,created_at').order('id',{ascending:false});if(error)throw error;return ueJsonResponse((data||[]).map(s=>({id:s.id,student_id:s.student_id,name:s.full_name,email:s.email,active:s.active,created_at:s.created_at})));}
-  if(path==='/api/admin/students'&&method==='POST'){ueAdminRequired();if(!body.student_id||!body.name||!body.password)ueFail('Student ID, name and password are required');const {data:dup}=await supabaseClient.from('students').select('id').eq('student_id',String(body.student_id).trim()).maybeSingle();if(dup)ueFail('Student ID already exists',409);const {data,error}=await supabaseClient.from('students').insert({student_id:String(body.student_id).trim(),full_name:String(body.name).trim(),password:String(body.password),active:true}).select('id').single();if(error)throw error;return ueJsonResponse({id:data.id});}
-  m=path.match(/^\/api\/admin\/students\/(\d+)$/);if(m){ueAdminRequired();const id=Number(m[1]);if(method==='PUT'){const patch={};if(body.student_id!==undefined)patch.student_id=String(body.student_id).trim();if(body.name!==undefined)patch.full_name=String(body.name).trim();if(body.password)patch.password=String(body.password);if(body.active!==undefined)patch.active=body.active!==false;const {error}=await supabaseClient.from('students').update(patch).eq('id',id);if(error)throw error;return ueJsonResponse({ok:true});}if(method==='DELETE'){const {error}=await supabaseClient.from('students').delete().eq('id',id);if(error)throw error;return ueJsonResponse({ok:true});}}
-  if(path==='/api/admin/tests'&&method==='POST'){ueAdminRequired();const module=body.section||'Listening';const meta={__ue_meta:1,status:'draft',instructions:'',task1:'',task2:''};const {data,error}=await supabaseClient.from('tests').insert({title:`New IELTS ${module} Test`,module,duration_minutes:module==='Listening'?40:60,total_questions:module==='Writing'?0:40,active:false,description:ueMetaString(meta)}).select().single();if(error)throw error;const sections=await ueEnsureSections(data.id,module);await ueCreateQuestions(data.id,module,sections);return ueJsonResponse({id:data.id});}
-  m=path.match(/^\/api\/admin\/tests\/(\d+)$/);if(m){ueAdminRequired();const id=Number(m[1]);if(method==='PUT'){
-    const current=await ueFindTest(id);const meta=ueMetaParse((await supabaseClient.from('tests').select('description').eq('id',id).single()).data.description);
-    const next={...meta};if(body.status!==undefined)next.status=body.status;if(body.instructions!==undefined)next.instructions=body.instructions;if(body.task1!==undefined)next.task1=body.task1;if(body.task2!==undefined)next.task2=body.task2;
-    const patch={};if(body.title!==undefined)patch.title=body.title;if(body.duration!==undefined)patch.duration_minutes=Number(body.duration)||current.duration;if(body.status!==undefined)patch.active=body.status==='published';patch.description=ueMetaString(next);
-    const {error}=await supabaseClient.from('tests').update(patch).eq('id',id);if(error)throw error;
-    const {data:secs,error:se}=await supabaseClient.from('sections').select('*').eq('test_id',id).order('section_number');if(se)throw se;
-    if(current.section==='Listening'){
-      const s1=secs?.[0];if(body.audio!==undefined&&s1){const {error}=await supabaseClient.from('sections').update({audio_url:body.audio||null,instructions:body.instructions??s1.instructions}).eq('id',s1.id);if(error)throw error;}
-      else if(body.instructions!==undefined&&s1){const {error}=await supabaseClient.from('sections').update({instructions:body.instructions}).eq('id',s1.id);if(error)throw error;}
+// ============================================
+// GLOBAL VARIABLES
+// ============================================
+
+let loginMode = "student";
+
+
+// ============================================
+// DOM / LOGIN INITIALIZATION
+// ============================================
+
+let studentTab = null;
+let staffTab = null;
+let loginForm = null;
+let loginButton = null;
+let loginMessage = null;
+
+function initLoginUI() {
+    studentTab = document.getElementById("studentTab");
+    staffTab = document.getElementById("staffTab");
+    loginForm = document.getElementById("loginForm");
+    loginButton = document.getElementById("loginButton");
+    loginMessage = document.getElementById("loginMessage");
+
+    if (!studentTab || !staffTab || !loginForm) {
+        console.warn("Login UI elements were not found. Check index.html IDs.");
+        return;
     }
-    if(current.section==='Reading'&&Array.isArray(body.passages))for(const p of body.passages){const s=secs.find(x=>x.section_number===Number(p.id));if(s){const {error}=await supabaseClient.from('sections').update({passage_title:p.title||'',passage_text:p.content||'',image_url:p.image||null}).eq('id',s.id);if(error)throw error;}}
-    return ueJsonResponse({ok:true});
-  }if(method==='DELETE'){const {error}=await supabaseClient.from('tests').delete().eq('id',id);if(error)throw error;return ueJsonResponse({ok:true});}}
-  if(path==='/api/admin/questions'&&method==='POST'){ueAdminRequired();const test=await ueFindTest(body.test_id);const sectionNumber=test.section==='Listening'?Number(body.part_no||1):test.section==='Reading'?Number(body.passage_no||1):1;const {data:sec,error:se}=await supabaseClient.from('sections').select('id').eq('test_id',Number(body.test_id)).eq('section_number',sectionNumber).single();if(se)throw se;const {data:q,error}=await supabaseClient.from('questions').insert({section_id:sec.id,question_number:Number(body.q_no),question_type:body.type||'short',question_text:body.prompt||'',instructions:body.instruction||'',image_url:body.image||null,correct_answer:body.answer||'',accepted_answers:Array.isArray(body.accepted_answers)?body.accepted_answers:[],points:1}).select().single();if(error)throw error;await ueReplaceOptions(q.id,body.options||[]);return ueJsonResponse({id:q.id});}
-  m=path.match(/^\/api\/admin\/questions\/(\d+)$/);if(m){ueAdminRequired();const id=Number(m[1]);if(method==='PUT'){const patch={};if(body.q_no!==undefined)patch.question_number=Number(body.q_no);if(body.type!==undefined)patch.question_type=body.type;if(body.prompt!==undefined)patch.question_text=body.prompt;if(body.instruction!==undefined)patch.instructions=body.instruction;if(body.image!==undefined)patch.image_url=body.image||null;if(body.answer!==undefined)patch.correct_answer=body.answer||'';if(body.accepted_answers!==undefined)patch.accepted_answers=Array.isArray(body.accepted_answers)?body.accepted_answers:[];const {error}=await supabaseClient.from('questions').update(patch).eq('id',id);if(error)throw error;if(body.options!==undefined)await ueReplaceOptions(id,body.options);return ueJsonResponse({ok:true,question:body});}if(method==='DELETE'){const {error}=await supabaseClient.from('questions').delete().eq('id',id);if(error)throw error;return ueJsonResponse({ok:true});}}
-  if(path==='/api/admin/questions/reorder'&&method==='POST'){ueAdminRequired();const ids=(body.ids||[]).map(Number);for(let i=0;i<ids.length;i++){const {data:q,error:qe}=await supabaseClient.from('questions').select('id,section_id').eq('id',ids[i]).single();if(qe)throw qe;const {data:sec,error:se}=await supabaseClient.from('sections').select('test_id,section_number').eq('id',q.section_id).single();if(se)throw se;const {data:test,error:te}=await supabaseClient.from('tests').select('module').eq('id',sec.test_id).single();if(te)throw te;const n=i+1;const sectionNumber=test.module==='Listening'?Math.ceil(n/10):test.module==='Reading'?(n<=13?1:n<=26?2:3):1;const {data:target,error:ta}=await supabaseClient.from('sections').select('id').eq('test_id',sec.test_id).eq('section_number',sectionNumber).single();if(ta)throw ta;const {error}=await supabaseClient.from('questions').update({question_number:n,section_id:target.id}).eq('id',ids[i]);if(error)throw error;}return ueJsonResponse({ok:true});}
-  if(path==='/api/results'&&method==='POST'){const student=ueStudentRequired();const {data,error}=await supabaseClient.from('results').insert({student_id:student.id,test_id:Number(body.test_id),listening_score:body.section==='Listening'?Number(body.score)||0:null,reading_score:body.section==='Reading'?Number(body.score)||0:null,writing_score:null,total_score:Number(body.score)||0,answers:{section:body.section,answered:Number(body.answered)||0,details:body.details||[]}}).select('id').single();if(error)throw error;return ueJsonResponse({id:data.id});}
-  if(path==='/api/results'&&method==='GET'){ueAdminRequired();const {data,error}=await supabaseClient.from('results').select('id,student_id,test_id,listening_score,reading_score,writing_score,total_score,answers,submitted_at,students(full_name),tests(title,module)').order('submitted_at',{ascending:false});if(error)throw error;return ueJsonResponse((data||[]).map(r=>({id:r.id,student_name:r.students?.full_name||'',title:r.tests?.title||'',test_section:r.tests?.module||'',score:r.total_score||0,total:40,band:'',answered:r.answers?.answered||0,created_at:r.submitted_at,details:r.answers?.details||[]})));}
-  m=path.match(/^\/api\/results\/(\d+)$/);if(m&&method==='GET'){ueAdminRequired();const {data,error}=await supabaseClient.from('results').select('id,student_id,test_id,listening_score,reading_score,writing_score,total_score,answers,submitted_at,students(full_name),tests(title,module)').eq('id',Number(m[1])).single();if(error)throw error;return ueJsonResponse({id:data.id,student_name:data.students?.full_name||'',title:data.tests?.title||'',score:data.total_score||0,total:40,band:'',details:data.answers?.details||[],created_at:data.submitted_at});}
-  if(path==='/api/writing-submissions'&&method==='POST'){const student=ueStudentRequired();const {data,error}=await supabaseClient.from('writing_submissions').insert({student_id:student.id,test_id:Number(body.test_id),task1:body.task1||'',task2:body.task2||''}).select('id').single();if(error)throw error;return ueJsonResponse({id:data.id});}
-  if(path==='/api/writing-submissions'&&method==='GET'){ueAdminRequired();const {data,error}=await supabaseClient.from('writing_submissions').select('id,student_id,test_id,task1,task2,submitted_at,students(full_name),tests(title)').order('submitted_at',{ascending:false});if(error)throw error;return ueJsonResponse((data||[]).map(x=>({id:x.id,student_name:x.students?.full_name||'',title:x.tests?.title||'',task1:x.task1,task2:x.task2,created_at:x.submitted_at})));}
-  m=path.match(/^\/api\/writing-submissions\/(\d+)$/);if(m&&method==='DELETE'){ueAdminRequired();const {error}=await supabaseClient.from('writing_submissions').delete().eq('id',Number(m[1]));if(error)throw error;return ueJsonResponse({ok:true});}
-  if(path==='/api/admin/pin'&&method==='POST'){ueAdminRequired();return ueJsonResponse({ok:true});}
-  if(path==='/api/export/results'&&method==='GET'){ueAdminRequired();const rows=await ueTests(true);const {data,error}=await supabaseClient.from('results').select('id,student_id,test_id,listening_score,reading_score,writing_score,total_score,answers,submitted_at,students(full_name),tests(title,module)').order('submitted_at',{ascending:false});if(error)throw error;const csv='ID,Section,Test,Student,Score,Total,Answered,Date\n'+(data||[]).map(r=>[r.id,r.tests?.module||'',r.tests?.title||'',r.students?.full_name||'',r.total_score||0,40,r.answers?.answered||0,r.submitted_at].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');return ueJsonResponse(csv);}
-  return ueJsonResponse({error:'Unsupported route: '+method+' '+path},404);
+
+    studentTab.type = "button";
+    staffTab.type = "button";
+
+    studentTab.addEventListener("click", () => {
+        loginMode = "student";
+        studentTab.classList.add("active");
+        staffTab.classList.remove("active");
+        if (loginMessage) loginMessage.textContent = "";
+    });
+
+    staffTab.addEventListener("click", () => {
+        loginMode = "staff";
+        staffTab.classList.add("active");
+        studentTab.classList.remove("active");
+        if (loginMessage) loginMessage.textContent = "";
+    });
+
+    loginForm.addEventListener("submit", handleLoginSubmit);
 }
-async function ueReplaceOptions(questionId,options){const {error:de}=await supabaseClient.from('options').delete().eq('question_id',questionId);if(de)throw de;const rows=(options||[]).map((text,i)=>({question_id:questionId,option_key:String.fromCharCode(65+i),option_text:String(text),sort_order:i}));if(rows.length){const {error}=await supabaseClient.from('options').insert(rows);if(error)throw error;}}
-async function api(u,o={}){try{const r=await ueRoute(u,o);const d=await r.json();if(!r.ok)throw new Error(d.error||'Request failed');return d;}catch(err){console.error('API error',u,err);throw err;}}
-async function adminFetch(u,o={}){return ueRoute(u,o);}
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initLoginUI);
+} else {
+    initLoginUI();
+}
+
+// ============================================
+// LOGIN FORM
+// ============================================
+
+async function handleLoginSubmit(event) {
+
+    event.preventDefault();
+
+    const email =
+        document.getElementById("email").value.trim();
+
+    const password =
+        document.getElementById("password").value;
 
 
-const $=id=>document.getElementById(id);
-let tests=[],activeTest=null,answers={},listenPart=1,readingPassage=1,timer=null,remain=0,audioConfirmed=false,audioLast=0,audioStarted=false,audioEnded=false,currentStudent=null;
-const TYPE_NAMES={matching:'Matching',single:'Multiple Choice — Single Answer',multi:'Multiple Choice — Multiple Answers',note:'Note Completion',form:'Form Completion',table:'Table Completion',sentence:'Sentence Completion',summary:'Summary Completion',short:'Short Answer Questions',map:'Map / Plan / Diagram Labelling',flow:'Flow-chart Completion'};
-const TYPE_HELP={matching:'Match each item to an option from a shared answer box. The same option may be used more than once when the instructions allow it.',single:'Choose one correct option.',multi:'Choose more than one correct option. Enter correct letters separated by commas, for example A,C.',note:'Complete missing information in notes. Use [BLANK] in the question text where the answer box should appear.',form:'Complete missing information in a form. Use [BLANK] in the question text where the answer box should appear.',table:'Complete missing information in a table-style prompt. Use [BLANK] in the question text where the answer box should appear.',sentence:'Complete the sentence using words and/or numbers from the recording. Use [BLANK] for the gap.',summary:'Complete a summary using words and/or numbers from the recording. Use [BLANK] for the gap.',short:'Answer the question using the configured word/number limit.',map:'Label a plan, map or diagram. Upload the visual and provide a shared answer bank.',flow:'Complete a missing stage in a flow-chart. Use [BLANK] in the question text where the answer box should appear.'};
-const SUMMARY_FORMATS={form:'Form Completion',note:'Note Completion',table:'Table Completion',flow:'Flow-chart Completion',summary:'Summary Completion'};
-const LISTENING_TYPES=['matching','single','multi','note','form','table','sentence','summary','short','map','flow'];
-const READING_TYPES={single:'Multiple Choice — Single Answer',multi:'Multiple Choice — Multiple Answers',tfng:'True / False / Not Given',yng:'Yes / No / Not Given',headings:'Matching Headings',information:'Matching Information',features:'Matching Features',endings:'Matching Sentence Endings',sentence:'Sentence Completion',summary:'Summary Completion',note:'Note Completion',table:'Table Completion',flow:'Flow-chart Completion',diagram:'Diagram Label Completion',short:'Short Answer Questions',matching:'Matching',map:'Map, Plan, or Diagram Labelling'};
-const ALL_TYPES={...READING_TYPES,...TYPE_NAMES};
-function e(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-function show(id){['home','student','admin'].forEach(x=>$(x).classList.add('hidden'));$(id).classList.remove('hidden');}
-function home(){stopTimer();show('home');}
-function admin(){stopTimer();show('admin');$('adminLogin').classList.remove('hidden');$('adminPanel').classList.add('hidden');}
-async function studentHome(section){stopTimer();show('student');['listeningExam','readingExam','writingExam','studentResult'].forEach(x=>$(x).classList.add('hidden'));if(section)$('studentSection').value=section;const token=sessionStorage.getItem('studentToken');if(token){try{await api('/api/tests');currentStudent=currentStudent||JSON.parse(sessionStorage.getItem('studentInfo')||'null');$('studentAuth').classList.add('hidden');$('studentSetup').classList.remove('hidden');$('loggedStudent').textContent=currentStudent?`Logged in: ${currentStudent.name} • Student ID: ${currentStudent.student_id}`:'';loadStudentTests();return;}catch(e){await studentLogout(false);}}$('studentAuth').classList.remove('hidden');$('studentSetup').classList.add('hidden');}
-async function studentLogin(){const student_id=$('studentLoginId').value.trim(),password=$('studentLoginPassword').value;if(!student_id||!password){$('studentLoginError').textContent='Enter Student ID and Password.';return;}try{const r=await api('/api/student/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({student_id,password})});if(!r.ok){$('studentLoginError').textContent=r.error||'Invalid Student ID or Password';return;}sessionStorage.setItem('studentToken',r.token);sessionStorage.setItem('studentInfo',JSON.stringify(r.student));currentStudent=r.student;$('studentLoginError').textContent='';$('loggedStudent').textContent=`Logged in: ${r.student.name} • Student ID: ${r.student.student_id}`;$('studentAuth').classList.add('hidden');$('studentSetup').classList.remove('hidden');await loadStudentTests();}catch(err){$('studentLoginError').textContent=err.message||'Login failed';}}
-async function studentLogout(showLogin=true){const token=sessionStorage.getItem('studentToken');if(token){try{await api('/api/student/logout',{method:'POST'});}catch(e){}}sessionStorage.removeItem('studentToken');sessionStorage.removeItem('studentInfo');currentStudent=null;stopTimer();if(showLogin){show('student');$('studentAuth').classList.remove('hidden');$('studentSetup').classList.add('hidden');['listeningExam','readingExam','writingExam','studentResult'].forEach(x=>$(x).classList.add('hidden'));}}
-async function loadStudentTests(){if(!sessionStorage.getItem('studentToken'))return;try{const sec=$('studentSection').value;tests=await api('/api/tests');const xs=tests.filter(t=>t.section===sec);$('studentTest').innerHTML=xs.map(t=>`<option value="${t.id}">${e(t.title)}</option>`).join('')||'<option value="">No tests</option>';updateMeta();$('audioConfirm').classList.toggle('hidden',sec!=='Listening');}catch(err){console.error(err);$('studentTest').innerHTML='<option value="">Unable to load tests</option>';}}
-function updateMeta(){let t=tests.find(x=>x.id===+$('studentTest').value);$('studentMeta').textContent=t?`${t.section} • ${t.section==='Listening'?'40 questions • 4 parts • 40 minutes':t.section==='Reading'?'3 passages • 40 questions • 60 minutes':'Task 1 + Task 2 • 60 minutes'}`:'';}
-$('studentTest').addEventListener('change',()=>{audioConfirmed=false;$('audioReady').textContent='';updateMeta()});
-function giveAudio(){let t=tests.find(x=>x.id===+$('studentTest').value);if(!t?.audio)return alert('Admin has not added Listening audio yet.');audioConfirmed=true;$('audioReady').textContent=' ✓ Audio ready';}
-async function startStudent(){if(!sessionStorage.getItem('studentToken'))return studentHome();let t=await api('/api/tests/'+$('studentTest').value);if(!t?.id)return;activeTest=t;answers={};$('studentSetup').classList.add('hidden');if(t.section==='Listening'){if(!audioConfirmed)return alert('Please click Give Me Audio first.');startListening();}else if(t.section==='Reading')startReading();else startWriting();}
-function stopTimer(){if(timer){clearInterval(timer);timer=null;}}
-function resetTimer(){stopTimer();}
-function updateTimer(id){let m=Math.floor(remain/60),s=remain%60;$(id).textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');}
-function startCountdown(id,minutes,onEnd){remain=minutes*60;updateTimer(id);timer=setInterval(()=>{remain--;updateTimer(id);if(remain<=0){stopTimer();onEnd(true)}},1000);}
-function listeningPartRange(p){return {from:(p-1)*10+1,to:p*10};}
-function startListening(){['listeningExam'].forEach(x=>$(x).classList.remove('hidden'));listenPart=1;audioEnded=false;audioStarted=false;audioLast=0;$('listenAudio').src=activeTest.audio;const box=$('listenInstructions');box.textContent=activeTest.instructions||'';box.classList.toggle('hidden',!activeTest.instructions);renderListeningPart();startCountdown('listenTimer',40,submitListening);$('listenAudio').play().catch(()=>{});}
-function focusPartStart(section,number){requestAnimationFrame(()=>{const title=$(section==='Listening'?'listenPartTitle':'readingPassageTitle');title?.scrollIntoView({behavior:'smooth',block:'start'});if(section==='Listening'){const q=document.querySelector(`[data-q="${number}"]`);if(q)setTimeout(()=>q.scrollIntoView({behavior:'smooth',block:'center'}),140);}});}
-function renderListeningPart(focus=false){let r=listeningPartRange(listenPart);$('listenPartTitle').textContent=`Part ${listenPart} — Questions ${r.from}–${r.to}`;$('listenBar').style.width=(listenPart*25)+'%';$('listenTabs').innerHTML=[1,2,3,4].map(p=>{let x=listeningPartRange(p);return `<button class="${p===listenPart?'active':''}" onclick="listenPart=${p};renderListeningPart(true)">Part ${p} · Q${x.from}–${x.to}</button>`}).join('');$('listenQs').innerHTML=activeTest.questions.filter(q=>q.q_no>=r.from&&q.q_no<=r.to).sort((a,b)=>a.q_no-b.q_no).map((q,i,a)=>renderStudentQuestion(q,i,a)).join('');if(focus)focusPartStart('Listening',r.from);}
-function setAnswer(n,v){answers[n]=v;highlightQuestion(n)}
-function setMulti(n){let els=[...document.querySelectorAll(`input[name="q${n}"]:checked`)];answers[n]=els.map(x=>x.value);highlightQuestion(n)}
-function setMatching(n,v){answers[n]=v;highlightQuestion(n)}
-function highlightQuestion(n){document.querySelectorAll('.question').forEach(x=>x.classList.toggle('current',x.dataset.q==n));}
-function questionInput(n,v,placeholder='Your answer'){return `<input class="answer-input" value="${e(v||'')}" oninput="setAnswer(${n},this.value)" placeholder="${e(placeholder)}" autocomplete="off">`;}
-function optionKeyLabel(o){let m=String(o).match(/^\s*([A-Z])(?:[.)]|\s[-–—]\s)/i);return {key:m?m[1].toUpperCase():String(o),label:String(o)};}
-function renderStudentQuestion(q,index,list){
- let v=answers[q.q_no],html='';
- const prev=list&&index>0?list[index-1]:null;
- const showHeading=!!String(q.section_heading||'').trim() && String(q.section_heading||'')!==String(prev?.section_heading||'');
- const showInstruction=!!String(q.instruction||'').trim() && String(q.instruction||'')!==String(prev?.instruction||'');
- const heading=showHeading?`<div class="question-section-heading">${e(q.section_heading)}</div>`:'';
- const instruction=showInstruction?`<div class="question-instruction">${e(q.instruction).replace(/\n/g,'<br>')}</div>`:'';
- if(q.type==='single'){
-   let opts=q.options||[];html='<div class="opts mcq-options">'+opts.map(o=>{let x=optionKeyLabel(o);return `<label><input type="radio" name="q${q.q_no}" value="${e(x.key)}" ${v===x.key?'checked':''} onchange="setAnswer(${q.q_no},this.value)"> <span>${e(x.label)}</span></label>`}).join('')+'</div>';
- }else if(q.type==='multi'){
-   let opts=q.options||[],vv=Array.isArray(v)?v:[];html='<div class="opts mcq-options">'+opts.map(o=>{let x=optionKeyLabel(o);return `<label><input type="checkbox" name="q${q.q_no}" value="${e(x.key)}" ${vv.includes(x.key)?'checked':''} onchange="setMulti(${q.q_no})"> <span>${e(x.label)}</span></label>`}).join('')+'</div>';
- }else if(q.type==='matching'){
-   let opts=q.options||[];html=`<div class="matching-answer"><select onchange="setMatching(${q.q_no},this.value)"><option value="">Choose an answer</option>${opts.map(o=>{let x=optionKeyLabel(o);return `<option value="${e(x.key)}" ${v===x.key?'selected':''}>${e(x.label)}</option>`}).join('')}</select></div>`;
- }else if(q.type==='map'){
-   let opts=q.options||[];html=`<div class="map-layout"><div class="map-answer"><select onchange="setAnswer(${q.q_no},this.value)"><option value="">Choose a label</option>${opts.map(o=>{let x=optionKeyLabel(o);return `<option value="${e(x.key)}" ${v===x.key?'selected':''}>${e(x.label)}</option>`}).join('')}</select></div><div class="map-options">${opts.map(o=>`<div class="map-opt">${e(o)}</div>`).join('')}</div></div>`;
- }else if(['note','form','table','summary','flow','sentence'].includes(q.type)){
-   html=`<div class="completion-box ${e(q.type)}"><div class="completion-content">${renderCompletionPrompt(q,q.q_no,v)}</div></div>`;
- }else{
-   html=`<div class="short-answer-box">${questionInput(q.q_no,v,'Type your answer')}</div>`;
- }
- return `<div class="question listening-question" data-q="${q.q_no}">${heading}${instruction}${String(q.prompt||'').trim()?`<p class="question-prompt">${e(q.prompt).replace(/\n/g,'<br>')}</p>`:''}${q.image?`<img class="question-visual" src="${e(q.image)}" alt="Question visual">`:''}${q.word_limit?`<div class="word-limit">${e(q.word_limit)}</div>`:''}${html}</div>`;
-}
-function renderCompletionPrompt(q,n,v){let prompt=String(q.prompt||'');let parts=prompt.split(/(\[BLANK\])/gi);if(parts.length===1)return `<div>${e(prompt)}</div><div class="inline-answer">${questionInput(n,v,'Answer')}</div>`;let used=false;return parts.map(part=>{if(/^\[BLANK\]$/i.test(part)&&!used){used=true;return questionInput(n,v,'Answer')}return e(part)}).join('');}
-function listenPrev(){if(listenPart>1){listenPart--;renderListeningPart(true);}}
-function listenNext(){if(listenPart<4){listenPart++;renderListeningPart(true);}else submitListening();}
-function norm(x){return String(x??'').trim().toLowerCase().replace(/\s+/g,' ')}
-function isCorrect(q){
- let v=answers[q.q_no],correct=q.answer;
- if(q.type==='multi'){
-   let a=(Array.isArray(v)?v:[]).map(norm).sort(),b=String(correct||'').split(',').map(norm).filter(Boolean).sort();
-   return a.length===b.length&&a.every((x,i)=>x===b[i]);
- }
- if(q.type==='matching'){
-   return norm(v)===norm(correct);
- }
- let sv=norm(v);
- if(['single','map'].includes(q.type))return sv===norm(correct);
- let accepted=[correct,...(q.accepted_answers||[])].map(norm).filter(Boolean);
- return accepted.includes(sv);
-}
-function buildDetails(){return activeTest.questions.map(q=>({q_no:q.q_no,type:q.type,format:q.format||'',prompt:q.prompt,instruction:q.instruction||'',student_answer:answers[q.q_no]??'',correct_answer:q.answer||'',accepted_answers:q.accepted_answers||[],correct:isCorrect(q),explanation:q.explanation||''}));}
-function band(score){if(score>=39)return '9.0';if(score>=37)return '8.5';if(score>=35)return '8.0';if(score>=33)return '7.5';if(score>=30)return '7.0';if(score>=27)return '6.5';if(score>=23)return '6.0';if(score>=19)return '5.5';if(score>=15)return '5.0';if(score>=13)return '4.5';if(score>=10)return '4.0';if(score>=8)return '3.5';if(score>=6)return '3.0';if(score>=4)return '2.5';return '2.0';}
-async function submitListening(auto=false){if(!auto&&!confirm('Submit Listening Test now?'))return;stopTimer();let details=buildDetails(),score=details.filter(x=>x.correct).length,answered=Object.values(answers).filter(v=>Array.isArray(v)?v.length:v).length;await api('/api/results',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({test_id:activeTest.id,section:'Listening',student_name:$('studentName').value,score,total:40,band:band(score),answered,details})});showStudentResult(score,40,'Estimated Listening Band '+band(score),`${answered} answered. Tutor/Admin can review every correct and wrong answer.`);}
-function startReading(){readingPassage=1;$('readingExam').classList.remove('hidden');const box=$('readingInstructions');box.textContent=activeTest.instructions||'';box.classList.toggle('hidden',!activeTest.instructions);renderReading();startCountdown('readingTimer',60,submitReading);}
-function renderReading(focus=false){let ps=activeTest.passages||[];$('readingPassageTabs').innerHTML=ps.map(p=>`<button class="${p.id===readingPassage?'active':''}" onclick="readingPassage=${p.id};renderReading(true)">Passage ${p.id}${p.id<readingPassage?' ✓':''}</button>`).join('');let p=ps.find(x=>+x.id===readingPassage)||ps[0];$('readingPassageTitle').textContent=p?.title||`Passage ${readingPassage}`;$('readingPassageText').textContent=p?.content||'No passage content has been added by Admin.';if(p?.image){$('readingPassageImage').src=p.image;$('readingPassageImage').classList.remove('hidden')}else $('readingPassageImage').classList.add('hidden');let from=readingPassage===1?1:readingPassage===2?14:27,to=readingPassage===1?13:readingPassage===2?26:40;let qs=activeTest.questions.filter(q=>q.q_no>=from&&q.q_no<=to).sort((a,b)=>a.q_no-b.q_no);$('readingQuestionNav').innerHTML=qs.map(q=>`<button class="${answers[q.q_no]?'active':''}" onclick="document.querySelector('[data-q=\'${q.q_no}\']')?.scrollIntoView({behavior:'smooth',block:'center'});highlightQuestion(${q.q_no})">${q.q_no}</button>`).join('');$('readingQs').innerHTML=qs.map((q,i,a)=>renderStudentQuestion(q,i,a)).join('');if(focus)focusPartStart('Reading',from);}
-async function submitReading(auto=false){if(!auto&&!confirm('Submit Reading Test now?'))return;stopTimer();let details=buildDetails(),score=details.filter(x=>x.correct).length,answered=Object.values(answers).filter(v=>Array.isArray(v)?v.length:v).length;await api('/api/results',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({test_id:activeTest.id,section:'Reading',student_name:$('studentName').value,score,total:40,band:band(score),answered,details})});showStudentResult(score,40,'Estimated Reading Band '+band(score),`${answered} answered. Tutor/Admin can review every correct and wrong answer.`);}
-function startWriting(){$('writingExam').classList.remove('hidden');$('writingTitle').textContent=activeTest.title;$('writingInstructions').textContent=activeTest.instructions||'';$('task1Prompt').textContent=activeTest.task1||'';$('task2Prompt').textContent=activeTest.task2||'';$('task1Answer').value='';$('task2Answer').value='';startCountdown('writingTimer',60,submitWriting);}
-async function submitWriting(auto=false){if(!auto&&!confirm('Submit Writing Test now?'))return;stopTimer();await api('/api/writing-submissions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({test_id:activeTest.id,student_name:$('studentName').value,task1:$('task1Answer').value,task2:$('task2Answer').value})});showStudentResult('Submitted','Manual Checking','Your Task 1 and Task 2 responses have been saved as a Notepad (.txt) file for Tutor/Admin manual checking.');}
-function showStudentResult(score,total,title,text){['listeningExam','readingExam','writingExam'].forEach(x=>$(x).classList.add('hidden'));$('studentResult').classList.remove('hidden');$('studentScore').textContent=typeof score==='number'?score+' / '+total:score;$('studentBand').textContent=title;$('studentResultText').textContent=text;}
-async function login(){try{const r=await api('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:$('adminPin').value})});if(!r.ok)return alert('Incorrect PIN');sessionStorage.setItem('adminToken',r.token);$('adminLogin').classList.add('hidden');$('adminPanel').classList.remove('hidden');loadAdmin();}catch(err){alert(err.message||'Admin login failed');}}
-async function showStudents(){try{const r=await api('/api/admin/students');$('editor').classList.add('hidden');$('adminResults').classList.remove('hidden');$('adminResults').innerHTML=`<h2>Student Accounts</h2><p class="muted">Only accounts created here can log in. Passwords are stored securely and are never displayed.</p><div class="card"><h3>Create Student Account</h3><div class="grid"><div><b>Student ID</b><input id="newStudentId" placeholder="e.g. UE001"></div><div><b>Student Name</b><input id="newStudentName" placeholder="Full name"></div><div><b>Password</b><input id="newStudentPassword" type="password" placeholder="Create password"></div></div><button class="primary" onclick="createStudent()">Create Account</button></div><div>${r.map(a=>`<div class="student-account"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><div><b>${e(a.student_id)}</b> — ${e(a.name)} ${a.active?'':'<span class="pill">Disabled</span>'}<div class="muted">Created ${new Date(a.created_at).toLocaleString()}</div></div><div><button onclick="editStudent(${a.id},${JSON.stringify(a.student_id)},${JSON.stringify(a.name)},${a.active})">Edit</button><button class="danger" onclick="deleteStudent(${a.id})">Delete</button></div></div></div>`).join('')||'<p class="muted">No Student accounts created yet.</p>'}</div><button onclick="loadAdmin()">← Back to Tests</button>`;}catch(err){alert(err.message);}}
-async function createStudent(){const student_id=$('newStudentId').value.trim(),name=$('newStudentName').value.trim(),password=$('newStudentPassword').value;if(!student_id||!name||!password)return alert('Student ID, name and password are required.');try{await api('/api/admin/students',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({student_id,name,password})});showStudents();}catch(err){alert(err.message);}}
-async function editStudent(id,currentId,currentName,active){const student_id=prompt('Student ID',currentId);if(student_id===null)return;const name=prompt('Student Name',currentName);if(name===null)return;const password=prompt('New Password (leave blank to keep current password)','');if(password===null)return;try{await api('/api/admin/students/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({student_id,name,password,active})});showStudents();}catch(err){alert(err.message);}}
-async function deleteStudent(id){if(!confirm('Delete this Student account? The student will no longer be able to log in.'))return;try{await api('/api/admin/students/'+id,{method:'DELETE'});showStudents();}catch(err){alert(err.message);}}
-async function exportResults(){try{const r=await adminFetch('/api/export/results');const blob=await r.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='ielts-results.csv';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);}catch(err){alert(err.message);}}
-async function loadAdmin(){let x=await api('/api/tests?admin=1');$('adminTests').innerHTML=x.map(t=>`<div class="row"><div><b>${e(t.title)}</b><div class="muted"><span class="pill">${e(t.section)}</span> ${e(t.status)} • ${t.section==='Listening'?'40 questions • 4 Parts':t.section==='Reading'?'3 passages • 40 questions • 60 min':'Task 1 + Task 2 • 60 min'}</div></div><div><button class="primary" onclick="editTest(${t.id})">Manage / Edit</button><button class="danger" onclick="deleteTest(${t.id},${JSON.stringify(t.title)})">Delete Test</button></div></div>`).join('')||'<p class="muted">No tests.</p>';}
-async function deleteTest(id,title){if(!confirm(`Delete test “${title}” and all of its questions? This cannot be undone.`))return;await adminFetch('/api/admin/tests/'+id,{method:'DELETE'});if(activeTest?.id===id){activeTest=null;$('editor').classList.add('hidden');}await loadAdmin();}
-async function newTest(section){let r=await api('/api/admin/tests',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({section})});editTest(r.id);}
-function writingEditor(){return `<h2>Manage Writing Test</h2><div class="grid"><div><b>Test Title</b><input id="et" value="${e(activeTest.title)}"></div><div><b>Duration</b><input id="ed" type="number" value="${activeTest.duration||60}" readonly></div><div><b>Status</b><select id="es"><option ${activeTest.status==='draft'?'selected':''}>draft</option><option ${activeTest.status==='published'?'selected':''}>published</option></select></div></div><label><b>Test Instructions</b><textarea id="ep">${e(activeTest.instructions||'')}</textarea></label><label><b>Task 1 Prompt</b><textarea id="wt1">${e(activeTest.task1||'')}</textarea></label><label><b>Task 2 Prompt</b><textarea id="wt2">${e(activeTest.task2||'')}</textarea></label><button class="primary" onclick="saveTest()">Save Test</button>`;}
-async function editTest(id){activeTest=await api('/api/tests/'+id+'?admin=1');$('editor').classList.remove('hidden');$('adminResults').classList.add('hidden');$('editor').innerHTML=activeTest.section==='Writing'?writingEditor():testEditor();window.scrollTo({top:$('editor').offsetTop-80,behavior:'smooth'});}
-function testEditor(){let isL=activeTest.section==='Listening',isR=activeTest.section==='Reading';return `<h2>Manage ${e(activeTest.section)} Test</h2><div class="grid"><div><b>Test Title</b><input id="et" value="${e(activeTest.title)}"></div><div><b>Duration</b><input id="ed" type="number" value="${isR?60:activeTest.duration}" ${isR?'readonly':''}></div><div><b>Status</b><select id="es"><option ${activeTest.status==='draft'?'selected':''}>draft</option><option ${activeTest.status==='published'?'selected':''}>published</option></select></div>${isL?`<div><b>ONE AUDIO — Whole Listening Test</b><input type="file" accept="audio/*" onchange="uploadAudio(this)"><div class="muted">${e(activeTest.audio||'No audio added')}</div>${activeTest.audio?'<button class="danger-outline" onclick="removeAudio()">Remove Audio</button>':''}</div>`:''}</div><div style="margin-top:14px"><label><b>Test Start Instructions</b><textarea id="ep" placeholder="Instructions shown once at the beginning of the test. You can edit or delete them.">${e(activeTest.instructions||'')}</textarea></label><div class="admin-help">These instructions appear once at the start of the Student test. Keep question/group-specific instructions in the individual question editor only where needed.</div></div>${isR?readingPassageEditor():''}<button class="primary" onclick="saveTest()">Save Test</button><h2 class="section-title">${isL?'Listening Parts':'Reading Questions'}</h2>${isL?'<p class="muted">Fixed structure: Part 1 = Q1–10, Part 2 = Q11–20, Part 3 = Q21–30, Part 4 = Q31–40.</p>':'<p class="muted">Fixed structure: Passage 1 = Q1–13, Passage 2 = Q14–26, Passage 3 = Q27–40. The timer is one 60:00 clock for the entire Reading Test.</p>'}<button onclick="addQuestion()">+ Add Question</button>${isR?'<button onclick="normalizeReading()">Normalize Q1–40 by Passage</button>':''}<div>${activeTest.questions.map(adminQuestion).join('')}</div>`;}
-function readingPassageEditor(){return `<h3>Reading Passages</h3><p class="muted">Exactly 3 passages are maintained. Fill an empty passage to add it; clear its content to remove it. Passage images are optional.</p>${(activeTest.passages||[]).map(p=>`<div class="passage-admin"><h3>Passage ${p.id}</h3><label><b>Passage Title</b><input id="pt${p.id}" value="${e(p.title||'Passage '+p.id)}"></label><label><b>Passage Content</b><textarea id="pc${p.id}">${e(p.content||'')}</textarea></label><label><b>Passage Image</b><input type="file" accept="image/*" onchange="uploadPassageImage(${p.id},this)"></label>${p.image?`<img class="preview" src="${e(p.image)}"><button class="danger-outline" onclick="clearPassageImage(${p.id})">Remove Image</button>`:''}</div>`).join('')}`;}
-function adminQuestion(q){let isL=activeTest.section==='Listening',isR=activeTest.section==='Reading';let opts=(q.options||[]).join('\n'),acc=(q.accepted_answers||[]).join('\n');let passage=isR?(q.passage_no||1):null;let typeList=isL?Object.entries(TYPE_NAMES):Object.entries(READING_TYPES);return `<div class="admin-q"><div style="display:flex;justify-content:space-between;gap:10px"><b>Question ${q.q_no}</b><span class="pill">${e((isL?TYPE_NAMES:READING_TYPES)[q.type]||q.type)}</span></div><div class="grid"><div><b>Question No.</b><input id="num${q.id}" type="number" min="1" max="40" value="${q.q_no}"></div>${isL?`<div><b>Part</b><select id="part${q.id}">${[1,2,3,4].map(i=>`<option value="${i}" ${q.part_no===i?'selected':''}>Part ${i} — Q ${(i-1)*10+1}–${i*10}</option>`).join('')}</select></div>`:isR?`<div><b>Passage</b><select id="passage${q.id}">${[1,2,3].map(i=>`<option value="${i}" ${passage===i?'selected':''}>Passage ${i} — Q ${i===1?'1–13':i===2?'14–26':'27–40'}</option>`).join('')}</select></div>`:''}</div><label><b>Question Type</b><select id="type${q.id}" onchange="refreshQuestionType(${q.id})">${typeList.map(([k,v])=>`<option value="${k}" ${q.type===k?'selected':''}>${e(v)}</option>`).join('')}</select></label><div id="qfields${q.id}">${questionFields(q,opts,acc,isL)}</div><button class="primary" onclick="saveQ(${q.id})">Save Question</button><button onclick="moveQuestion(${q.id},-1)">↑ Move Up</button><button onclick="moveQuestion(${q.id},1)">↓ Move Down</button><button class="danger" onclick="delQ(${q.id})">Delete Question</button></div>`;}
-function questionFields(q,opts,acc,isListening=false){
- const type=q.type||'short';
- if(!isListening){
-   const choice=['single','multi','headings','information','features','endings','matching','map'].includes(type);
-   return `<div class="type-help">${e(TYPE_HELP[q.type]||'')}</div><label><b>Instruction / Lines Before Question</b><textarea id="instruction${q.id}" placeholder="Optional: show only when needed for this question/group. Leave blank to remove.">${e(q.instruction||'')}</textarea></label><label><b>Question Text</b><textarea id="prompt${q.id}">${e(q.prompt)}</textarea></label>${choice?optionEditor(q):'<div id="optionsWrap'+q.id+'" class="hidden"></div>'}<label><b>Correct Answer${q.type==='multi'?' (comma-separated)':''}</b><input id="ans${q.id}" value="${e(q.answer||'')}"></label>${!['single','multi','tfng','yng','headings','information','features','endings','matching','map'].includes(q.type)?`<label><b>Accepted Answers (one per line)</b><textarea id="acc${q.id}">${e(acc)}</textarea></label>`:'<input type="hidden" id="acc'+q.id+'" value="'+e(acc)+'">'}<label><b>Faculty Explanation / Note</b><textarea id="exp${q.id}">${e(q.explanation||'')}</textarea></label>${q.image?`<img class="preview" src="${e(q.image)}"><button class="danger-outline" onclick="removeImage(${q.id})">Remove Image</button>`:''}<label><b>Question Image (optional)</b><input type="file" accept="image/*" onchange="uploadImage(${q.id},this)"></label>`;
- }
- const choice=['single','multi','matching','map'].includes(type);
- const completion=['note','form','table','sentence','summary','flow'].includes(type);
- const allowAlternatives=completion||type==='short';
- const isMap=type==='map';
- let fields=`<div class="type-help">${e(TYPE_HELP[type]||'')}</div>`;
- fields+=`<label><b>Instruction / Group Instruction</b><textarea id="instruction${q.id}" placeholder="Example: Questions 1–5. Complete the form below. Write NO MORE THAN TWO WORDS AND/OR A NUMBER.">${e(q.instruction||'')}</textarea></label>`;
- fields+=`<label><b>Question Text</b><textarea id="prompt${q.id}" placeholder="Use [BLANK] where a completion answer box should appear.">${e(q.prompt||'')}</textarea></label>`;
- if(choice)fields+=optionEditor(q);else fields+=`<div id="optionsWrap${q.id}" class="hidden"></div>`;
- if(completion||type==='short')fields+=`<label><b>Word Limit / Answer Instruction</b><input id="wordlimit${q.id}" value="${e(q.word_limit||'')}" placeholder="NO MORE THAN TWO WORDS AND/OR A NUMBER"></label>`;
- fields+=`<label><b>Correct Answer${type==='multi'?' (comma-separated letters)':''}</b><input id="ans${q.id}" value="${e(q.answer||'')}" placeholder="${type==='multi'?'A,C':choice?'A':'Exact answer'}"></label>`;
- if(allowAlternatives)fields+=`<label><b>Accepted Alternative Answers (one per line)</b><textarea id="acc${q.id}" placeholder="Optional alternative spellings/answers accepted by automatic marking">${e(acc)}</textarea></label>`;else fields+=`<input type="hidden" id="acc${q.id}" value="${e(acc)}">`;
- fields+=`<label><b>Faculty Explanation / Note</b><textarea id="exp${q.id}">${e(q.explanation||'')}</textarea></label>`;
- if(isMap||q.image)fields+=`${q.image?`<img class="preview" src="${e(q.image)}"><button class="danger-outline" onclick="removeImage(${q.id})">Remove Visual</button>`:''}<label><b>${isMap?'Plan / Map / Diagram Image':'Question Image (optional)'}</b><input type="file" accept="image/*" onchange="uploadImage(${q.id},this)"></label>`;
- return fields;
-}
-function optionEditor(q){
- const opts=Array.isArray(q.options)?q.options:[];
- return `<div class="option-editor"><b>Options / Answer Bank</b><p class="muted">Add as many options as needed. Letters are assigned automatically in order: A, B, C…</p><div id="optionsWrap${q.id}">${opts.map((o,i)=>optionRow(q.id,o,i)).join('')}</div><button type="button" onclick="addOption(${q.id})">+ Add Option</button></div>`;
-}
-function optionRow(id,value,index){return `<div class="option-row" style="display:flex;gap:8px;align-items:center;margin:7px 0"><span class="pill opt-letter">${String.fromCharCode(65+index)}</span><input class="opt-input" value="${e(value)}" placeholder="Option text"><button type="button" class="danger-outline" onclick="removeOption(this,${id})">Remove</button></div>`;}
-function renumberOptions(id){[...document.querySelectorAll(`#optionsWrap${id} .option-row`)].forEach((r,i)=>{let x=r.querySelector('.opt-letter');if(x)x.textContent=String.fromCharCode(65+i);});}
-function addOption(id,value=''){const w=$('optionsWrap'+id);if(!w)return;const i=w.querySelectorAll('.option-row').length;w.insertAdjacentHTML('beforeend',optionRow(id,value,i));renumberOptions(id);}
-function removeOption(btn,id){btn.closest('.option-row')?.remove();renumberOptions(id);}
-function getOptions(id){return [...document.querySelectorAll(`#optionsWrap${id} .opt-input`)].map(x=>x.value.trim()).filter(Boolean);}
+    // ----------------------------------------
+    // VALIDATION
+    // ----------------------------------------
 
-function refreshQuestionType(id){let q=activeTest.questions.find(x=>x.id===id);let currentOptions=getOptions(id);let fake={...q,type:$('type'+id).value,instruction:$('instruction'+id)?.value||q.instruction||'',prompt:$('prompt'+id)?.value||q.prompt||'',answer:$('ans'+id)?.value||q.answer,word_limit:$('wordlimit'+id)?.value||q.word_limit||'',explanation:$('exp'+id)?.value||q.explanation||'',options:currentOptions.length?currentOptions:(q.options||[]),accepted_answers:($('acc'+id)?.value||'').split('\n').filter(Boolean)};$('qfields'+id).innerHTML=questionFields(fake,(fake.options||[]).join('\n'),(fake.accepted_answers||[]).join('\n'),activeTest.section==='Listening');}
-function qdata(id){let q=activeTest.questions.find(x=>x.id===id),isL=activeTest.section==='Listening',isR=activeTest.section==='Reading';return {part_no:isL?+$('part'+id).value:(isR?+$('passage'+id).value:q.part_no),passage_no:isR?+$('passage'+id).value:undefined,q_no:+$('num'+id).value,type:$('type'+id).value,instruction:$('instruction'+id)?.value||q.instruction||'',prompt:$('prompt'+id).value,options:getOptions(id),answer:$('ans'+id).value,accepted_answers:($('acc'+id)?.value||'').split('\n').map(x=>x.trim()).filter(Boolean),word_limit:$('wordlimit'+id)?.value||q.word_limit||'',explanation:$('exp'+id).value,image:q.image||''};}
-async function saveQ(id){await api('/api/admin/questions/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(qdata(id))});editTest(activeTest.id);}
-async function addQuestion(){let n=activeTest.questions.length?Math.max(...activeTest.questions.map(q=>q.q_no))+1:1;if(n>40)return alert('Maximum 40 questions');let passage=activeTest.section==='Reading'?(n<=13?1:n<=26?2:3):undefined;await api('/api/admin/questions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({test_id:activeTest.id,q_no:n,part_no:activeTest.section==='Listening'?Math.ceil(n/10):passage,passage_no:passage,type:activeTest.section==='Reading'?'single':'short',prompt:`New ${activeTest.section} Question ${n}`,options:activeTest.section==='Reading'?['A','B','C','D']:[]})});editTest(activeTest.id);}
-async function normalizeReading(){let ids=activeTest.questions.sort((a,b)=>a.q_no-b.q_no).map(q=>q.id);await api('/api/admin/questions/reorder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})});editTest(activeTest.id);}
-async function moveQuestion(id,dir){let qs=activeTest.questions.slice().sort((a,b)=>a.q_no-b.q_no),i=qs.findIndex(q=>q.id===id),j=i+dir;if(i<0||j<0||j>=qs.length)return;[qs[i],qs[j]]=[qs[j],qs[i]];await api('/api/admin/questions/reorder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids:qs.map(q=>q.id)})});editTest(activeTest.id);}
-async function uploadImage(id,inp){if(!inp.files[0])return;const file=inp.files[0];const reader=new FileReader();reader.onload=async()=>{const d=qdata(id);d.image=reader.result;await api('/api/admin/questions/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});await editTest(activeTest.id);};reader.readAsDataURL(file);inp.value='';}
-async function removeImage(id){if(!confirm('Remove this question image?'))return;await api('/api/admin/questions/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({...qdata(id),image:''})});editTest(activeTest.id);}
-async function uploadPassageImage(pid,inp){if(!inp.files[0])return;const reader=new FileReader();reader.onload=async()=>{let ps=(activeTest.passages||[]).map(p=>p.id===pid?{...p,image:reader.result}:p);await saveReadingPassages(ps);};reader.readAsDataURL(inp.files[0]);inp.value='';}
-async function clearPassageImage(pid){let ps=(activeTest.passages||[]).map(p=>p.id===pid?{...p,image:''}:p);await saveReadingPassages(ps);}
-async function saveReadingPassages(ps){await api('/api/admin/tests/'+activeTest.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({passages:ps,title:$('et').value,duration:60,status:$('es').value})});editTest(activeTest.id);}
-async function delQ(id){if(confirm('Delete this question?')){await adminFetch('/api/admin/questions/'+id,{method:'DELETE'});editTest(activeTest.id);}}
-async function saveTest(){let body={title:$('et').value,duration:$('ed').value,status:$('es').value};if(activeTest.section==='Listening'||activeTest.section==='Reading'||activeTest.section==='Writing')body.instructions=$('ep').value;if(activeTest.section==='Writing'){body.task1=$('wt1').value;body.task2=$('wt2').value;}if(activeTest.section==='Reading')body.passages=(activeTest.passages||[]).map(p=>({id:p.id,title:$('pt'+p.id).value,content:$('pc'+p.id).value,image:p.image||''}));await api('/api/admin/tests/'+activeTest.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});alert('Test saved');editTest(activeTest.id);loadAdmin();}
-async function uploadAudio(inp){if(!inp.files[0])return;const reader=new FileReader();reader.onload=async()=>{activeTest.audio=reader.result;await api('/api/admin/tests/'+activeTest.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({audio:reader.result})});await editTest(activeTest.id);};reader.readAsDataURL(inp.files[0]);inp.value='';}
-async function removeAudio(){if(!confirm('Remove the complete Listening audio?'))return;activeTest.audio='';await api('/api/admin/tests/'+activeTest.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({audio:''})});editTest(activeTest.id);}
-async function showResults(){let r=await api('/api/results');$('editor').classList.add('hidden');$('adminResults').classList.remove('hidden');$('adminResults').innerHTML='<h2>Student Results</h2>'+r.map(x=>`<div class="row"><div><b>${e(x.student_name)}</b><div class="muted">${e(x.test_section)} • ${e(x.title)} • ${new Date(x.created_at).toLocaleString()}</div></div><div><b>${x.score}/${x.total}</b> • ${e(x.band)} <button class="primary" onclick="viewResult(${x.id})">View Answers</button></div></div>`).join('')||'<p class="muted">No results yet.</p>';}
-async function viewResult(id){let r=await api('/api/results/'+id);$('adminResults').innerHTML='<button onclick="showResults()">← Back</button><h2>'+e(r.student_name)+' — '+e(r.title)+'</h2><p><b>Score:</b> '+r.score+'/'+r.total+' • <b>Band:</b> '+e(r.band)+'</p>'+r.details.map(d=>`<div class="detail ${d.correct?'correct':'wrong'}"><b>Q${d.q_no} — ${e(TYPE_NAMES[d.type]||d.type)}</b><p>${e(d.prompt)}</p><div><b>Student answer:</b> ${e(Array.isArray(d.student_answer)?d.student_answer.join(', '):d.student_answer||'—')}</div><div><b>Correct answer:</b> ${e(d.correct_answer||d.accepted_answers?.join(' / ')||'—')}</div>${d.explanation?`<div class="muted"><b>Faculty note:</b> ${e(d.explanation)}</div>`:''}<strong>${d.correct?'✓ Correct':'✗ Wrong'}</strong></div>`).join('');}
-async function showWriting(){let r=await api('/api/writing-submissions');$('editor').classList.add('hidden');$('adminResults').classList.remove('hidden');$('adminResults').innerHTML='<h2>Writing Submissions</h2><p class="muted">Download the Notepad (.txt) file and check Task 1 and Task 2 manually.</p>'+r.map(x=>`<div class="row"><div><b>${e(x.student_name)}</b><div class="muted">${e(x.title)} • ${new Date(x.created_at).toLocaleString()}</div></div><button class="primary" onclick="downloadWriting(${x.id})">Download .txt</button></div>`).join('')||'<p class="muted">No Writing submissions yet.</p>';}
-async function downloadWriting(id){const rows=await api('/api/writing-submissions');const x=rows.find(v=>v.id===id);if(!x)return;const content=`UNIVERSAL EDUCATION — IELTS WRITING SUBMISSION\n\nStudent: ${x.student_name}\nTest: ${x.title}\nSubmitted: ${new Date(x.created_at).toLocaleString()}\n\n===== TASK 1 =====\n\n${x.task1||''}\n\n===== TASK 2 =====\n\n${x.task2||''}\n`;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type:'text/plain'}));a.download=`${x.student_name.replace(/[^a-z0-9_-]+/gi,'_')}-writing.txt`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500);}
-async function pinchange(){let p=prompt('New PIN');if(p)await api('/api/admin/pin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:p})});}
-const aud=$('listenAudio');aud.addEventListener('play',()=>{if(audioEnded){aud.pause();return}audioStarted=true});aud.addEventListener('ended',()=>{audioEnded=true;aud.controls=false});aud.addEventListener('timeupdate',()=>{if(!aud.seeking)audioLast=aud.currentTime});aud.addEventListener('seeking',()=>{aud.currentTime=audioLast});aud.addEventListener('ratechange',()=>{aud.playbackRate=1});aud.addEventListener('pause',()=>{if(audioStarted&&!audioEnded)setTimeout(()=>{if(!audioEnded)aud.play().catch(()=>{})},50)});
-loadStudentTests();
+    if (!email || !password) {
+
+        showMessage(
+            "Please enter email and password.",
+            true
+        );
+
+        return;
+    }
+
+
+    // ----------------------------------------
+    // LOADING STATE
+    // ----------------------------------------
+
+    loginButton.disabled = true;
+    loginButton.textContent = "Logging in...";
+    loginMessage.textContent = "";
+
+
+    try {
+
+        // ------------------------------------
+        // SUPABASE AUTH LOGIN
+        // ------------------------------------
+
+        const { data, error } =
+            await supabaseClient.auth.signInWithPassword({
+
+                email: email,
+                password: password
+
+            });
+
+
+        if (error) {
+            throw error;
+        }
+
+
+        if (!data.user) {
+
+            throw new Error(
+                "Login failed."
+            );
+
+        }
+
+
+        // ------------------------------------
+        // GET USER PROFILE
+        // ------------------------------------
+
+        const { data: profile, error: profileError } =
+            await supabaseClient
+                .from("profiles")
+                .select(
+                    "full_name, role, active"
+                )
+                .eq("id", data.user.id)
+                .single();
+
+
+        if (profileError) {
+            throw profileError;
+        }
+
+
+        // ------------------------------------
+        // CHECK ACCOUNT STATUS
+        // ------------------------------------
+
+        if (!profile.active) {
+
+            await supabaseClient.auth.signOut();
+
+            throw new Error(
+                "This account is inactive."
+            );
+
+        }
+
+
+        // ------------------------------------
+        // CHECK LOGIN TYPE
+        // ------------------------------------
+
+        if (loginMode === "staff") {
+
+            // Admin / Tutor login
+
+            if (
+                profile.role !== "admin" &&
+                profile.role !== "tutor"
+            ) {
+
+                await supabaseClient.auth.signOut();
+
+                throw new Error(
+                    "This account is not an Admin / Tutor account."
+                );
+
+            }
+
+
+            showMessage(
+                "Admin / Tutor login successful."
+            );
+
+
+        } else {
+
+            // Student login
+
+            if (profile.role !== "student") {
+
+                await supabaseClient.auth.signOut();
+
+                throw new Error(
+                    "Please use Admin / Tutor login for this account."
+                );
+
+            }
+
+
+            showMessage(
+                "Student login successful."
+            );
+
+        }
+
+
+        // ------------------------------------
+        // OPEN DASHBOARD
+        // ------------------------------------
+
+        setTimeout(() => {
+
+            openDashboard(profile);
+
+        }, 500);
+
+
+    } catch (error) {
+
+        console.error(
+            "Login Error:",
+            error
+        );
+
+
+        showMessage(
+            error.message ||
+            "Unable to login.",
+            true
+        );
+
+
+    } finally {
+
+        loginButton.disabled = false;
+        loginButton.textContent = "Login";
+
+    }
+
+}
+
+
+// ============================================
+// MESSAGE FUNCTION
+// ============================================
+
+function showMessage(
+    message,
+    isError = false
+) {
+
+    loginMessage.textContent = message;
+
+    loginMessage.style.color =
+        isError
+            ? "#dc2626"
+            : "#15803d";
+
+}
+
+
+// ============================================
+// OPEN DASHBOARD
+// ============================================
+
+function openDashboard(profile) {
+
+    const isStaff =
+        profile.role === "admin" ||
+        profile.role === "tutor";
+
+
+    // ========================================
+    // STAFF DASHBOARD
+    // ========================================
+
+    if (isStaff) {
+
+        openStaffDashboard(profile);
+
+        return;
+    }
+
+
+    // ========================================
+    // STUDENT DASHBOARD
+    // ========================================
+
+    openStudentDashboard(profile);
+
+}
+
+
+// ============================================
+// ADMIN / TUTOR DASHBOARD
+// ============================================
+
+function openStaffDashboard(profile) {
+
+    document.getElementById("app").innerHTML = `
+
+        <div class="dashboard">
+
+            <!-- HEADER -->
+
+            <header class="dashboard-header">
+
+                <div>
+
+                    <h1>
+                        Universal Education IELTS
+                    </h1>
+
+                    <p>
+                        Testing Platform
+                    </p>
+
+                </div>
+
+
+                <div class="user-area">
+
+                    <div>
+
+                        <strong>
+                            ${escapeHtml(profile.full_name)}
+                        </strong>
+
+                        <span>
+                            ${escapeHtml(profile.role)}
+                        </span>
+
+                    </div>
+
+
+                    <button
+                        id="dashboardLogout"
+                        type="button"
+                    >
+                        Logout
+                    </button>
+
+                </div>
+
+            </header>
+
+
+            <!-- CONTENT -->
+
+            <main class="dashboard-content">
+
+                <div class="dashboard-title">
+
+                    <h2>
+                        Admin Dashboard
+                    </h2>
+
+                    <p>
+                        Manage your IELTS testing platform
+                    </p>
+
+                </div>
+
+
+                <!-- MODULES -->
+
+                <section class="dashboard-grid">
+
+
+                    <!-- STUDENTS -->
+
+                    <button
+                        class="dashboard-card"
+                        data-module="students"
+                        type="button"
+                    >
+
+                        <span class="card-icon">
+                            👨‍🎓
+                        </span>
+
+                        <strong>
+                            Students
+                        </strong>
+
+                        <small>
+                            Manage students
+                        </small>
+
+                    </button>
+
+
+                    <!-- TESTS -->
+
+                    <button
+                        class="dashboard-card"
+                        data-module="tests"
+                        type="button"
+                    >
+
+                        <span class="card-icon">
+                            📝
+                        </span>
+
+                        <strong>
+                            Tests
+                        </strong>
+
+                        <small>
+                            Create and manage tests
+                        </small>
+
+                    </button>
+
+
+                    <!-- LISTENING -->
+
+                    <button
+                        class="dashboard-card"
+                        data-module="listening"
+                        type="button"
+                    >
+
+                        <span class="card-icon">
+                            🎧
+                        </span>
+
+                        <strong>
+                            Listening
+                        </strong>
+
+                        <small>
+                            Manage listening tests
+                        </small>
+
+                    </button>
+
+
+                    <!-- READING -->
+
+                    <button
+                        class="dashboard-card"
+                        data-module="reading"
+                        type="button"
+                    >
+
+                        <span class="card-icon">
+                            📖
+                        </span>
+
+                        <strong>
+                            Reading
+                        </strong>
+
+                        <small>
+                            Manage reading tests
+                        </small>
+
+                    </button>
+
+
+                    <!-- WRITING -->
+
+                    <button
+                        class="dashboard-card"
+                        data-module="writing"
+                        type="button"
+                    >
+
+                        <span class="card-icon">
+                            ✍️
+                        </span>
+
+                        <strong>
+                            Writing
+                        </strong>
+
+                        <small>
+                            Manage writing tasks
+                        </small>
+
+                    </button>
+
+
+                    <!-- RESULTS -->
+
+                    <button
+                        class="dashboard-card"
+                        data-module="results"
+                        type="button"
+                    >
+
+                        <span class="card-icon">
+                            📊
+                        </span>
+
+                        <strong>
+                            Results
+                        </strong>
+
+                        <small>
+                            View student results
+                        </small>
+
+                    </button>
+
+
+                </section>
+
+
+                <!-- MODULE MESSAGE -->
+
+                <div
+                    id="dashboardMessage"
+                ></div>
+
+
+            </main>
+
+        </div>
+
+    `;
+
+
+    // ========================================
+    // LOGOUT
+    // ========================================
+
+    document
+        .getElementById("dashboardLogout")
+        .addEventListener(
+            "click",
+            logout
+        );
+
+
+    // ========================================
+    // MODULE BUTTONS
+    // ========================================
+
+document
+    .querySelectorAll(".dashboard-card")
+    .forEach(card => {
+        card.addEventListener("click", async () => {
+            const module = card.dataset.module;
+            try {
+                if (module === "students") { await openStudents(); return; }
+                if (module === "tests") { await openTestManager("all"); return; }
+                if (module === "listening") { await openTestManager("listening"); return; }
+                if (module === "reading") { await openTestManager("reading"); return; }
+                if (module === "writing") { await openTestManager("writing"); return; }
+                if (module === "results") { await openAdminResults(); return; }
+            } catch (err) {
+                console.error(err);
+                const box = document.getElementById("dashboardMessage");
+                if (box) box.innerHTML = `<div class="coming-soon"><strong>Unable to open ${escapeHtml(module)}</strong><p>${escapeHtml(err.message || "Unknown error")}</p></div>`;
+            }
+        });
+    });
+
+}
+
+
+// ============================================
+// STUDENT DASHBOARD
+// ============================================
+
+function openStudentDashboard(profile) {
+
+    document.getElementById("app").innerHTML = `
+
+        <div class="dashboard">
+
+            <header class="dashboard-header">
+
+                <div>
+
+                    <h1>
+                        Universal Education IELTS
+                    </h1>
+
+                    <p>
+                        Student Testing Platform
+                    </p>
+
+                </div>
+
+
+                <div class="user-area">
+
+                    <div>
+
+                        <strong>
+                            ${escapeHtml(profile.full_name)}
+                        </strong>
+
+                        <span>
+                            Student
+                        </span>
+
+                    </div>
+
+
+                    <button
+                        id="studentLogout"
+                        type="button"
+                    >
+                        Logout
+                    </button>
+
+                </div>
+
+            </header>
+
+
+            <main class="dashboard-content">
+
+                <div class="dashboard-title">
+
+                    <h2>
+                        Student Dashboard
+                    </h2>
+
+                    <p>
+                        Select your IELTS test
+                    </p>
+
+                </div>
+
+
+                <section class="dashboard-grid">
+
+
+                    <button
+                        class="dashboard-card"
+                        data-module="listening"
+                        type="button"
+                    >
+
+                        <span class="card-icon">
+                            🎧
+                        </span>
+
+                        <strong>
+                            Listening
+                        </strong>
+
+                        <small>
+                            Start Listening Test
+                        </small>
+
+                    </button>
+
+
+                    <button
+                        class="dashboard-card"
+                        data-module="reading"
+                        type="button"
+                    >
+
+                        <span class="card-icon">
+                            📖
+                        </span>
+
+                        <strong>
+                            Reading
+                        </strong>
+
+                        <small>
+                            Start Reading Test
+                        </small>
+
+                    </button>
+
+
+                    <button
+                        class="dashboard-card"
+                        data-module="writing"
+                        type="button"
+                    >
+
+                        <span class="card-icon">
+                            ✍️
+                        </span>
+
+                        <strong>
+                            Writing
+                        </strong>
+
+                        <small>
+                            Start Writing Test
+                        </small>
+
+                    </button>
+
+
+                    <button
+                        class="dashboard-card"
+                        data-module="results"
+                        type="button"
+                    >
+
+                        <span class="card-icon">
+                            📊
+                        </span>
+
+                        <strong>
+                            My Results
+                        </strong>
+
+                        <small>
+                            View your results
+                        </small>
+
+                    </button>
+
+
+                </section>
+
+
+                <div
+                    id="dashboardMessage"
+                ></div>
+
+
+            </main>
+
+        </div>
+
+    `;
+
+
+    // ========================================
+    // LOGOUT
+    // ========================================
+
+    document
+        .getElementById("studentLogout")
+        .addEventListener(
+            "click",
+            logout
+        );
+
+
+    // ========================================
+    // STUDENT MODULE BUTTONS
+    // ========================================
+
+    document
+        .querySelectorAll(".dashboard-card")
+        .forEach(card => {
+
+            card.addEventListener(
+                "click",
+                () => {
+
+                    const module =
+                        card.dataset.module;
+
+
+                    document
+                        .getElementById(
+                            "dashboardMessage"
+                        )
+                        .innerHTML = `
+
+                            <div class="coming-soon">
+
+                                <strong>
+                                    ${escapeHtml(
+                                        module.toUpperCase()
+                                    )}
+                                </strong>
+
+                                <p>
+                                    This module will be connected next.
+                                </p>
+
+                            </div>
+
+                        `;
+
+                }
+            );
+
+        });
+
+}
+
+
+// ============================================
+// LOGOUT
+// ============================================
+
+async function logout() {
+
+    try {
+
+        await supabaseClient.auth.signOut();
+
+    } catch (error) {
+
+        console.error(
+            "Logout Error:",
+            error
+        );
+
+    }
+
+    window.location.reload();
+
+}
+
+
+// ============================================
+// HTML ESCAPE
+// ============================================
+
+function escapeHtml(value) {
+
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+
+}
+// ============================================
+// STUDENTS MANAGEMENT
+// ============================================
+
+async function openStudents() {
+
+    const message =
+        document.getElementById("dashboardMessage");
+
+
+    // ----------------------------------------
+    // LOADING
+    // ----------------------------------------
+
+    message.innerHTML = `
+        <div class="coming-soon">
+            Loading students...
+        </div>
+    `;
+
+
+    try {
+
+        // ------------------------------------
+        // GET STUDENTS FROM SUPABASE
+        // ------------------------------------
+
+        const { data: students, error } =
+            await supabaseClient
+                .from("students")
+                .select(
+                    "id, student_id, full_name, email, active, created_at"
+                )
+                .order(
+                    "created_at",
+                    { ascending: false }
+                );
+
+
+        if (error) {
+            throw error;
+        }
+
+
+        // ------------------------------------
+        // CREATE TABLE ROWS
+        // ------------------------------------
+
+        let rows = "";
+
+
+        if (!students || students.length === 0) {
+
+            rows = `
+                <tr>
+
+                    <td
+                        colspan="5"
+                        style="
+                            text-align:center;
+                            padding:30px;
+                            color:#64748b;
+                        "
+                    >
+                        No students found.
+                    </td>
+
+                </tr>
+            `;
+
+        } else {
+
+            rows = students.map(student => `
+
+                <tr>
+
+                    <td>
+                        ${escapeHtml(
+                            student.student_id
+                        )}
+                    </td>
+
+                    <td>
+                        ${escapeHtml(
+                            student.full_name
+                        )}
+                    </td>
+
+                    <td>
+                        ${escapeHtml(
+                            student.email || "-"
+                        )}
+                    </td>
+
+                    <td>
+
+                        <span class="${
+                            student.active
+                                ? "status-active"
+                                : "status-inactive"
+                        }">
+
+                            ${
+                                student.active
+                                    ? "Active"
+                                    : "Inactive"
+                            }
+
+                        </span>
+
+                    </td>
+
+                    <td>
+                        ${new Date(
+                            student.created_at
+                        ).toLocaleDateString()}
+                    </td>
+
+                </tr>
+
+            `).join("");
+
+        }
+
+
+        // ------------------------------------
+        // STUDENTS SCREEN
+        // ------------------------------------
+
+        message.innerHTML = `
+
+            <div class="students-panel">
+
+
+                <!-- HEADER -->
+
+                <div class="students-panel-header">
+
+                    <div>
+
+                        <h2>
+                            Students
+                        </h2>
+
+                        <p>
+                            Manage registered students
+                        </p>
+
+                    </div>
+
+
+                    <button
+                        type="button"
+                        id="addStudentButton"
+                        class="add-student-button"
+                    >
+                        + Add Student
+                    </button>
+
+                </div>
+
+
+                <!-- TABLE -->
+
+                <div class="students-table-wrapper">
+
+                    <table class="students-table">
+
+                        <thead>
+
+                            <tr>
+
+                                <th>
+                                    Student ID
+                                </th>
+
+                                <th>
+                                    Name
+                                </th>
+
+                                <th>
+                                    Email
+                                </th>
+
+                                <th>
+                                    Status
+                                </th>
+
+                                <th>
+                                    Created
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody>
+
+                            ${rows}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+
+            </div>
+
+        `;
+
+
+        // ------------------------------------
+        // ADD STUDENT BUTTON
+        // ------------------------------------
+
+        const addStudentButton =
+            document.getElementById(
+                "addStudentButton"
+            );
+
+
+        addStudentButton.addEventListener(
+            "click",
+            openAddStudentForm
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "Students Error:",
+            error
+        );
+
+
+        message.innerHTML = `
+
+            <div class="coming-soon">
+
+                <strong>
+                    Unable to load students
+                </strong>
+
+                <p>
+                    ${escapeHtml(
+                        error.message ||
+                        "Unknown error"
+                    )}
+                </p>
+
+            </div>
+
+        `;
+
+    }
+
+}
+
+// ============================================
+// ADD STUDENT FORM
+// ============================================
+
+function openAddStudentForm() {
+
+    const message =
+        document.getElementById("dashboardMessage");
+
+    message.innerHTML = `
+
+        <div class="students-panel">
+
+            <div class="students-panel-header">
+
+                <div>
+                    <h2>Add New Student</h2>
+
+                    <p>
+                        Create student login account
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    id="cancelStudentButton"
+                    class="cancel-button"
+                >
+                    Cancel
+                </button>
+
+            </div>
+
+
+            <form
+                id="addStudentForm"
+                class="student-form"
+            >
+
+                <div class="form-group">
+
+                    <label for="studentId">
+                        Student ID
+                    </label>
+
+                    <input
+                        type="text"
+                        id="studentId"
+                        placeholder="Example: UE001"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="studentFullName">
+                        Full Name
+                    </label>
+
+                    <input
+                        type="text"
+                        id="studentFullName"
+                        placeholder="Enter student's full name"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="studentEmail">
+                        Email Address
+                    </label>
+
+                    <input
+                        type="email"
+                        id="studentEmail"
+                        placeholder="Enter student's email"
+                        autocomplete="email"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="studentPassword">
+                        Student Login Password
+                    </label>
+
+                    <input
+                        type="password"
+                        id="studentPassword"
+                        placeholder="Minimum 8 characters"
+                        autocomplete="new-password"
+                        minlength="8"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="student-form-actions">
+
+                    <button
+                        type="button"
+                        id="cancelStudentButton2"
+                        class="cancel-button"
+                    >
+                        Cancel
+                    </button>
+
+                    <button
+                        type="submit"
+                        id="saveStudentButton"
+                        class="save-button"
+                    >
+                        Create Student Account
+                    </button>
+
+                </div>
+
+
+                <div
+                    id="studentFormMessage"
+                    class="login-message"
+                ></div>
+
+            </form>
+
+        </div>
+
+    `;
+
+
+    // ========================================
+    // CANCEL BUTTONS
+    // ========================================
+
+    document
+        .getElementById("cancelStudentButton")
+        .addEventListener(
+            "click",
+            openStudents
+        );
+
+
+    document
+        .getElementById("cancelStudentButton2")
+        .addEventListener(
+            "click",
+            openStudents
+        );
+
+
+    // ========================================
+    // FORM SUBMIT
+    // ========================================
+
+    document
+        .getElementById("addStudentForm")
+        .addEventListener(
+            "submit",
+            saveStudent
+        );
+
+}
+
+
+// ============================================
+// SAVE STUDENT THROUGH EDGE FUNCTION
+// ============================================
+
+async function saveStudent(event) {
+
+    event.preventDefault();
+
+
+    const studentId =
+        document
+            .getElementById("studentId")
+            .value
+            .trim()
+            .toUpperCase();
+
+
+    const fullName =
+        document
+            .getElementById("studentFullName")
+            .value
+            .trim();
+
+
+    const email =
+        document
+            .getElementById("studentEmail")
+            .value
+            .trim()
+            .toLowerCase();
+
+
+    const password =
+        document
+            .getElementById("studentPassword")
+            .value;
+
+
+    const saveButton =
+        document.getElementById(
+            "saveStudentButton"
+        );
+
+
+    const formMessage =
+        document.getElementById(
+            "studentFormMessage"
+        );
+
+
+    // ========================================
+    // VALIDATION
+    // ========================================
+
+    if (
+        !studentId ||
+        !fullName ||
+        !email ||
+        !password
+    ) {
+
+        formMessage.textContent =
+            "Please fill all required fields.";
+
+        formMessage.style.color =
+            "#dc2626";
+
+        return;
+
+    }
+
+
+    if (password.length < 8) {
+
+        formMessage.textContent =
+            "Password must contain at least 8 characters.";
+
+        formMessage.style.color =
+            "#dc2626";
+
+        return;
+
+    }
+
+
+    // ========================================
+    // LOADING
+    // ========================================
+
+    saveButton.disabled = true;
+
+    saveButton.textContent =
+        "Creating Account...";
+
+    formMessage.textContent = "";
+
+
+    try {
+
+        // ====================================
+        // GET CURRENT SESSION
+        // ====================================
+
+        const {
+            data: sessionData,
+            error: sessionError
+        } =
+            await supabaseClient
+                .auth
+                .getSession();
+
+
+        if (sessionError) {
+            throw sessionError;
+        }
+
+
+        const session =
+            sessionData.session;
+
+
+        if (!session) {
+
+            throw new Error(
+                "Your login session has expired. Please login again."
+            );
+
+        }
+
+
+        // ====================================
+        // CALL EDGE FUNCTION
+        // ====================================
+
+        const response =
+            await fetch(
+                `${SUPABASE_URL}/functions/v1/create-student`,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+
+                        "Authorization":
+                            `Bearer ${session.access_token}`,
+
+                        "apikey":
+                            SUPABASE_PUBLISHABLE_KEY
+                    },
+
+                    body: JSON.stringify({
+
+                        student_id:
+                            studentId,
+
+                        full_name:
+                            fullName,
+
+                        email:
+                            email,
+
+                        password:
+                            password
+
+                    })
+                }
+            );
+
+
+        // ====================================
+        // READ RESPONSE
+        // ====================================
+
+        const result =
+            await response.json();
+
+
+        if (
+            !response.ok ||
+            !result.success
+        ) {
+
+            throw new Error(
+                result.error ||
+                "Unable to create student account."
+            );
+
+        }
+
+
+        // ====================================
+        // SUCCESS
+        // ====================================
+
+        formMessage.textContent =
+            "Student account created successfully.";
+
+        formMessage.style.color =
+            "#15803d";
+
+
+        setTimeout(() => {
+
+            openStudents();
+
+        }, 1000);
+
+
+    } catch (error) {
+
+        console.error(
+            "Create Student Error:",
+            error
+        );
+
+
+        formMessage.textContent =
+            error.message ||
+            "Unable to create student account.";
+
+        formMessage.style.color =
+            "#dc2626";
+
+
+        saveButton.disabled = false;
+
+        saveButton.textContent =
+            "Create Student Account";
+
+    }
+
+}
+
+// ============================================================================
+// TEST / QUESTION MANAGEMENT — SUPABASE EDITION
+// ============================================================================
+
+const LISTENING_QUESTION_TYPES = {
+    single: "Multiple Choice — Single Answer",
+    multi: "Multiple Choice — Multiple Answers",
+    matching: "Matching",
+    note: "Note Completion",
+    form: "Form Completion",
+    table: "Table Completion",
+    sentence: "Sentence Completion",
+    summary: "Summary Completion",
+    short: "Short Answer Questions",
+    map: "Map / Plan / Diagram Labelling",
+    flow: "Flowchart Completion"
+};
+
+const READING_QUESTION_TYPES = {
+    single: "Multiple Choice — Single Answer",
+    multi: "Multiple Choice — Multiple Answers",
+    tfng: "True / False / Not Given",
+    yng: "Yes / No / Not Given",
+    headings: "Matching Headings",
+    information: "Matching Information",
+    features: "Matching Features",
+    endings: "Matching Sentence Endings",
+    sentence: "Sentence Completion",
+    summary: "Summary Completion",
+    note: "Note Completion",
+    table: "Table Completion",
+    short: "Short Answer Questions",
+    matching: "Matching",
+    map: "Map / Plan / Diagram Labelling",
+    flow: "Flowchart Completion"
+};
+
+let adminCurrentTest = null;
+let adminCurrentSections = [];
+let adminCurrentQuestions = [];
+
+function adminModuleBox(title, subtitle = "") {
+    return `<div class="students-panel" style="margin-top:10px">
+        <div class="students-panel-header">
+            <div><h2>${escapeHtml(title)}</h2><p>${escapeHtml(subtitle)}</p></div>
+            <button type="button" class="cancel-button" onclick="backToAdminDashboard()">← Dashboard</button>
+        </div>
+        <div id="adminModuleBody"></div>
+    </div>`;
+}
+
+function backToAdminDashboard() {
+    supabaseClient.auth.getUser().then(({ data }) => {
+        const user = data?.user;
+        if (!user) return window.location.reload();
+        supabaseClient.from("profiles").select("full_name,role,active").eq("id", user.id).single().then(({ data: profile }) => {
+            if (profile) openStaffDashboard(profile);
+            else window.location.reload();
+        });
+    });
+}
+
+async function getCurrentUserId() {
+    const { data, error } = await supabaseClient.auth.getUser();
+    if (error) throw error;
+    if (!data.user) throw new Error("Your session has expired. Please log in again.");
+    return data.user.id;
+}
+
+function testModuleTitle(module) {
+    if (module === "listening") return "🎧 Listening Tests";
+    if (module === "reading") return "📖 Reading Tests";
+    if (module === "writing") return "✍️ Writing Tests";
+    return "📝 All Tests";
+}
+
+function moduleFilter(module) {
+    if (module === "all") return null;
+    return module;
+}
+
+async function openTestManager(module = "all") {
+    const message = document.getElementById("dashboardMessage");
+    if (!message) return;
+    message.innerHTML = adminModuleBox(testModuleTitle(module), "Create, edit, publish/unpublish, and delete tests.");
+    await renderTestManager(module);
+}
+
+async function renderTestManager(module = "all") {
+    const body = document.getElementById("adminModuleBody");
+    if (!body) return;
+
+    const filter = moduleFilter(module);
+    let query = supabaseClient
+        .from("tests")
+        .select("id,title,module,description,duration_minutes,total_questions,is_published,created_at,created_by")
+        .order("created_at", { ascending: false });
+    if (filter) query = query.eq("module", filter);
+
+    const { data: tests, error } = await query;
+    if (error) throw error;
+
+    body.innerHTML = `
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px">
+            <button type="button" class="save-button" onclick="openCreateTestForm('${escapeHtml(module)}')">+ Create New Test</button>
+            ${module !== "all" ? `<button type="button" class="cancel-button" onclick="openTestManager('all')">View All Tests</button>` : ""}
+        </div>
+        <div style="overflow:auto">
+        <table class="students-table">
+            <thead><tr><th>Test</th><th>Module</th><th>Questions</th><th>Duration</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody>
+                ${(tests || []).length ? tests.map(t => `
+                    <tr>
+                        <td><strong>${escapeHtml(t.title)}</strong><br><small>${escapeHtml(t.description || "")}</small></td>
+                        <td>${escapeHtml(t.module || "-")}</td>
+                        <td>${Number(t.total_questions || 0)}</td>
+                        <td>${Number(t.duration_minutes || 0)} min</td>
+                        <td><span class="${t.is_published ? "status-active" : "status-inactive"}">${t.is_published ? "Published" : "Draft"}</span></td>
+                        <td style="white-space:nowrap">
+                            <button type="button" onclick="editAdminTest('${t.id}')">Edit</button>
+                            <button type="button" onclick="toggleAdminTestPublish('${t.id}',${!t.is_published})">${t.is_published ? "Unpublish" : "Publish"}</button>
+                            <button type="button" class="danger" onclick="deleteAdminTest('${t.id}')">Delete</button>
+                        </td>
+                    </tr>`).join("") : `<tr><td colspan="6" style="text-align:center;padding:30px">No tests found.</td></tr>`}
+            </tbody>
+        </table></div>`;
+}
+
+async function openCreateTestForm(module = "all") {
+    const body = document.getElementById("adminModuleBody");
+    if (!body) return;
+    const selected = ["listening", "reading", "writing"].includes(module) ? module : "listening";
+    body.innerHTML = `
+        <div class="student-form">
+            <h3>Create New IELTS Test</h3>
+            <label>Test Title<input id="newTestTitle" type="text" placeholder="e.g. Listening Test 03" required></label>
+            <label>Module<select id="newTestModule"><option value="listening" ${selected === "listening" ? "selected" : ""}>Listening</option><option value="reading" ${selected === "reading" ? "selected" : ""}>Reading</option><option value="writing" ${selected === "writing" ? "selected" : ""}>Writing</option></select></label>
+            <label>Description<textarea id="newTestDescription" placeholder="Short description/instructions"></textarea></label>
+            <div class="grid"><label>Duration (minutes)<input id="newTestDuration" type="number" min="1" value="40"></label><label>Total Questions<input id="newTestTotal" type="number" min="1" max="40" value="40"></label></div>
+            <label><input id="newTestPublished" type="checkbox"> Publish immediately</label>
+            <div style="display:flex;gap:10px"><button type="button" class="save-button" onclick="createAdminTest()">Create Test</button><button type="button" class="cancel-button" onclick="openTestManager('${escapeHtml(module)}')">Cancel</button></div>
+            <div id="newTestMessage" class="login-message"></div>
+        </div>`;
+    document.getElementById("newTestModule").addEventListener("change", e => {
+        const duration = document.getElementById("newTestDuration");
+        const total = document.getElementById("newTestTotal");
+        if (e.target.value === "listening") { duration.value = 40; total.value = 40; }
+        if (e.target.value === "reading") { duration.value = 60; total.value = 40; }
+        if (e.target.value === "writing") { duration.value = 60; total.value = 2; }
+    });
+}
+
+async function createAdminTest() {
+    const title = document.getElementById("newTestTitle")?.value.trim();
+    const module = document.getElementById("newTestModule")?.value;
+    const description = document.getElementById("newTestDescription")?.value.trim();
+    const duration = Number(document.getElementById("newTestDuration")?.value || 0);
+    const total = Number(document.getElementById("newTestTotal")?.value || 0);
+    const published = !!document.getElementById("newTestPublished")?.checked;
+    const msg = document.getElementById("newTestMessage");
+    if (!title || !module || !duration || !total) { if (msg) msg.textContent = "Please fill all required fields."; return; }
+    try {
+        const userId = await getCurrentUserId();
+        const { data: test, error } = await supabaseClient.from("tests").insert({
+            title, module, description: description || null, duration_minutes: duration, total_questions: total, is_published: published, created_by: userId
+        }).select().single();
+        if (error) throw error;
+        const sectionCount = module === "listening" ? 4 : module === "reading" ? 3 : 1;
+        const sectionRows = Array.from({ length: sectionCount }, (_, i) => ({
+            test_id: test.id,
+            section_number: i + 1,
+            title: module === "listening" ? `Part ${i + 1}` : module === "reading" ? `Passage ${i + 1}` : "Writing Task",
+            instructions: "",
+            content: "",
+            audio_url: null,
+            image_url: null
+        }));
+        const { error: secError } = await supabaseClient.from("sections").insert(sectionRows);
+        if (secError) throw secError;
+        await editAdminTest(test.id);
+    } catch (error) {
+        if (msg) msg.textContent = error.message || "Unable to create test.";
+        console.error(error);
+    }
+}
+
+async function toggleAdminTestPublish(id, publish) {
+    const { error } = await supabaseClient.from("tests").update({ is_published: !!publish }).eq("id", id);
+    if (error) return alert(error.message);
+    await openTestManager("all");
+}
+
+async function deleteAdminTest(id) {
+    if (!confirm("Delete this entire test, its sections, questions and options? This cannot be undone.")) return;
+    try {
+        const { data: sections, error: secReadError } = await supabaseClient.from("sections").select("id").eq("test_id", id);
+        if (secReadError) throw secReadError;
+        const sectionIds = (sections || []).map(s => s.id);
+        if (sectionIds.length) {
+            const { data: qs, error: qReadError } = await supabaseClient.from("questions").select("id").in("section_id", sectionIds);
+            if (qReadError) throw qReadError;
+            const qids = (qs || []).map(q => q.id);
+            if (qids.length) {
+                const { error: optError } = await supabaseClient.from("options").delete().in("question_id", qids);
+                if (optError) throw optError;
+                const { error: ansError } = await supabaseClient.from("answers").delete().in("question_id", qids);
+                if (ansError && !String(ansError.message || "").toLowerCase().includes("foreign")) throw ansError;
+                const { error: qError } = await supabaseClient.from("questions").delete().in("id", qids);
+                if (qError) throw qError;
+            }
+            const { error: sError } = await supabaseClient.from("sections").delete().in("id", sectionIds);
+            if (sError) throw sError;
+        }
+        const { error } = await supabaseClient.from("tests").delete().eq("id", id);
+        if (error) throw error;
+        await openTestManager("all");
+    } catch (error) {
+        alert("Could not delete test: " + (error.message || "Unknown error"));
+    }
+}
+
+async function editAdminTest(id) {
+    const message = document.getElementById("dashboardMessage");
+    if (!message) return;
+    const { data: test, error: testError } = await supabaseClient.from("tests").select("*").eq("id", id).single();
+    if (testError) throw testError;
+    const { data: sections, error: secError } = await supabaseClient.from("sections").select("*").eq("test_id", id).order("section_number", { ascending: true });
+    if (secError) throw secError;
+    const sectionIds = (sections || []).map(s => s.id);
+    let questions = [];
+    if (sectionIds.length) {
+        const { data: qrows, error: qError } = await supabaseClient.from("questions").select("*").in("section_id", sectionIds).order("question_number", { ascending: true });
+        if (qError) throw qError;
+        questions = qrows || [];
+        const qids = questions.map(q => q.id);
+        if (qids.length) {
+            const { data: options, error: oError } = await supabaseClient.from("options").select("*").in("question_id", qids).order("option_key", { ascending: true });
+            if (oError) throw oError;
+            const byQ = {};
+            (options || []).forEach(o => { (byQ[o.question_id] ||= []).push(o); });
+            questions = questions.map(q => ({ ...q, options: byQ[q.id] || [] }));
+        }
+    }
+    adminCurrentTest = test;
+    adminCurrentSections = sections || [];
+    adminCurrentQuestions = questions;
+
+    message.innerHTML = adminModuleBox(`Edit: ${test.title}`, `${test.module.toUpperCase()} • Full test editor`);
+    await renderAdminTestEditor();
+}
+
+async function renderAdminTestEditor() {
+    const body = document.getElementById("adminModuleBody");
+    if (!body || !adminCurrentTest) return;
+    const isListening = adminCurrentTest.module === "listening";
+    const isReading = adminCurrentTest.module === "reading";
+    const typeMap = isListening ? LISTENING_QUESTION_TYPES : READING_QUESTION_TYPES;
+
+    body.innerHTML = `
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+            <button type="button" class="save-button" onclick="saveAdminTestHeader()">💾 Save Test Details</button>
+            <button type="button" onclick="addAdminQuestion()">+ Add Question</button>
+            <button type="button" class="danger" onclick="deleteAdminTest('${adminCurrentTest.id}')">Delete Entire Test</button>
+            <button type="button" class="cancel-button" onclick="openTestManager('${adminCurrentTest.module}')">← Back to Tests</button>
+        </div>
+        <div class="student-form">
+            <h3>Test Details</h3>
+            <label>Title<input id="editTestTitle" value="${escapeHtml(adminCurrentTest.title || "")}"></label>
+            <label>Module<select id="editTestModule" disabled><option>${escapeHtml(adminCurrentTest.module)}</option></select></label>
+            <label>Description<textarea id="editTestDescription">${escapeHtml(adminCurrentTest.description || "")}</textarea></label>
+            <div class="grid"><label>Duration (minutes)<input id="editTestDuration" type="number" min="1" value="${Number(adminCurrentTest.duration_minutes || 0)}"></label><label>Total Questions<input id="editTestTotal" type="number" min="1" max="40" value="${Number(adminCurrentTest.total_questions || 0)}"></label></div>
+            <label><input id="editTestPublished" type="checkbox" ${adminCurrentTest.is_published ? "checked" : ""}> Published</label>
+        </div>
+        <hr>
+        <h3>${isListening ? "🎧 Listening Parts" : isReading ? "📖 Reading Passages" : "✍️ Writing Section"}</h3>
+        <div id="adminSections">${adminCurrentSections.map((s, idx) => adminSectionEditor(s, idx, isListening, isReading)).join("")}</div>
+        <hr>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+            <div><h3>Questions</h3><p class="muted">Add, edit or delete questions. Options are fully dynamic.</p></div>
+            <button type="button" onclick="addAdminQuestion()">+ Add Question</button>
+        </div>
+        <div id="adminQuestions">${adminCurrentQuestions.map(q => adminQuestionEditor(q, typeMap, isListening, isReading)).join("")}</div>`;
+}
+
+function adminSectionEditor(s, idx, isListening, isReading) {
+    const label = isListening ? `Part ${s.section_number}` : isReading ? `Passage ${s.section_number}` : "Writing Section";
+    return `<div class="students-panel" style="margin:12px 0;padding:16px">
+        <h4>${label}</h4>
+        <input type="hidden" id="sec-id-${s.id}" value="${s.id}">
+        <label>Title<input id="sec-title-${s.id}" value="${escapeHtml(s.title || label)}"></label>
+        <label>Instructions<textarea id="sec-instructions-${s.id}" placeholder="Instructions shown for this part/section">${escapeHtml(s.instructions || "")}</textarea></label>
+        ${isListening ? `<label>Audio URL<input id="sec-audio-${s.id}" value="${escapeHtml(s.audio_url || "")}" placeholder="https://..."></label>` : ""}
+        <label>${isReading ? "Passage Content" : "Part Content / Notes"}<textarea id="sec-content-${s.id}" style="min-height:160px" placeholder="Enter passage, notes, task content, etc.">${escapeHtml(s.content || "")}</textarea></label>
+        <label>Image URL (optional)<input id="sec-image-${s.id}" value="${escapeHtml(s.image_url || "")}" placeholder="https://..."></label>
+        <button type="button" onclick="saveAdminSection('${s.id}')">Save ${label}</button>
+    </div>`;
+}
+
+function adminQuestionEditor(q, typeMap, isListening, isReading) {
+    const options = q.options || [];
+    const typeOptions = Object.entries(typeMap).map(([k, v]) => `<option value="${k}" ${q.question_type === k ? "selected" : ""}>${escapeHtml(v)}</option>`).join("");
+    const part = adminCurrentSections.find(s => s.id === q.section_id);
+    return `<div class="students-panel admin-question-editor" style="margin:12px 0;padding:16px" id="admin-q-${q.id}">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+            <h4>Question ${Number(q.question_number || 0)}</h4>
+            <button type="button" class="danger" onclick="deleteAdminQuestion('${q.id}')">Delete Question</button>
+        </div>
+        <div class="grid">
+            <label>Question No.<input id="q-num-${q.id}" type="number" min="1" max="40" value="${Number(q.question_number || 1)}"></label>
+            ${isListening ? `<label>Part<select id="q-sec-${q.id}">${adminCurrentSections.map(s => `<option value="${s.id}" ${s.id === q.section_id ? "selected" : ""}>Part ${s.section_number}</option>`).join("")}</select></label>` : isReading ? `<label>Passage<select id="q-sec-${q.id}">${adminCurrentSections.map(s => `<option value="${s.id}" ${s.id === q.section_id ? "selected" : ""}>Passage ${s.section_number}</option>`).join("")}</select></label>` : ""}
+        </div>
+        <label>Question Type<select id="q-type-${q.id}" onchange="refreshAdminQuestion('${q.id}')">${typeOptions}</select></label>
+        <label>Question / Prompt<textarea id="q-text-${q.id}" style="min-height:90px">${escapeHtml(q.question_text || "")}</textarea></label>
+        <div id="q-extra-${q.id}">${renderAdminQuestionExtras(q)}</div>
+        <div class="grid">
+            <label>Marks<input id="q-marks-${q.id}" type="number" min="0" step="0.5" value="${Number(q.marks || 1)}"></label>
+            <label>Correct Answer / Accepted Answers<textarea id="q-answer-${q.id}" placeholder="For multiple accepted answers, separate with ||">${escapeHtml(q.correct_answer || "")}</textarea></label>
+        </div>
+        <label>Explanation / Tutor Note<textarea id="q-exp-${q.id}">${escapeHtml(q.explanation || "")}</textarea></label>
+        <label>Question Image URL (optional)<input id="q-image-${q.id}" value="${escapeHtml(q.image_url || "")}" placeholder="https://..."></label>
+        <button type="button" class="save-button" onclick="saveAdminQuestion('${q.id}')">💾 Save Question</button>
+    </div>`;
+}
+
+function renderAdminQuestionExtras(q) {
+    const type = q.question_type || "short";
+    const opts = (q.options || []).map(o => o.option_text || "");
+    const needsOptions = ["single", "multi", "matching", "map"].includes(type);
+    if (!needsOptions) {
+        const hint = type === "note" ? "Fill the missing information in the notes." :
+            type === "form" ? "Use form fields / labels in the prompt; correct answers go in the answer box." :
+            type === "table" ? "Describe the table/rows/columns in the prompt." :
+            type === "sentence" ? "Sentence completion; use the answer box for accepted answers." :
+            type === "summary" ? "Summary completion; use the answer box for accepted answers." :
+            type === "short" ? "Short answer; use the answer box for accepted answers." :
+            type === "flow" ? "Flowchart completion; describe the process/stages in the prompt." : "";
+        return `<div style="padding:10px;background:#f8fafc;border-radius:8px"><small>${escapeHtml(hint)}</small></div>`;
+    }
+    return `<div class="option-builder" id="options-${q.id}">
+        <div style="display:flex;justify-content:space-between;align-items:center"><strong>${type === "map" ? "Label / Answer Bank" : type === "matching" ? "Matching Answer Bank" : "Answer Options"}</strong><button type="button" onclick="addAdminOption('${q.id}')">+ Add Option</button></div>
+        <div id="option-list-${q.id}">${opts.length ? opts.map((v, i) => adminOptionRow(q.id, i, v)).join("") : adminOptionRow(q.id, 0, "")}</div>
+    </div>`;
+}
+
+function adminOptionRow(qid, index, value) {
+    return `<div class="grid" style="grid-template-columns:70px 1fr 90px;align-items:end;margin:6px 0" data-option-row="${qid}">
+        <label>Key<input value="${String.fromCharCode(65 + index)}" disabled></label>
+        <label>Option<input class="q-option-input" data-qid="${qid}" value="${escapeHtml(value)}" placeholder="Option ${index + 1}"></label>
+        <button type="button" onclick="removeAdminOption(this)">Remove</button>
+    </div>`;
+}
+
+function addAdminOption(qid) {
+    const list = document.getElementById(`option-list-${qid}`);
+    if (!list) return;
+    const index = list.querySelectorAll(`[data-option-row="${qid}"]`).length;
+    list.insertAdjacentHTML("beforeend", adminOptionRow(qid, index, ""));
+    renumberAdminOptions(qid);
+}
+
+function removeAdminOption(button) {
+    const row = button.closest("[data-option-row]");
+    if (!row) return;
+    const qid = row.getAttribute("data-option-row");
+    const list = document.getElementById(`option-list-${qid}`);
+    if (list && list.children.length > 1) row.remove();
+    renumberAdminOptions(qid);
+}
+
+function renumberAdminOptions(qid) {
+    const list = document.getElementById(`option-list-${qid}`);
+    if (!list) return;
+    list.querySelectorAll(`[data-option-row="${qid}"]`).forEach((row, i) => {
+        const key = row.querySelector("label:first-child input");
+        if (key) key.value = String.fromCharCode(65 + i);
+    });
+}
+
+function refreshAdminQuestion(qid) {
+    const q = adminCurrentQuestions.find(x => x.id === qid);
+    if (!q) return;
+    const type = document.getElementById(`q-type-${qid}`)?.value || "short";
+    q.question_type = type;
+    q.options = [];
+    const old = document.getElementById(`q-extra-${qid}`);
+    if (old) old.innerHTML = renderAdminQuestionExtras(q);
+}
+
+function collectAdminOptions(qid) {
+    return Array.from(document.querySelectorAll(`.q-option-input[data-qid="${qid}"]`)).map(i => i.value.trim()).filter(Boolean);
+}
+
+async function saveAdminTestHeader() {
+    if (!adminCurrentTest) return;
+    const payload = {
+        title: document.getElementById("editTestTitle")?.value.trim(),
+        description: document.getElementById("editTestDescription")?.value.trim() || null,
+        duration_minutes: Number(document.getElementById("editTestDuration")?.value || 0),
+        total_questions: Number(document.getElementById("editTestTotal")?.value || 0),
+        is_published: !!document.getElementById("editTestPublished")?.checked
+    };
+    const { error } = await supabaseClient.from("tests").update(payload).eq("id", adminCurrentTest.id);
+    if (error) return alert(error.message);
+    await editAdminTest(adminCurrentTest.id);
+}
+
+async function saveAdminSection(sectionId) {
+    const payload = {
+        title: document.getElementById(`sec-title-${sectionId}`)?.value.trim(),
+        instructions: document.getElementById(`sec-instructions-${sectionId}`)?.value || "",
+        content: document.getElementById(`sec-content-${sectionId}`)?.value || "",
+        image_url: document.getElementById(`sec-image-${sectionId}`)?.value.trim() || null,
+        audio_url: document.getElementById(`sec-audio-${sectionId}`)?.value.trim() || null
+    };
+    const { error } = await supabaseClient.from("sections").update(payload).eq("id", sectionId);
+    if (error) return alert(error.message);
+    alert("Section saved successfully.");
+}
+
+async function saveAdminQuestion(qid) {
+    const q = adminCurrentQuestions.find(x => x.id === qid);
+    if (!q) return;
+    const options = collectAdminOptions(qid);
+    const payload = {
+        section_id: document.getElementById(`q-sec-${qid}`)?.value || q.section_id,
+        question_number: Number(document.getElementById(`q-num-${qid}`)?.value || q.question_number),
+        question_type: document.getElementById(`q-type-${qid}`)?.value || q.question_type,
+        question_text: document.getElementById(`q-text-${qid}`)?.value || "",
+        marks: Number(document.getElementById(`q-marks-${qid}`)?.value || 1),
+        correct_answer: document.getElementById(`q-answer-${qid}`)?.value || "",
+        explanation: document.getElementById(`q-exp-${qid}`)?.value || "",
+        image_url: document.getElementById(`q-image-${qid}`)?.value.trim() || null
+    };
+    try {
+        const { error } = await supabaseClient.from("questions").update(payload).eq("id", qid);
+        if (error) throw error;
+        await supabaseClient.from("options").delete().eq("question_id", qid);
+        if (options.length) {
+            const rows = options.map((text, i) => ({ question_id: qid, option_key: String.fromCharCode(65 + i), option_text: text, is_correct: false }));
+            const { error: oError } = await supabaseClient.from("options").insert(rows);
+            if (oError) throw oError;
+        }
+        alert("Question saved successfully.");
+        await editAdminTest(adminCurrentTest.id);
+    } catch (error) {
+        alert("Could not save question: " + (error.message || "Unknown error"));
+    }
+}
+
+async function addAdminQuestion() {
+    if (!adminCurrentTest || !adminCurrentSections.length) return;
+    const isListening = adminCurrentTest.module === "listening";
+    const maxNo = adminCurrentQuestions.reduce((m, q) => Math.max(m, Number(q.question_number || 0)), 0);
+    const nextNo = Math.min(40, maxNo + 1);
+    if (maxNo >= 40) return alert("Maximum 40 questions reached.");
+    let section = adminCurrentSections[0];
+    if (isListening) section = adminCurrentSections[Math.min(3, Math.floor((nextNo - 1) / 10))];
+    else if (adminCurrentTest.module === "reading") section = adminCurrentSections[nextNo <= 13 ? 0 : nextNo <= 26 ? 1 : 2] || adminCurrentSections[0];
+    const defaultType = isListening ? "short" : "single";
+    const { data: question, error } = await supabaseClient.from("questions").insert({
+        section_id: section.id,
+        question_number: nextNo,
+        question_type: defaultType,
+        question_text: `New ${adminCurrentTest.module} Question ${nextNo}`,
+        marks: 1,
+        correct_answer: "",
+        explanation: "",
+        image_url: null
+    }).select().single();
+    if (error) return alert(error.message);
+    await editAdminTest(adminCurrentTest.id);
+    setTimeout(() => document.getElementById(`q-num-${question.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 150);
+}
+
+async function deleteAdminQuestion(qid) {
+    if (!confirm("Delete this question and its options?")) return;
+    try {
+        const { error: oError } = await supabaseClient.from("options").delete().eq("question_id", qid);
+        if (oError) throw oError;
+        const { error } = await supabaseClient.from("questions").delete().eq("id", qid);
+        if (error) throw error;
+        await editAdminTest(adminCurrentTest.id);
+    } catch (error) {
+        alert("Could not delete question: " + (error.message || "Unknown error"));
+    }
+}
+
+async function openAdminResults() {
+    const message = document.getElementById("dashboardMessage");
+    if (!message) return;
+    message.innerHTML = adminModuleBox("📊 Results", "Student test results stored in Supabase.");
+    const body = document.getElementById("adminModuleBody");
+    const { data: results, error } = await supabaseClient.from("results").select("id,student_id,test_id,listening_score,reading_score,writing_score,overall_band,started_at,submitted_at,status,created_at").order("created_at", { ascending: false });
+    if (error) throw error;
+    body.innerHTML = `<div style="overflow:auto"><table class="students-table"><thead><tr><th>Result ID</th><th>Student</th><th>Test</th><th>Scores</th><th>Band</th><th>Status</th></tr></thead><tbody>${(results || []).map(r => `<tr><td>${escapeHtml(String(r.id))}</td><td>${escapeHtml(String(r.student_id || "-"))}</td><td>${escapeHtml(String(r.test_id || "-"))}</td><td>L:${r.listening_score ?? "-"} / R:${r.reading_score ?? "-"} / W:${r.writing_score ?? "-"}</td><td>${escapeHtml(String(r.overall_band ?? "-"))}</td><td>${escapeHtml(String(r.status ?? "-"))}</td></tr>`).join("") || `<tr><td colspan="6" style="text-align:center;padding:30px">No results found.</td></tr>`}</tbody></table></div>`;
+}
+
+// Expose admin functions for the inline editor controls.
+window.openTestManager = openTestManager;
+window.openCreateTestForm = openCreateTestForm;
+window.createAdminTest = createAdminTest;
+window.toggleAdminTestPublish = toggleAdminTestPublish;
+window.deleteAdminTest = deleteAdminTest;
+window.editAdminTest = editAdminTest;
+window.saveAdminTestHeader = saveAdminTestHeader;
+window.saveAdminSection = saveAdminSection;
+window.saveAdminQuestion = saveAdminQuestion;
+window.addAdminQuestion = addAdminQuestion;
+window.deleteAdminQuestion = deleteAdminQuestion;
+window.addAdminOption = addAdminOption;
+window.removeAdminOption = removeAdminOption;
+window.refreshAdminQuestion = refreshAdminQuestion;
+window.openAdminResults = openAdminResults;
+window.backToAdminDashboard = backToAdminDashboard;
