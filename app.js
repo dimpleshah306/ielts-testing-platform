@@ -573,6 +573,20 @@ document
                 return;
             }
 
+            if (module === "reading") {
+
+                await openAdminModuleTests(profile, "reading");
+
+                return;
+            }
+
+            if (module === "writing") {
+
+                await openAdminModuleTests(profile, "writing");
+
+                return;
+            }
+
             document
                 .getElementById("dashboardMessage")
                 .innerHTML = `
@@ -711,6 +725,13 @@ async function openAdminListeningTests(profile) {
                     }
                 </td>
 
+                <td>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <button type="button" class="module-btn" data-edit-listening-test="${test.id}">Edit / Manage</button>
+                        <button type="button" class="cancel-button" data-delete-listening-test="${test.id}" style="color:#b91c1c;border-color:#fecaca;">Delete Test</button>
+                    </div>
+                </td>
+
             </tr>
 
         `).join("");
@@ -727,6 +748,7 @@ async function openAdminListeningTests(profile) {
                             <th>Status</th>
                             <th>Duration</th>
                             <th>Created</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
 
@@ -738,6 +760,18 @@ async function openAdminListeningTests(profile) {
 
             </div>
         `;
+
+        content.querySelectorAll("[data-edit-listening-test]").forEach(button => {
+            button.addEventListener("click", () =>
+                openListeningTestEditor(button.dataset.editListeningTest, profile)
+            );
+        });
+
+        content.querySelectorAll("[data-delete-listening-test]").forEach(button => {
+            button.addEventListener("click", () =>
+                deleteCompleteTest(button.dataset.deleteListeningTest, "Listening", profile)
+            );
+        });
 
     } catch (error) {
 
@@ -768,6 +802,106 @@ async function openAdminListeningTests(profile) {
     }
 }
 
+
+// ============================================
+// COMPLETE TEST DELETE / ADMIN CRUD HELPERS
+// ============================================
+
+async function deleteCompleteTest(testId, moduleName, profile) {
+    const confirmed = confirm(
+        `Delete the entire ${moduleName} test?\n\nThis permanently removes the test, its sections/parts, questions, options and associated student result records. This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    const second = prompt(`Type DELETE to permanently remove this ${moduleName} test.`);
+    if (second !== "DELETE") return;
+
+    try {
+        const { data: sections, error: sectionError } = await supabaseClient
+            .from("sections").select("id").eq("test_id", testId);
+        if (sectionError) throw sectionError;
+
+        const sectionIds = (sections || []).map(x => x.id);
+        if (sectionIds.length) {
+            const { data: qs, error: qError } = await supabaseClient
+                .from("questions").select("id").in("section_id", sectionIds);
+            if (qError) throw qError;
+            const qIds = (qs || []).map(x => x.id);
+            if (qIds.length) {
+                const { error: ao } = await supabaseClient.from("options").delete().in("question_id", qIds);
+                if (ao) throw ao;
+                const { error: aq } = await supabaseClient.from("answers").delete().in("question_id", qIds);
+                if (aq) throw aq;
+                const { error: dq } = await supabaseClient.from("questions").delete().in("id", qIds);
+                if (dq) throw dq;
+            }
+            const { error: ds } = await supabaseClient.from("sections").delete().in("id", sectionIds);
+            if (ds) throw ds;
+        }
+
+        const { error: resultsError } = await supabaseClient.from("results").delete().eq("test_id", testId);
+        if (resultsError) throw resultsError;
+        const { error: writingError } = await supabaseClient.from("writing_submissions").delete().eq("test_id", testId);
+        if (writingError) throw writingError;
+        const { error: testError } = await supabaseClient.from("tests").delete().eq("id", testId);
+        if (testError) throw testError;
+
+        alert(`${moduleName} test deleted successfully.`);
+        if (moduleName === "Listening") await openAdminListeningTests(profile);
+        else await openAdminModuleTests(profile, moduleName.toLowerCase());
+    } catch (error) {
+        console.error("Delete Complete Test Error:", error);
+        alert(error.message || "Unable to delete the test. Check your Supabase RLS policies.");
+    }
+}
+
+// Generic admin manager for Reading/Writing tests. This gives full test-level
+// create/edit/delete control while their detailed builders are added below.
+async function openAdminModuleTests(profile, module) {
+    const label = module === "reading" ? "Reading" : "Writing";
+    const message = document.getElementById("dashboardMessage");
+    message.innerHTML = `<div class="students-panel"><div class="students-panel-header"><div><h2>${label === "Reading" ? "📖" : "✍️"} ${label} Tests</h2><p>Create, edit, publish/unpublish and delete ${label} tests.</p></div><button type="button" class="add-student-button" id="createGenericTestButton">+ Create ${label} Test</button></div><div id="genericTestsContent"><div class="coming-soon">Loading...</div></div></div>`;
+    document.getElementById("createGenericTestButton").addEventListener("click", () => createGenericTest(profile, module));
+    try {
+        const { data: tests, error } = await supabaseClient.from("tests").select("id,title,module,description,duration_minutes,total_questions,is_published,created_at").eq("module", module).order("created_at", {ascending:false});
+        if (error) throw error;
+        const content = document.getElementById("genericTestsContent");
+        content.innerHTML = tests?.length ? `<div class="students-table-wrapper"><table class="students-table"><thead><tr><th>Test</th><th>Status</th><th>Duration</th><th>Actions</th></tr></thead><tbody>${tests.map(t => `<tr><td>${escapeHtml(t.title||"-")}</td><td>${t.is_published?"Published":"Draft"}</td><td>${t.duration_minutes||0} min</td><td><button type="button" class="module-btn" data-generic-edit="${t.id}">Edit / Manage</button> <button type="button" class="cancel-button" data-generic-delete="${t.id}" style="color:#b91c1c;border-color:#fecaca;">Delete Test</button></td></tr>`).join("")}</tbody></table></div>` : `<div class="empty-test-state"><div class="empty-icon">${label==="Reading"?"📖":"✍️"}</div><h2>No ${label} Tests Yet</h2></div>`;
+        content.querySelectorAll("[data-generic-edit]").forEach(b => b.addEventListener("click", () => openGenericTestEditor(b.dataset.genericEdit, profile, module)));
+        content.querySelectorAll("[data-generic-delete]").forEach(b => b.addEventListener("click", () => deleteCompleteTest(b.dataset.genericDelete, label, profile)));
+    } catch (error) { document.getElementById("genericTestsContent").innerHTML = `<div class="coming-soon"><strong>Unable to load ${label} Tests</strong><p>${escapeHtml(error.message||"Unknown error")}</p></div>`; }
+}
+
+async function createGenericTest(profile, module) {
+    const label = module === "reading" ? "Reading" : "Writing";
+    const title = prompt(`Enter ${label} Test title:`, `${label} Test 01`);
+    if (!title || !title.trim()) return;
+    const duration = module === "reading" ? 60 : 60;
+    const total = module === "reading" ? 40 : 0;
+    try {
+        const { data: sessionData } = await supabaseClient.auth.getSession();
+        const session = sessionData?.session; if (!session) throw new Error("Your login session has expired.");
+        const { data:test,error } = await supabaseClient.from("tests").insert({title:title.trim(),module,description:null,duration_minutes:duration,total_questions:total,is_published:false,created_by:session.user.id}).select().single();
+        if(error) throw error;
+        const count = module === "reading" ? 3 : 2;
+        const rows = Array.from({length:count},(_,i)=>({test_id:test.id,section_number:i+1,title:module==="reading"?`Reading Passage ${i+1}`:`Writing Task ${i+1}`,instructions:"",content:null,audio_url:null,image_url:null}));
+        const {error:se} = await supabaseClient.from("sections").insert(rows); if(se) throw se;
+        await openGenericTestEditor(test.id, profile, module);
+    } catch(error) { alert(error.message||`Unable to create ${label} test.`); }
+}
+
+async function openGenericTestEditor(testId, profile, module) {
+    const label = module === "reading" ? "Reading" : "Writing";
+    const message = document.getElementById("dashboardMessage");
+    const {data:test,error:te}=await supabaseClient.from("tests").select("*").eq("id",testId).single(); if(te){alert(te.message);return;}
+    const {data:sections,error:se}=await supabaseClient.from("sections").select("*").eq("test_id",testId).order("section_number"); if(se){alert(se.message);return;}
+    message.innerHTML = `<div class="students-panel"><div class="students-panel-header"><div><h2>${module==="reading"?"📖":"✍️"} ${label} Test Editor</h2><p>Edit every test-level setting and ${module==="reading"?"all three passages":"both writing tasks"}.</p></div><button type="button" class="cancel-button" id="backGeneric">← ${label} Tests</button></div><div class="form-group"><label>Test Title</label><input id="genericTitle" value="${escapeHtml(test.title||"")}"></div><div class="form-group"><label>Description</label><textarea id="genericDescription" rows="3">${escapeHtml(test.description||"")}</textarea></div><div class="form-group"><label>Duration (minutes)</label><input id="genericDuration" type="number" min="1" value="${test.duration_minutes||60}"></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0;"><button type="button" class="save-button" id="saveGenericTest">Save Test Details</button><button type="button" class="module-btn" id="toggleGenericPublish">${test.is_published?"Unpublish":"Publish"}</button><button type="button" class="cancel-button" id="deleteGenericTest" style="color:#b91c1c;border-color:#fecaca;">🗑 Delete Entire Test</button></div><div id="genericTestMsg" class="login-message"></div><h3>${module==="reading"?"Passages":"Tasks"}</h3><div id="genericSections">${sections.map(s=>`<div style="border:1px solid #e5e7eb;border-radius:14px;padding:16px;margin-bottom:14px;background:#fff;"><h4>${escapeHtml(s.title||`${label} Section ${s.section_number}`)}</h4><div class="form-group"><label>Title</label><input id="gtitle${s.id}" value="${escapeHtml(s.title||"")}"></div><div class="form-group"><label>Instructions</label><textarea id="ginstructions${s.id}" rows="2">${escapeHtml(s.instructions||"")}</textarea></div><div class="form-group"><label>${module==="reading"?"Passage Text / Content":"Task Prompt / Content"}</label><textarea id="gcontent${s.id}" rows="8">${escapeHtml(s.content||"")}</textarea></div><div class="form-group"><label>Image URL (optional)</label><input id="gimage${s.id}" value="${escapeHtml(s.image_url||"")}"></div><button type="button" class="save-button" data-save-section="${s.id}">Save ${module==="reading"?"Passage":"Task"}</button></div>`).join("")}</div></div>`;
+    document.getElementById("backGeneric").addEventListener("click",()=>openAdminModuleTests(profile,module));
+    document.getElementById("saveGenericTest").addEventListener("click",async()=>{const {error}=await supabaseClient.from("tests").update({title:document.getElementById("genericTitle").value.trim(),description:document.getElementById("genericDescription").value.trim()||null,duration_minutes:Number(document.getElementById("genericDuration").value)||60}).eq("id",test.id);if(error){alert(error.message);return;}alert("Test details saved.");openGenericTestEditor(test.id,profile,module);});
+    document.getElementById("toggleGenericPublish").addEventListener("click",async()=>{const {error}=await supabaseClient.from("tests").update({is_published:!test.is_published}).eq("id",test.id);if(error){alert(error.message);return;}openGenericTestEditor(test.id,profile,module);});
+    document.getElementById("deleteGenericTest").addEventListener("click",()=>deleteCompleteTest(test.id,label,profile));
+    document.querySelectorAll("[data-save-section]").forEach(b=>b.addEventListener("click",async()=>{const id=b.dataset.saveSection;const {error}=await supabaseClient.from("sections").update({title:document.getElementById("gtitle"+id).value.trim(),instructions:document.getElementById("ginstructions"+id).value.trim(),content:document.getElementById("gcontent"+id).value.trim()||null,image_url:document.getElementById("gimage"+id).value.trim()||null}).eq("id",id);if(error)alert(error.message);else {b.textContent="Saved ✓";setTimeout(()=>b.textContent=`Save ${module==="reading"?"Passage":"Task"}`,800);}}));
+}
 
 // ============================================
 // CREATE LISTENING TEST
@@ -1141,6 +1275,23 @@ async function openListeningTestEditor(testId, profile) {
                 </p>
             </div>
 
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin:15px 0;">
+                <button type="button" class="module-btn" id="editListeningTestDetailsButton">✏️ Edit Test Details</button>
+                <button type="button" class="cancel-button" id="deleteListeningTestFromEditor" style="color:#b91c1c;border-color:#fecaca;">🗑 Delete Entire Test</button>
+            </div>
+
+            <div id="listeningTestDetailsEditor" style="display:none;border:1px solid #e5e7eb;border-radius:14px;padding:18px;margin-bottom:20px;background:#fff;">
+                <h3>Edit Test Details</h3>
+                <div class="form-group"><label>Test Title</label><input id="editListeningTitle" value="${escapeHtml(test.title || "")}"></div>
+                <div class="form-group"><label>Description</label><textarea id="editListeningDescription" rows="3">${escapeHtml(test.description || "")}</textarea></div>
+                <div class="form-group"><label>Duration (Minutes)</label><input id="editListeningDuration" type="number" min="1" value="${test.duration_minutes || 40}"></div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button type="button" class="save-button" id="saveListeningDetailsButton">Save Test Details</button>
+                    <button type="button" class="cancel-button" id="cancelListeningDetailsButton">Cancel</button>
+                </div>
+                <div id="listeningDetailsMessage" class="login-message"></div>
+            </div>
+
             <div
                 style="
                     display:grid;
@@ -1272,6 +1423,27 @@ async function openListeningTestEditor(testId, profile) {
                 );
 
             });
+
+        document.getElementById("editListeningTestDetailsButton").addEventListener("click", () => {
+            document.getElementById("listeningTestDetailsEditor").style.display = "block";
+        });
+        document.getElementById("cancelListeningDetailsButton").addEventListener("click", () => {
+            document.getElementById("listeningTestDetailsEditor").style.display = "none";
+        });
+        document.getElementById("saveListeningDetailsButton").addEventListener("click", async () => {
+            const msg = document.getElementById("listeningDetailsMessage");
+            const title = document.getElementById("editListeningTitle").value.trim();
+            const description = document.getElementById("editListeningDescription").value.trim();
+            const duration = Number(document.getElementById("editListeningDuration").value);
+            if (!title || !duration || duration < 1) { msg.textContent = "Title and valid duration are required."; msg.style.color="#dc2626"; return; }
+            const { error } = await supabaseClient.from("tests").update({title, description: description || null, duration_minutes: duration}).eq("id", test.id);
+            if (error) { msg.textContent = error.message; msg.style.color="#dc2626"; return; }
+            msg.textContent = "Test details saved."; msg.style.color="#15803d";
+            setTimeout(() => openListeningTestEditor(test.id, profile), 500);
+        });
+        document.getElementById("deleteListeningTestFromEditor").addEventListener("click", () =>
+            deleteCompleteTest(test.id, "Listening", profile)
+        );
 
         document
             .getElementById("publishListeningTestButton")
@@ -1612,11 +1784,21 @@ async function openListeningSectionEditor(
             .getElementById("addListeningQuestionButton")
             .addEventListener(
                 "click",
-                () => openListeningQuestionForm(
-                    section,
-                    test,
-                    profile
-                )
+                () => {
+
+                    if ((questions || []).length >= 10) {
+                        alert(
+                            `Part ${section.section_number} already has 10 questions. Delete an existing question before adding another.`
+                        );
+                        return;
+                    }
+
+                    openListeningQuestionForm(
+                        section,
+                        test,
+                        profile
+                    );
+                }
             );
 
         renderListeningQuestions(
@@ -1692,10 +1874,11 @@ function renderListeningQuestions(
                     justify-content:space-between;
                     gap:15px;
                     flex-wrap:wrap;
+                    align-items:flex-start;
                 "
             >
 
-                <div>
+                <div style="flex:1;min-width:240px;">
                     <strong>
                         Q${question.question_number}
                     </strong>
@@ -1713,13 +1896,24 @@ function renderListeningQuestions(
                     </small>
                 </div>
 
-                <button
-                    type="button"
-                    class="module-btn"
-                    data-edit-question="${question.id}"
-                >
-                    Edit
-                </button>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button
+                        type="button"
+                        class="module-btn"
+                        data-edit-question="${question.id}"
+                    >
+                        Edit
+                    </button>
+
+                    <button
+                        type="button"
+                        class="cancel-button"
+                        data-delete-question="${question.id}"
+                        style="color:#b91c1c;border-color:#fecaca;"
+                    >
+                        Delete
+                    </button>
+                </div>
 
             </div>
 
@@ -1739,6 +1933,52 @@ function renderListeningQuestions(
                     profile,
                     button.dataset.editQuestion
                 )
+            );
+
+        });
+
+    container
+        .querySelectorAll("[data-delete-question]")
+        .forEach(button => {
+
+            button.addEventListener(
+                "click",
+                async () => {
+
+                    const confirmed = confirm(
+                        `Delete Question ${button.closest('div[style*="border:1px solid"]')?.querySelector('strong')?.textContent || ""}?\n\nThis question and all its options will be permanently deleted.`
+                    );
+
+                    if (!confirmed) return;
+
+                    try {
+
+                        const { error } = await supabaseClient
+                            .from("questions")
+                            .delete()
+                            .eq("id", button.dataset.deleteQuestion);
+
+                        if (error) throw error;
+
+                        await openListeningSectionEditor(
+                            section.id,
+                            test,
+                            profile
+                        );
+
+                    } catch (error) {
+
+                        console.error(
+                            "Delete Question Error:",
+                            error
+                        );
+
+                        alert(
+                            error.message ||
+                            "Unable to delete question."
+                        );
+                    }
+                }
             );
 
         });
@@ -1997,6 +2237,20 @@ async function openListeningQuestionForm(
             question.image_url || "";
     }
 
+    function optionKey(index) {
+
+        let n = index + 1;
+        let key = "";
+
+        while (n > 0) {
+            n--;
+            key = String.fromCharCode(65 + (n % 26)) + key;
+            n = Math.floor(n / 26);
+        }
+
+        return key;
+    }
+
     function renderOptions() {
 
         const type =
@@ -2013,7 +2267,14 @@ async function openListeningQuestionForm(
             return;
         }
 
-        const keys = ["A", "B", "C", "D"];
+        const options = existingOptions.length
+            ? existingOptions.map(option => ({ ...option }))
+            : [
+                { option_key: "A", option_text: "", is_correct: false },
+                { option_key: "B", option_text: "", is_correct: false },
+                { option_key: "C", option_text: "", is_correct: false },
+                { option_key: "D", option_text: "", is_correct: false }
+            ];
 
         area.innerHTML = `
             <div
@@ -2022,40 +2283,109 @@ async function openListeningQuestionForm(
                     border-radius:12px;
                     padding:15px;
                     margin-bottom:15px;
+                    background:#fafafa;
                 "
             >
 
-                <strong>Options</strong>
+                <div
+                    style="
+                        display:flex;
+                        justify-content:space-between;
+                        align-items:center;
+                        gap:10px;
+                        margin-bottom:12px;
+                    "
+                >
+                    <strong>Options</strong>
 
-                ${keys.map(key => {
+                    <button
+                        type="button"
+                        class="module-btn"
+                        id="addQuestionOptionButton"
+                    >
+                        + Add Option
+                    </button>
+                </div>
 
-                    const found =
-                        existingOptions.find(
-                            option =>
-                                option.option_key === key
-                        );
+                <div id="dynamicQuestionOptions"></div>
 
-                    return `
-                        <div class="form-group">
-
-                            <label>Option ${key}</label>
-
-                            <input
-                                type="text"
-                                id="option_${key}"
-                                value="${escapeHtml(
-                                    found?.option_text || ""
-                                )}"
-                                placeholder="Option ${key}"
-                            >
-
-                        </div>
-                    `;
-
-                }).join("")}
+                <small style="display:block;margin-top:8px;color:#64748b;">
+                    You can add or remove as many options as required.
+                </small>
 
             </div>
         `;
+
+        const list = document.getElementById("dynamicQuestionOptions");
+
+        function drawOptions() {
+
+            list.innerHTML = options.map((option, index) => `
+                <div
+                    class="question-option-row"
+                    data-option-index="${index}"
+                    style="
+                        display:grid;
+                        grid-template-columns:60px minmax(0,1fr) auto;
+                        gap:10px;
+                        align-items:center;
+                        margin-bottom:10px;
+                    "
+                >
+                    <strong>${optionKey(index)}</strong>
+
+                    <input
+                        type="text"
+                        class="dynamic-option-text"
+                        data-index="${index}"
+                        value="${escapeHtml(option.option_text || "")}"
+                        placeholder="Option ${optionKey(index)}"
+                    >
+
+                    <button
+                        type="button"
+                        class="cancel-button dynamic-remove-option"
+                        data-index="${index}"
+                        style="color:#b91c1c;border-color:#fecaca;white-space:nowrap;"
+                    >
+                        Remove
+                    </button>
+                </div>
+            `).join("");
+
+            list.querySelectorAll(".dynamic-remove-option").forEach(button => {
+
+                button.addEventListener("click", () => {
+
+                    const index = Number(button.dataset.index);
+
+                    if (options.length <= 2) {
+                        alert("A question must have at least 2 options.");
+                        return;
+                    }
+
+                    options.splice(index, 1);
+                    drawOptions();
+                });
+            });
+        }
+
+        drawOptions();
+
+        document
+            .getElementById("addQuestionOptionButton")
+            .addEventListener("click", () => {
+
+                options.push({
+                    option_key: optionKey(options.length),
+                    option_text: "",
+                    is_correct: false
+                });
+
+                drawOptions();
+            });
+
+        area._questionOptions = options;
     }
 
     document
@@ -2206,65 +2536,81 @@ async function openListeningQuestionForm(
 
                     if (needsOptions) {
 
+                        const area =
+                            document.getElementById("questionOptionsArea");
+
+                        const optionState =
+                            area?._questionOptions || [];
+
+                        const optionTextInputs =
+                            document.querySelectorAll(".dynamic-option-text");
+
+                        optionTextInputs.forEach(input => {
+                            const index = Number(input.dataset.index);
+                            if (optionState[index]) {
+                                optionState[index].option_text =
+                                    input.value.trim();
+                            }
+                        });
+
+                        const rows = optionState
+                            .map((option, index) => {
+
+                                const value =
+                                    String(option.option_text || "").trim();
+
+                                if (!value) return null;
+
+                                const key = optionKey(index);
+
+                                const correctAnswers =
+                                    payload.correct_answer
+                                        .split(",")
+                                        .map(value => value.trim().toUpperCase())
+                                        .filter(Boolean);
+
+                                return {
+                                    question_id:
+                                        savedQuestion.id,
+
+                                    option_key:
+                                        key,
+
+                                    option_text:
+                                        value,
+
+                                    is_correct:
+                                        correctAnswers.includes(key)
+                                };
+                            })
+                            .filter(Boolean);
+
                         if (questionId) {
 
-                            const {
-                                error
-                            } = await supabaseClient
+                            const { error } = await supabaseClient
                                 .from("options")
                                 .delete()
-                                .eq(
-                                    "question_id",
-                                    savedQuestion.id
-                                );
+                                .eq("question_id", savedQuestion.id);
 
                             if (error) throw error;
                         }
 
-                        const rows =
-                            ["A", "B", "C", "D"]
-                                .map(key => {
-
-                                    const value =
-                                        document
-                                            .getElementById(
-                                                `option_${key}`
-                                            )
-                                            ?.value
-                                            .trim();
-
-                                    if (!value) return null;
-
-                                    return {
-                                        question_id:
-                                            savedQuestion.id,
-
-                                        option_key:
-                                            key,
-
-                                        option_text:
-                                            value,
-
-                                        is_correct:
-                                            payload
-                                                .correct_answer
-                                                .trim()
-                                                .toUpperCase() ===
-                                            key
-                                    };
-                                })
-                                .filter(Boolean);
-
                         if (rows.length) {
 
-                            const {
-                                error
-                            } = await supabaseClient
+                            const { error } = await supabaseClient
                                 .from("options")
                                 .insert(rows);
 
                             if (error) throw error;
                         }
+                    } else if (questionId) {
+
+                        const { error } = await supabaseClient
+                            .from("options")
+                            .delete()
+                            .eq("question_id", savedQuestion.id);
+
+                        if (error) throw error;
                     }
 
                     message.textContent =
