@@ -1551,6 +1551,7 @@ const READING_QUESTION_TYPES = {
 let adminCurrentTest = null;
 let adminCurrentSections = [];
 let adminCurrentQuestions = [];
+let adminCurrentGroups = [];
 
 function adminModuleBox(title, subtitle = "") {
     return `<div class="students-panel" style="margin-top:10px">
@@ -1710,6 +1711,8 @@ async function deleteAdminTest(id) {
         if (secReadError) throw secReadError;
         const sectionIds = (sections || []).map(s => s.id);
         if (sectionIds.length) {
+            const { error: groupDeleteError } = await supabaseClient.from("question_groups").delete().in("section_id", sectionIds);
+            if (groupDeleteError && !String(groupDeleteError.message || "").toLowerCase().includes("does not exist")) throw groupDeleteError;
             const { data: qs, error: qReadError } = await supabaseClient.from("questions").select("id").in("section_id", sectionIds);
             if (qReadError) throw qReadError;
             const qids = (qs || []).map(q => q.id);
@@ -1754,9 +1757,25 @@ async function editAdminTest(id) {
             questions = questions.map(q => ({ ...q, options: byQ[q.id] || [] }));
         }
     }
+    let groups = [];
+    if (sectionIds.length) {
+        const { data: grow, error: gError } = await supabaseClient
+            .from("question_groups")
+            .select("*")
+            .in("section_id", sectionIds)
+            .order("group_order", { ascending: true });
+        if (gError) {
+            if (String(gError.message || "").toLowerCase().includes("question_groups")) {
+                throw new Error("Question Groups table is not created yet. Run the SQL provided with this update first.");
+            }
+            throw gError;
+        }
+        groups = grow || [];
+    }
     adminCurrentTest = test;
     adminCurrentSections = sections || [];
     adminCurrentQuestions = questions;
+    adminCurrentGroups = groups;
 
     message.innerHTML = adminModuleBox(`Edit: ${test.title}`, `${test.module.toUpperCase()} • Full test editor`);
     await renderAdminTestEditor();
@@ -1797,16 +1816,131 @@ async function renderAdminTestEditor() {
 
 function adminSectionEditor(s, idx, isListening, isReading) {
     const label = isListening ? `Part ${s.section_number}` : isReading ? `Passage ${s.section_number}` : "Writing Section";
+    const groups = adminCurrentGroups.filter(g => g.section_id === s.id).sort((a,b) => Number(a.group_order || 0) - Number(b.group_order || 0));
     return `<div class="students-panel" style="margin:12px 0;padding:16px">
         <h4>${label}</h4>
         <input type="hidden" id="sec-id-${s.id}" value="${s.id}">
         <label>Title<input id="sec-title-${s.id}" value="${escapeHtml(s.title || label)}"></label>
-        <label>Instructions<textarea id="sec-instructions-${s.id}" placeholder="Instructions shown for this part/section">${escapeHtml(s.instructions || "")}</textarea></label>
+        <label>Part / Section Instructions<textarea id="sec-instructions-${s.id}" placeholder="General instructions for this part/section">${escapeHtml(s.instructions || "")}</textarea></label>
         ${isListening ? `<label>Audio URL<input id="sec-audio-${s.id}" value="${escapeHtml(s.audio_url || "")}" placeholder="https://..."></label>` : ""}
-        <label>${isReading ? "Passage Content" : "Part Content / Notes"}<textarea id="sec-content-${s.id}" style="min-height:160px" placeholder="Enter passage, notes, task content, etc.">${escapeHtml(s.content || "")}</textarea></label>
+        <label>${isReading ? "Passage Content" : "Part Content / Notes"}<textarea id="sec-content-${s.id}" style="min-height:120px" placeholder="Optional general content for this part/section">${escapeHtml(s.content || "")}</textarea></label>
         <label>Image URL (optional)<input id="sec-image-${s.id}" value="${escapeHtml(s.image_url || "")}" placeholder="https://..."></label>
         <button type="button" onclick="saveAdminSection('${s.id}')">Save ${label}</button>
+
+        <div style="margin-top:22px;border-top:1px solid #e5e7eb;padding-top:16px">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+                <div><h4 style="margin:0">Question Groups</h4><small class="muted">Create separate IELTS-style blocks. Question numbers and ranges are fully manual.</small></div>
+                <button type="button" class="save-button" onclick="addAdminQuestionGroup('${s.id}')">+ Add Question Group</button>
+            </div>
+            <div style="margin-top:12px">
+                ${groups.length ? groups.map(g => adminQuestionGroupEditor(g, label)).join("") : `<div style="padding:14px;background:#f8fafc;border-radius:8px;margin-top:10px">No question groups yet. Click <strong>+ Add Question Group</strong> to create one.</div>`}
+            </div>
+        </div>
     </div>`;
+}
+
+function adminQuestionGroupEditor(g, sectionLabel) {
+    const typeMap = adminCurrentTest?.module === "listening" ? LISTENING_QUESTION_TYPES : READING_QUESTION_TYPES;
+    const typeOptions = Object.entries(typeMap).map(([k, v]) => `<option value="${k}" ${g.question_type === k ? "selected" : ""}>${escapeHtml(v)}</option>`).join("");
+    const start = Number(g.start_question || 1);
+    const end = Number(g.end_question || start);
+    const groupQuestions = adminCurrentQuestions.filter(q => q.section_id === g.section_id && Number(q.question_number) >= start && Number(q.question_number) <= end).sort((a,b) => Number(a.question_number) - Number(b.question_number));
+    return `<div class="students-panel" style="margin:10px 0;padding:14px;border:1px solid #dbe3ee;background:#fff">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+            <strong>Question Group ${Number(g.group_order || 1)} — ${escapeHtml(sectionLabel)}</strong>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <button type="button" onclick="addAdminQuestionToGroup('${g.id}')">+ Add Question</button>
+                <button type="button" class="danger" onclick="deleteAdminQuestionGroup('${g.id}')">Delete Group</button>
+            </div>
+        </div>
+        <div class="grid" style="margin-top:10px">
+            <label>Start Question No.<input id="group-start-${g.id}" type="number" min="1" max="40" value="${start}"></label>
+            <label>End Question No.<input id="group-end-${g.id}" type="number" min="1" max="40" value="${end}"></label>
+            <label>Question Type<select id="group-type-${g.id}">${typeOptions}</select></label>
+            <label>Group Order<input id="group-order-${g.id}" type="number" min="1" value="${Number(g.group_order || 1)}"></label>
+        </div>
+        <label>Instructions<textarea id="group-instructions-${g.id}" style="min-height:90px" placeholder="Example:\nComplete the notes below.\nWrite ONE WORD AND/OR A NUMBER for each answer.">${escapeHtml(g.instructions || "")}</textarea></label>
+        <label>Group Content / Heading / Notes<textarea id="group-content-${g.id}" style="min-height:130px" placeholder="Example:\nEasyl​​et Accommodation Agency\n\nCheapest properties: £ ___ per week...">${escapeHtml(g.content || "")}</textarea></label>
+        <label>Group Image URL (optional)<input id="group-image-${g.id}" value="${escapeHtml(g.image_url || "")}" placeholder="https://..."></label>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">
+            <button type="button" class="save-button" onclick="saveAdminQuestionGroup('${g.id}')">💾 Save Question Group</button>
+            <small class="muted">This group currently contains ${groupQuestions.length} question(s) by number range ${start}–${end}.</small>
+        </div>
+    </div>`;
+}
+
+async function addAdminQuestionGroup(sectionId) {
+    const existing = adminCurrentGroups.filter(g => g.section_id === sectionId);
+    const nextOrder = existing.reduce((m, g) => Math.max(m, Number(g.group_order || 0)), 0) + 1;
+    const nextStart = existing.length ? Math.min(40, Math.max(...existing.map(g => Number(g.end_question || 0))) + 1) : 1;
+    const { data, error } = await supabaseClient.from("question_groups").insert({
+        section_id: sectionId,
+        group_order: nextOrder,
+        start_question: nextStart,
+        end_question: nextStart,
+        question_type: adminCurrentTest?.module === "listening" ? "note" : "single",
+        instructions: "",
+        content: "",
+        image_url: null
+    }).select().single();
+    if (error) return alert("Could not create question group: " + error.message);
+    adminCurrentGroups.push(data);
+    await renderAdminTestEditor();
+    setTimeout(() => document.getElementById(`group-start-${data.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
+}
+
+async function saveAdminQuestionGroup(groupId) {
+    const start = Number(document.getElementById(`group-start-${groupId}`)?.value || 0);
+    const end = Number(document.getElementById(`group-end-${groupId}`)?.value || 0);
+    const order = Number(document.getElementById(`group-order-${groupId}`)?.value || 1);
+    if (!start || !end || start > end || start > 40 || end > 40) return alert("Please enter a valid question range. Start must be less than or equal to End.");
+    const payload = {
+        start_question: start,
+        end_question: end,
+        group_order: order,
+        question_type: document.getElementById(`group-type-${groupId}`)?.value || "short",
+        instructions: document.getElementById(`group-instructions-${groupId}`)?.value || "",
+        content: document.getElementById(`group-content-${groupId}`)?.value || "",
+        image_url: document.getElementById(`group-image-${groupId}`)?.value.trim() || null
+    };
+    const { error } = await supabaseClient.from("question_groups").update(payload).eq("id", groupId);
+    if (error) return alert("Could not save question group: " + error.message);
+    alert("Question Group saved successfully.");
+    await editAdminTest(adminCurrentTest.id);
+}
+
+async function deleteAdminQuestionGroup(groupId) {
+    if (!confirm("Delete this question group? Questions inside the number range will NOT be deleted.")) return;
+    const { error } = await supabaseClient.from("question_groups").delete().eq("id", groupId);
+    if (error) return alert("Could not delete question group: " + error.message);
+    await editAdminTest(adminCurrentTest.id);
+}
+
+async function addAdminQuestionToGroup(groupId) {
+    const group = adminCurrentGroups.find(g => g.id === groupId);
+    if (!group) return;
+    const section = adminCurrentSections.find(s => s.id === group.section_id);
+    if (!section) return;
+    const start = Number(group.start_question || 1);
+    const end = Number(group.end_question || start);
+    const used = new Set(adminCurrentQuestions.filter(q => q.section_id === section.id).map(q => Number(q.question_number)));
+    let next = start;
+    while (next <= end && used.has(next)) next++;
+    if (next > end) return alert(`All question numbers ${start}-${end} are already used in this group. Change the range or edit existing questions.`);
+    const defaultType = group.question_type || (adminCurrentTest?.module === "listening" ? "note" : "single");
+    const { data: question, error } = await supabaseClient.from("questions").insert({
+        section_id: section.id,
+        question_number: next,
+        question_type: defaultType,
+        question_text: `Question ${next}`,
+        marks: 1,
+        correct_answer: "",
+        explanation: "",
+        image_url: null
+    }).select().single();
+    if (error) return alert("Could not add question: " + error.message);
+    await editAdminTest(adminCurrentTest.id);
+    setTimeout(() => document.getElementById(`q-num-${question.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 150);
 }
 
 function adminQuestionEditor(q, typeMap, isListening, isReading) {
@@ -1962,19 +2096,13 @@ async function saveAdminQuestion(qid) {
 
 async function addAdminQuestion() {
     if (!adminCurrentTest || !adminCurrentSections.length) return;
-    const isListening = adminCurrentTest.module === "listening";
-    const maxNo = adminCurrentQuestions.reduce((m, q) => Math.max(m, Number(q.question_number || 0)), 0);
-    const nextNo = Math.min(40, maxNo + 1);
-    if (maxNo >= 40) return alert("Maximum 40 questions reached.");
-    let section = adminCurrentSections[0];
-    if (isListening) section = adminCurrentSections[Math.min(3, Math.floor((nextNo - 1) / 10))];
-    else if (adminCurrentTest.module === "reading") section = adminCurrentSections[nextNo <= 13 ? 0 : nextNo <= 26 ? 1 : 2] || adminCurrentSections[0];
-    const defaultType = isListening ? "short" : "single";
+    const section = adminCurrentSections[0];
+    const defaultType = adminCurrentTest.module === "listening" ? "note" : "single";
     const { data: question, error } = await supabaseClient.from("questions").insert({
         section_id: section.id,
-        question_number: nextNo,
+        question_number: 1,
         question_type: defaultType,
-        question_text: `New ${adminCurrentTest.module} Question ${nextNo}`,
+        question_text: "New Question",
         marks: 1,
         correct_answer: "",
         explanation: "",
@@ -2019,6 +2147,10 @@ window.saveAdminTestHeader = saveAdminTestHeader;
 window.saveAdminSection = saveAdminSection;
 window.saveAdminQuestion = saveAdminQuestion;
 window.addAdminQuestion = addAdminQuestion;
+window.addAdminQuestionGroup = addAdminQuestionGroup;
+window.saveAdminQuestionGroup = saveAdminQuestionGroup;
+window.deleteAdminQuestionGroup = deleteAdminQuestionGroup;
+window.addAdminQuestionToGroup = addAdminQuestionToGroup;
 window.deleteAdminQuestion = deleteAdminQuestion;
 window.addAdminOption = addAdminOption;
 window.removeAdminOption = removeAdminOption;
