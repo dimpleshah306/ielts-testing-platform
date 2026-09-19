@@ -2556,3 +2556,229 @@ window.addAdminQuestionGroup = async function(sectionId) {
     alert('Could not add Question Group:\n\n' + (e?.message || String(e)));
   }
 };
+
+/* ======================================================================
+   MASTER V3 FINAL GROUP/QUESTION REPAIR
+   - Reading + Listening use the same Question Group architecture.
+   - Group options are optional and must never prevent the editor opening.
+   - Questions are linked to groups through questions.group_id.
+   - Reading and Listening can both add groups and questions.
+   ====================================================================== */
+
+async function masterV3LoadGroupOptionsSafe(groups) {
+  const list = Array.isArray(groups) ? groups : [];
+  const ids = list.map(g => g.id).filter(Boolean);
+  if (!ids.length) return list.map(g => ({...g, options: []}));
+  try {
+    const {data, error} = await supabaseClient
+      .from('question_group_options')
+      .select('*')
+      .in('group_id', ids)
+      .order('sort_order', {ascending:true});
+    if (error) {
+      console.warn('Question group option bank unavailable; continuing without shared options.', error);
+      return list.map(g => ({...g, options: []}));
+    }
+    const map = {};
+    (data || []).forEach(o => (map[o.group_id] ||= []).push(o));
+    return list.map(g => ({...g, options: map[g.id] || []}));
+  } catch (e) {
+    console.warn('Question group option bank unavailable; continuing.', e);
+    return list.map(g => ({...g, options: []}));
+  }
+}
+
+async function masterV3EditAdminTest(id) {
+  const message = document.getElementById('dashboardMessage');
+  if (!message) return;
+  try {
+    const {data:test,error:te} = await supabaseClient.from('tests').select('*').eq('id',id).single();
+    if (te) throw te;
+    const {data:sections,error:se} = await supabaseClient.from('sections').select('*').eq('test_id',id).order('section_number');
+    if (se) throw se;
+    const sectionRows = sections || [];
+    const sectionIds = sectionRows.map(s => s.id);
+
+    let questions = [];
+    if (sectionIds.length) {
+      const {data:q,error:qe} = await supabaseClient.from('questions').select('*').in('section_id',sectionIds).order('question_number').order('question_order');
+      if (qe) throw qe;
+      questions = q || [];
+      const qids = questions.map(q => q.id);
+      if (qids.length) {
+        const {data:o,error:oe} = await supabaseClient.from('options').select('*').in('question_id',qids).order('sort_order');
+        if (!oe) {
+          const map = {};
+          (o || []).forEach(x => (map[x.question_id] ||= []).push(x));
+          questions = questions.map(q => ({...q, options: map[q.id] || []}));
+        }
+      }
+    }
+
+    let groups = [];
+    if (sectionIds.length) {
+      const {data:g,error:ge} = await supabaseClient.from('question_groups').select('*').in('section_id',sectionIds).order('group_order');
+      if (ge) throw ge;
+      groups = await masterV3LoadGroupOptionsSafe(g || []);
+    }
+
+    let writingTasks = [];
+    if (test.module === 'writing') {
+      const {data:w,error:we} = await supabaseClient.from('writing_tasks').select('*').eq('test_id',id).order('part');
+      if (we) throw we;
+      writingTasks = w || [];
+    }
+
+    adminCurrentTest = test;
+    adminCurrentSections = sectionRows;
+    adminCurrentQuestions = questions;
+    adminCurrentGroups = groups;
+    window.__v3WritingTasks = writingTasks;
+
+    message.innerHTML = adminModuleBox(`Edit: ${test.title}`, `${String(test.module || '').toUpperCase()} • Master Builder`);
+    await renderAdminTestEditor();
+  } catch (e) {
+    console.error(e);
+    alert('Could not open Test Builder: ' + (e.message || 'Unknown error'));
+  }
+}
+
+async function masterV3AddGroup(sectionId) {
+  if (!adminCurrentTest) return;
+  const section = adminCurrentSections.find(s => s.id === sectionId);
+  if (!section) return alert('Section not found.');
+  const existing = adminCurrentGroups.filter(g => g.section_id === sectionId);
+  const order = existing.length ? Math.max(...existing.map(g => Number(g.group_order || 0))) + 1 : 1;
+  const nextStart = existing.length ? Math.max(...existing.map(g => Number(g.end_question || 0))) + 1 : 1;
+  const type = adminCurrentTest.module === 'listening' ? 'listening_short_answer' : 'reading_multiple_choice';
+  const payload = {
+    section_id: sectionId,
+    group_order: order,
+    group_title: `Question Group ${order}`,
+    start_question: nextStart,
+    end_question: nextStart,
+    question_type: type,
+    instructions: '',
+    content: '',
+    image_url: null,
+    audio_start_seconds: null,
+    audio_end_seconds: null,
+    configuration: {}
+  };
+  try {
+    const {error} = await supabaseClient.from('question_groups').insert(payload);
+    if (error) throw error;
+    await masterV3EditAdminTest(adminCurrentTest.id);
+  } catch (e) {
+    alert('Could not add Question Group: ' + (e.message || 'Unknown error'));
+  }
+}
+
+async function masterV3AddQuestionToGroup(groupId) {
+  const g = adminCurrentGroups.find(x => x.id === groupId);
+  if (!g) return alert('Question Group not found.');
+  const qs = (adminCurrentQuestions || []).filter(q => q.group_id === g.id ||
+    (q.section_id === g.section_id && Number(q.question_number) >= Number(g.start_question) && Number(q.question_number) <= Number(g.end_question)));
+  let n = qs.length ? Math.max(...qs.map(q => Number(q.question_number || 0))) + 1 : Number(g.start_question || 1);
+  if (n > Number(g.end_question || n)) {
+    const extend = confirm(`Question ${n} is outside the current End Question ${g.end_question}. Extend this group to ${n}?`);
+    if (!extend) return;
+    const {error:ge} = await supabaseClient.from('question_groups').update({end_question:n}).eq('id',g.id);
+    if (ge) return alert('Could not extend Question Group: ' + ge.message);
+  }
+  const payload = {
+    section_id: g.section_id,
+    group_id: g.id,
+    question_number: n,
+    question_order: qs.length + 1,
+    question_type: g.question_type,
+    question_text: '',
+    marks: 1,
+    correct_answer: '',
+    accepted_answers: [],
+    question_config: {},
+    explanation: '',
+    image_url: null
+  };
+  try {
+    const {data,error} = await supabaseClient.from('questions').insert(payload).select().single();
+    if (error) throw error;
+    await masterV3EditAdminTest(adminCurrentTest.id);
+    setTimeout(() => document.getElementById(`v3-q-${data.id}`)?.scrollIntoView({behavior:'smooth',block:'center'}), 150);
+  } catch (e) {
+    alert('Could not add Question: ' + (e.message || 'Unknown error'));
+  }
+}
+
+async function masterV3SaveGroup(id) {
+  const g = adminCurrentGroups.find(x => x.id === id);
+  if (!g) return;
+  const start = Number(document.getElementById(`v3-gstart-${id}`)?.value || 0);
+  const end = Number(document.getElementById(`v3-gend-${id}`)?.value || 0);
+  if (!start || !end || end < start) return alert('Please enter a valid Start and End Question Number.');
+  const type = document.getElementById(`v3-gtype-${id}`)?.value || g.question_type;
+  const cfg = {};
+  if (/multiple_choice$/.test(type)) Object.assign(cfg, {
+    mode: document.getElementById(`v3-mode-${id}`)?.value || 'single',
+    answers_required: Number(document.getElementById(`v3-required-${id}`)?.value || 1),
+    randomize: !!document.getElementById(`v3-random-${id}`)?.checked,
+    show_letters: document.getElementById(`v3-letters-${id}`)?.checked !== false
+  });
+  if (/matching/.test(type)) Object.assign(cfg, {
+    allow_repeat: !!document.getElementById(`v3-repeat-${id}`)?.checked,
+    randomize: document.getElementById(`v3-random-${id}`)?.checked !== false
+  });
+  if (/map_labelling|diagram_labelling|diagram_completion/.test(type)) Object.assign(cfg, {
+    answer_mode: document.getElementById(`v3-mapmode-${id}`)?.value || 'text',
+    image_url: document.getElementById(`v3-image-${id}`)?.value.trim() || null
+  });
+  if (/completion/.test(type)) cfg.format = document.getElementById(`v3-format-${id}`)?.value || 'note';
+  if (/summary_completion/.test(type)) cfg.mode = document.getElementById(`v3-summary-${id}`)?.value || 'typed';
+
+  const payload = {
+    group_title: document.getElementById(`v3-gt-${id}`)?.value.trim() || null,
+    start_question: start,
+    end_question: end,
+    group_order: Number(document.getElementById(`v3-gorder-${id}`)?.value || g.group_order || 1),
+    question_type: type,
+    instructions: document.getElementById(`v3-ginst-${id}`)?.value || '',
+    content: document.getElementById(`v3-gcontent-${id}`)?.value || '',
+    image_url: document.getElementById(`v3-gimage-${id}`)?.value.trim() || null,
+    audio_start_seconds: document.getElementById(`v3-gastart-${id}`)?.value ? Number(document.getElementById(`v3-gastart-${id}`).value) : null,
+    audio_end_seconds: document.getElementById(`v3-gaend-${id}`)?.value ? Number(document.getElementById(`v3-gaend-${id}`).value) : null,
+    configuration: cfg
+  };
+  try {
+    const {error} = await supabaseClient.from('question_groups').update(payload).eq('id',id);
+    if (error) throw error;
+
+    // Group option bank is optional. If its table/policy is unavailable, the group itself is still saved.
+    try {
+      const bank = Array.from(document.querySelectorAll(`#v3-bank-${id} .v3-bank-row`)).map((r,i) => ({
+        group_id:id,
+        option_key:r.querySelector('.v3-bank-key')?.value.trim() || v3OptionKey(i),
+        option_text:r.querySelector('.v3-bank-text')?.value.trim() || '',
+        sort_order:i+1,
+        metadata:{}
+      })).filter(x => x.option_text);
+      const {error:de} = await supabaseClient.from('question_group_options').delete().eq('group_id',id);
+      if (!de && bank.length) await supabaseClient.from('question_group_options').insert(bank);
+    } catch (e) {
+      console.warn('Optional group option bank save skipped:', e);
+    }
+
+    alert('Question Group saved successfully.');
+    await masterV3EditAdminTest(adminCurrentTest.id);
+  } catch (e) {
+    alert('Could not save Question Group: ' + (e.message || 'Unknown error'));
+  }
+}
+
+// Final handlers: these are intentionally assigned last so older duplicate functions cannot override them.
+window.editAdminTest = masterV3EditAdminTest;
+window.v3AddGroup = masterV3AddGroup;
+window.addAdminQuestionGroup = masterV3AddGroup;
+window.v3AddQuestionToGroup = masterV3AddQuestionToGroup;
+window.addAdminQuestionToGroup = masterV3AddQuestionToGroup;
+window.v3SaveGroup = masterV3SaveGroup;
+window.saveAdminQuestionGroup = masterV3SaveGroup;
