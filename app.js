@@ -2497,3 +2497,62 @@ function switchStudentSection(i){if(!studentTestState)return;studentTestState.cu
 (function(){const s=document.createElement('style');s.textContent=`.v3-panel,.v3-section,.v3-group,.v3-writing-task{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin:12px 0}.v3-toolbar,.v3-row,.v3-actions,.v3-nav{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}.v3-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}.v3-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin:10px 0}.v3-bank-row,.v3-qopt{display:grid;grid-template-columns:70px minmax(0,1fr) auto auto;gap:7px;align-items:center;margin:6px 0}.v3-question{border:1px solid #dbe3ee;border-radius:10px;padding:12px;margin:10px 0;background:#fbfdff}.v3-choice{display:flex;gap:8px;padding:7px;border:1px solid #e5e7eb;border-radius:8px;margin:6px 0}.v3-sq{padding:13px 0;border-bottom:1px solid #eef2f7}.v3-sq input,.v3-sq select{margin:8px 0;padding:8px;width:100%;box-sizing:border-box}.v3-split,.v3-writing-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}.v3-pane{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px;max-height:calc(100vh - 170px);overflow:auto}.v3-instructions{background:#fff7df;border-radius:8px;padding:12px;white-space:pre-wrap;margin:10px 0}.v3-rich,.v3-prompt{white-space:pre-wrap;line-height:1.7}.v3-preview-banner{padding:10px 14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;margin-bottom:12px}.v3-wordcount{padding:10px 0;font-weight:600}.v3-info{padding:12px;background:#eef6ff;border-radius:8px}.muted{color:#64748b}@media(max-width:900px){.v3-split,.v3-writing-grid{grid-template-columns:1fr}.v3-pane{max-height:none}.v3-bank-row,.v3-qopt{grid-template-columns:60px 1fr}.v3-bank-row button,.v3-qopt button{grid-column:2}}`;document.head.appendChild(s)})();
 
 Object.assign(window,{v3SaveGroup,v3AddQuestionToGroup,v3AddBankOption,v3AddQuestionOption,v3SaveQuestion,v3DeleteQuestion,v3DuplicateQuestion,v3MoveQuestion,v3DeleteGroup,v3RefreshGroupType,v3PreviewQuestion,v3ValidateTest,v3SaveWritingTask,v3UploadWritingVisual,v3SetAnswerValue,v3SetAnswer,v3SetWriting});
+
+/* ---------- FINAL QUESTION GROUP HANDLER OVERRIDE ----------
+   Canonical handler for every inline + Add Question Group button.
+   This intentionally uses the Master V3 listening/reading type registry.
+*/
+window.addAdminQuestionGroup = async function(sectionId) {
+  try {
+    if (!window.supabaseClient) throw new Error('Supabase client is not initialized. Please refresh the page.');
+    if (!adminCurrentTest) throw new Error('No test is currently open.');
+
+    const existing = (adminCurrentGroups || []).filter(g => g.section_id === sectionId);
+    const nextOrder = existing.length
+      ? Math.max(...existing.map(g => Number(g.group_order || 0))) + 1
+      : 1;
+    const lastEnd = existing.length
+      ? Math.max(...existing.map(g => Number(g.end_question || 0)))
+      : 0;
+    const nextStart = lastEnd > 0 ? lastEnd + 1 : 1;
+
+    const defaultType = adminCurrentTest.module === 'listening'
+      ? 'listening_short_answer'
+      : 'reading_multiple_choice';
+
+    const payload = {
+      section_id: sectionId,
+      group_order: nextOrder,
+      start_question: nextStart,
+      end_question: nextStart,
+      question_type: defaultType,
+      instructions: '',
+      content: '',
+      image_url: null,
+      configuration: {}
+    };
+
+    const { data, error } = await supabaseClient
+      .from('question_groups')
+      .insert(payload)
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('Add Question Group error:', error);
+      alert('Could not add Question Group:\n\n' + (error.message || 'Unknown Supabase error'));
+      return;
+    }
+
+    adminCurrentGroups = [...(adminCurrentGroups || []), data];
+    await editAdminTest(adminCurrentTest.id);
+
+    setTimeout(() => {
+      const el = document.getElementById(`v3-group-${data.id}`) || document.getElementById(`group-${data.id}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 150);
+  } catch (e) {
+    console.error('Add Question Group exception:', e);
+    alert('Could not add Question Group:\n\n' + (e?.message || String(e)));
+  }
+};
