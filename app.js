@@ -326,10 +326,10 @@ function renderExam(){
   const s=exam.data.sections[exam.currentSection],qs=exam.data.questions.filter(q=>q.section_id===s.id).sort((a,b)=>a.question_number-b.question_number),gs=exam.data.groups.filter(g=>g.section_id===s.id).sort((a,b)=>a.group_order-b.group_order);
   if(m==="reading"){
     app().innerHTML=headerExam()+`<div class="shell">${tabs("Passage")}<div class="exam-split"><div class="pane"><h2>${esc(s.title)}</h2>${s.instructions?`<div class="instructions">${esc(s.instructions)}</div>`:""}${s.image_url?`<img class="media" src="${attr(s.image_url)}">`:""}<div style="white-space:pre-wrap;line-height:1.8">${esc(s.content||"")}</div></div>
-    <div class="pane"><h3>Questions</h3>${qnav(qs)}${renderGroupsOrQuestions(gs,qs)}</div></div>${examNav()}</div>`;
+    <div class="pane"><h3>Questions</h3>${gs.length?"":qnav(qs)}${renderGroupsOrQuestions(gs,qs)}</div></div>${examNav()}</div>`;
   }else{
     app().innerHTML=headerExam()+`<div class="shell">${tabs("Part")}${exam.audioUrl?`<div class="audio-box"><strong>Listening Audio</strong><audio controls src="${attr(exam.audioUrl)}"></audio></div>`:""}
-    <div class="card"><h2>${esc(s.title)}</h2>${s.instructions?`<div class="instructions">${esc(s.instructions)}</div>`:""}${s.image_url?`<img class="media" src="${attr(s.image_url)}">`:""}${s.content?`<div style="white-space:pre-wrap;line-height:1.8">${renderInline(s.content,qs)}</div>`:""}${qnav(qs)}${renderGroupsOrQuestions(gs,qs)}</div>${examNav()}</div>`;
+    <div class="card"><h2>${esc(s.title)}</h2>${s.instructions?`<div class="instructions">${esc(s.instructions)}</div>`:""}${s.image_url?`<img class="media" src="${attr(s.image_url)}">`:""}${s.content?`<div style="white-space:pre-wrap;line-height:1.8">${renderInline(s.content,qs)}</div>`:""}${gs.length?"":qnav(qs)}${renderGroupsOrQuestions(gs,qs)}</div>${examNav()}</div>`;
   }
 }
 function renderGroupsOrQuestions(gs,qs){return gs.length?gs.map(g=>renderGroup(g,qs)).join(""):qs.map(q=>renderQuestion(q)).join("")}
