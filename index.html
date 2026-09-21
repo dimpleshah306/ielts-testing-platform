@@ -1,205 +1,40 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
 <head>
-
-    <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <meta
-        name="description"
-        content="Universal Education IELTS Testing Platform"
-    >
-
-    <meta
-        name="theme-color"
-        content="#173f8a"
-    >
-
-    <title>
-        Universal Education IELTS Testing Platform
-    </title>
-
-    <link
-        rel="stylesheet"
-        href="styles.css"
-    >
-
-    <!-- Supabase JavaScript Library -->
-    <script
-        src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
-    ></script>
-
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Universal Education IELTS Testing Platform</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:#f5f7fb;color:#172033}button{cursor:pointer;border:0;border-radius:8px;padding:10px 14px;font-weight:700;background:#eef2f6;color:#172033}button:hover{filter:brightness(.97)}input,textarea,select{width:100%;padding:10px 11px;border:1px solid #cfd6e2;border-radius:8px;font:inherit;background:#fff}textarea{min-height:100px;resize:vertical}label{display:block;margin:8px 0;font-weight:600;color:#344054}label input,label textarea,label select{margin-top:6px;font-weight:400}.hidden{display:none!important}.primary,.save-button{background:#155eef;color:#fff}.danger{background:#d92d20;color:#fff}.cancel-button{background:#f2f4f7}.dashboard{min-height:100vh}.dashboard-header{background:#0b1f3a;color:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;gap:20px;position:sticky;top:0;z-index:100}.dashboard-header h1{margin:0;font-size:21px}.dashboard-header p{margin:3px 0 0;opacity:.75}.user-area{display:flex;align-items:center;gap:14px}.user-area strong,.user-area span{display:block}.user-area span{font-size:12px;opacity:.75}.user-area button{background:#fff}.dashboard-content{max-width:1400px;margin:auto;padding:24px}.dashboard-title h2{margin-bottom:4px}.dashboard-title p,.muted{color:#667085}.dashboard-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}.dashboard-card{background:#fff;border:1px solid #dfe4ec;border-radius:14px;padding:22px;text-align:left;min-height:130px;box-shadow:0 2px 8px #1018280a}.dashboard-card .card-icon{font-size:28px;display:block;margin-bottom:10px}.dashboard-card strong{display:block;font-size:17px}.dashboard-card small{display:block;color:#667085;margin-top:5px}.coming-soon{background:#fff;border:1px solid #dfe4ec;border-radius:12px;padding:20px}.students-panel,.v3-panel,.v3-section,.v3-group{background:#fff;border:1px solid #dfe4ec;border-radius:12px;padding:16px;margin:12px 0}.grid,.v3-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.v3-row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.v3-actions{display:flex;gap:6px;flex-wrap:wrap}.v3-box{background:#f8fafc;border:1px solid #e4e7ec;border-radius:9px;padding:12px;margin:10px 0}.v3-checks{display:flex;gap:14px;flex-wrap:wrap}.v3-checks label{font-weight:500}.v3-question{border:1px solid #dfe4ec;border-radius:10px;padding:14px;margin:12px 0;background:#fff}.v3-bank-row,.v3-qopt{display:grid;grid-template-columns:70px 1fr auto;gap:7px;align-items:center;margin:7px 0}.v3-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.student-form{background:#fff;border:1px solid #dfe4ec;border-radius:12px;padding:16px;margin:12px 0}.auth-shell{min-height:100vh;display:grid;place-items:center;padding:24px;background:linear-gradient(135deg,#eef4ff,#f8fafc)}.auth-card{width:min(520px,100%);background:#fff;border:1px solid #dfe4ec;border-radius:18px;padding:30px;box-shadow:0 10px 35px #10182812}.auth-card h1{margin:0}.auth-tabs{display:flex;gap:8px;margin:20px 0}.auth-tabs button{flex:1;background:#f2f4f7}.auth-tabs button.active{background:#0b1f3a;color:#fff}.brand-logo{height:52px;width:auto;margin-bottom:15px}.login-message{min-height:22px;margin-top:10px}.reading-layout{display:grid;grid-template-columns:1fr 1fr;gap:14px}.reading-pane{height:calc(100vh - 150px);overflow:auto;background:#fff;border:1px solid #dfe4ec;border-radius:12px;padding:18px}.player{background:#101828;color:#fff;padding:14px;border-radius:12px;margin-bottom:14px}.player audio{width:100%}.tabs{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}.tabs button.active{background:#155eef;color:#fff}.timer{font-size:24px;font-weight:800}.score{font-size:48px;font-weight:800;color:#155eef}.band{font-size:28px;font-weight:800}.question{background:#fff;border:1px solid #dfe4ec;border-radius:10px;padding:14px;margin:10px 0}.opts label{font-weight:400}.test-start-instructions{white-space:pre-wrap;background:#f8fafc;border:1px solid #e4e7ec;padding:12px;border-radius:9px}.writing-box{min-height:360px}.detail{background:#f8fafc;border-radius:9px;padding:12px;white-space:pre-wrap}.preview{max-width:100%;max-height:480px;border-radius:8px}.section-title{margin-top:24px}@media(max-width:800px){.grid,.v3-grid,.reading-layout{grid-template-columns:1fr}.dashboard-content{padding:14px}.dashboard-header{padding:12px;flex-direction:column;align-items:flex-start}.reading-pane{height:auto;min-height:420px}.v3-bank-row,.v3-qopt{grid-template-columns:55px 1fr}.v3-bank-row button,.v3-qopt button{grid-column:2}}
+</style>
 </head>
-
-
 <body>
-
-
-    <!-- =========================================
-         APPLICATION
-         ========================================= -->
-
-    <div id="app">
-
-        <main class="login-page">
-
-            <section class="login-card">
-
-
-                <!-- =================================
-                     BRAND
-                     ================================= -->
-
-                <div class="brand">
-
-                    <div class="brand-logo">
-                        UE
-                    </div>
-
-                    <h1>
-                        Universal Education
-                    </h1>
-
-                    <p>
-                        IELTS Testing Platform
-                    </p>
-
-                </div>
-
-
-                <!-- =================================
-                     LOGIN TABS
-                     ================================= -->
-
-                <div class="login-tabs">
-
-                    <button
-                        id="studentTab"
-                        class="login-tab active"
-                        type="button"
-                    >
-                        Student Login
-                    </button>
-
-
-                    <button
-                        id="staffTab"
-                        class="login-tab"
-                        type="button"
-                    >
-                        Admin / Tutor
-                    </button>
-
-                </div>
-
-
-                <!-- =================================
-                     LOGIN FORM
-                     ================================= -->
-
-                <form id="loginForm">
-
-
-                    <!-- EMAIL -->
-
-                    <div class="form-group">
-
-                        <label for="email">
-                            Email Address
-                        </label>
-
-                        <input
-                            type="email"
-                            id="email"
-                            name="email"
-                            placeholder="Enter your email"
-                            autocomplete="email"
-                            required
-                        >
-
-                    </div>
-
-
-                    <!-- PASSWORD -->
-
-                    <div class="form-group">
-
-                        <label for="password">
-                            Password
-                        </label>
-
-                        <input
-                            type="password"
-                            id="password"
-                            name="password"
-                            placeholder="Enter your password"
-                            autocomplete="current-password"
-                            required
-                        >
-
-                    </div>
-
-
-                    <!-- LOGIN BUTTON -->
-
-                    <button
-                        type="submit"
-                        id="loginButton"
-                        class="login-button"
-                    >
-                        Login
-                    </button>
-
-
-                </form>
-
-
-                <!-- =================================
-                     LOGIN MESSAGE
-                     ================================= -->
-
-                <div
-                    id="loginMessage"
-                    class="login-message"
-                ></div>
-
-
-                <!-- =================================
-                     FOOTER
-                     ================================= -->
-
-                <div class="login-footer">
-
-                    <p>
-                        Universal Education
-                    </p>
-
-                    <span>
-                        IELTS Testing Platform
-                    </span>
-
-                </div>
-
-
-            </section>
-
-        </main>
-
+<div id="loginScreen" class="auth-shell">
+  <div class="auth-card">
+    <img src="./universal-education-logo.png" class="brand-logo" alt="Universal Education" onerror="this.style.display='none'">
+    <h1>Universal Education IELTS</h1>
+    <p class="muted">Reading • Listening • Writing Testing Platform</p>
+    <div class="auth-tabs">
+      <button id="studentTab" type="button" class="active">Student</button>
+      <button id="staffTab" type="button">Admin / Tutor</button>
     </div>
-
-
-    <!-- =========================================
-         APPLICATION JAVASCRIPT
-         ========================================= -->
-
-    <script src="app.js"></script>
-
-
+    <form id="loginForm">
+      <label>Email<input id="email" type="email" autocomplete="username" placeholder="Email address" required></label>
+      <label>Password<input id="password" type="password" autocomplete="current-password" placeholder="Password" required></label>
+      <button id="loginButton" type="submit" class="primary" style="width:100%;margin-top:10px">Login</button>
+    </form>
+    <div id="loginMessage" class="login-message"></div>
+  </div>
+</div>
+<div id="app" class="hidden"></div>
+<script src="./app.js"></script>
+<script>
+  // Keep the login screen hidden once the Supabase app renders a dashboard.
+  const appEl=document.getElementById('app');
+  const loginEl=document.getElementById('loginScreen');
+  const observer=new MutationObserver(()=>{if(appEl.innerHTML.trim()){loginEl.classList.add('hidden');appEl.classList.remove('hidden')}});
+  observer.observe(appEl,{childList:true,subtree:true});
+</script>
 </body>
-
 </html>
