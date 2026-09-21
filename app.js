@@ -866,7 +866,7 @@ async function loadStudentTestData(testId) {
             groups = groups.map(g => ({ ...g, options: byG[g.id] || [] }));
         }
     }
-    return { test, sections: sections || [], questions, groups, listeningAudio };
+    return { test, sections: resolvedSections, questions, groups, listeningAudio };
 }
 
 async function startStudentTest(testId) {
@@ -1435,7 +1435,8 @@ async function editAdminTest(id) {
     if (testError) throw testError;
     const { data: sections, error: secError } = await supabaseClient.from("sections").select("*").eq("test_id", id).order("section_number", { ascending: true });
     if (secError) throw secError;
-    const resolvedSections = await Promise.all((sections || []).map(async s => ({resolvedSections.map(async s => ({
+    let resolvedSections = sections || [];
+    resolvedSections = await Promise.all(resolvedSections.map(async s => ({
         ...s,
         image_url: s.image_path ? await getImageSignedUrl(s.image_path) : s.image_url
     })));
