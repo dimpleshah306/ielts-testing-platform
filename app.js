@@ -22,6 +22,42 @@ const supabaseClient = window.supabase.createClient(
 
 let loginMode = "student";
 
+// ============================================
+// REFRESH / ROUTE PERSISTENCE
+// ============================================
+// Supabase keeps authentication in its browser storage. These helpers
+// additionally remember which admin area was open so a browser refresh
+// returns to the same functional screen instead of the default dashboard.
+const APP_ROUTE_KEY = "universal_education_ielts_route_v1";
+
+function setAppRoute(page, extra = {}) {
+    try {
+        localStorage.setItem(APP_ROUTE_KEY, JSON.stringify({
+            page,
+            ...extra,
+            savedAt: Date.now()
+        }));
+    } catch (error) {
+        console.warn("Could not save app route:", error);
+    }
+}
+
+function getAppRoute() {
+    try {
+        const raw = localStorage.getItem(APP_ROUTE_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch (error) {
+        return null;
+    }
+}
+
+function clearAppRoute() {
+    try {
+        localStorage.removeItem(APP_ROUTE_KEY);
+    } catch (error) {}
+}
+
+
 
 // ============================================
 // DOM / LOGIN INITIALIZATION
@@ -65,11 +101,78 @@ function initLoginUI() {
     loginForm.addEventListener("submit", handleLoginSubmit);
 }
 
+async function restoreAppSession() {
+    try {
+        const { data: sessionData, error: sessionError } =
+            await supabaseClient.auth.getSession();
+
+        if (sessionError) throw sessionError;
+
+        const session = sessionData?.session;
+
+        // No active Supabase session: keep the normal login screen.
+        if (!session?.user) return;
+
+        const { data: profile, error: profileError } =
+            await supabaseClient
+                .from("profiles")
+                .select("full_name, role, active")
+                .eq("id", session.user.id)
+                .single();
+
+        if (profileError) throw profileError;
+
+        if (!profile?.active) {
+            await supabaseClient.auth.signOut();
+            clearAppRoute();
+            return;
+        }
+
+        // Restore the page/module that was open before the browser refresh.
+        const route = getAppRoute();
+
+        if (profile.role === "admin" || profile.role === "tutor") {
+            if (route?.page === "students") {
+                await openStaffDashboard(profile);
+                await openStudents();
+            } else if (route?.page === "test-manager") {
+                await openStaffDashboard(profile);
+                await openTestManager(route.module || "all");
+            } else if (route?.page === "test-editor" && route.testId) {
+                await openStaffDashboard(profile);
+                await editAdminTest(route.testId);
+            } else if (route?.page === "results") {
+                await openStaffDashboard(profile);
+                await openAdminResults();
+            } else {
+                openStaffDashboard(profile);
+            }
+        } else if (profile.role === "student") {
+            openStudentDashboard(profile);
+        }
+    } catch (error) {
+        console.error("Session restore error:", error);
+        // Do not destroy a valid-looking session just because a transient
+        // profile query failed. The normal login screen remains available.
+    }
+}
+
 if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initLoginUI);
+    document.addEventListener("DOMContentLoaded", async () => {
+        initLoginUI();
+        await restoreAppSession();
+    });
 } else {
     initLoginUI();
+    restoreAppSession();
 }
+
+// Keep route state consistent with Supabase Auth.
+supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (event === "SIGNED_OUT" || !session) {
+        clearAppRoute();
+    }
+});
 
 // ============================================
 // LOGIN FORM
@@ -314,6 +417,7 @@ function openDashboard(profile) {
 // ============================================
 
 function openStaffDashboard(profile) {
+    setAppRoute("dashboard");
 
     document.getElementById("app").innerHTML = `
 
@@ -584,6 +688,7 @@ document
 // ============================================
 
 function openStudentDashboard(profile) {
+    setAppRoute("student-dashboard");
     const app = document.getElementById("app");
     if (!app) return;
     app.innerHTML = `
@@ -917,6 +1022,7 @@ function exitStudentTest() {
         return;
     }
     if (testId) {
+        clearAppRoute();
         openStudentDashboard();
         return;
     }
@@ -931,6 +1037,8 @@ async function submitStudentTest() {
 // ============================================
 
 async function logout() {
+
+    clearAppRoute();
 
     try {
 
@@ -988,6 +1096,7 @@ async function callStudentAdmin(action, payload = {}) {
 }
 
 async function openStudents() {
+    setAppRoute("students");
     const message = document.getElementById("dashboardMessage");
     if (!message) return;
     message.innerHTML = `<div class="coming-soon">Loading students...</div>`;
@@ -1175,6 +1284,7 @@ function moduleFilter(module) {
 }
 
 async function openTestManager(module = "all") {
+    setAppRoute("test-manager", { module });
     const message = document.getElementById("dashboardMessage");
     if (!message) return;
     message.innerHTML = adminModuleBox(testModuleTitle(module), "Create, edit, publish/unpublish, and delete tests.");
@@ -1222,6 +1332,7 @@ async function renderTestManager(module = "all") {
 }
 
 async function openCreateTestForm(module = "all") {
+    setAppRoute("test-manager", { module });
     const body = document.getElementById("adminModuleBody");
     if (!body) return;
     const selected = ["listening", "reading", "writing"].includes(module) ? module : "listening";
@@ -1317,6 +1428,7 @@ async function deleteAdminTest(id) {
 }
 
 async function editAdminTest(id) {
+    setAppRoute("test-editor", { testId: id });
     const message = document.getElementById("dashboardMessage");
     if (!message) return;
     const { data: test, error: testError } = await supabaseClient.from("tests").select("*").eq("id", id).single();
@@ -1375,7 +1487,7 @@ async function editAdminTest(id) {
     }
     adminCurrentTest = test;
     adminCurrentTestAudio = test.module === "listening" ? await loadListeningTestAudio(id) : null;
-    adminCurrentSections = resolvedAdminSections;
+    adminCurrentSections = resolvedSections;
     adminCurrentQuestions = questions;
     adminCurrentGroups = groups;
 
@@ -1861,6 +1973,7 @@ async function deleteAdminQuestion(qid) {
 }
 
 async function openAdminResults() {
+    setAppRoute("results");
     const message = document.getElementById("dashboardMessage");
     if (!message) return;
     message.innerHTML = adminModuleBox("📊 Results", "Student test results stored in Supabase.");
