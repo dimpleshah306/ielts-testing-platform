@@ -1,2027 +1,407 @@
-// ============================================
-// UNIVERSAL EDUCATION IELTS
-// MAIN APP.JS
-// ============================================
-
-// ============================================
-// SUPABASE CONFIGURATION
-// ============================================
-
+// UNIVERSAL EDUCATION IELTS — COMPLETE V1
 const SUPABASE_URL = "https://fmwcvwgcwisdxiudlstq.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_ibtCq2hamnZkRNWPsxlddQ_JfexwHYM";
-
-const supabaseClient = window.supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_PUBLISHABLE_KEY
-);
-
-
-// ============================================
-// GLOBAL VARIABLES
-// ============================================
-
-let loginMode = "student";
-
-// ============================================
-// REFRESH / ROUTE PERSISTENCE
-// ============================================
-// Supabase keeps authentication in its browser storage. These helpers
-// additionally remember which admin area was open so a browser refresh
-// returns to the same functional screen instead of the default dashboard.
-const APP_ROUTE_KEY = "universal_education_ielts_route_v1";
-
-function setAppRoute(page, extra = {}) {
-    try {
-        localStorage.setItem(APP_ROUTE_KEY, JSON.stringify({
-            page,
-            ...extra,
-            savedAt: Date.now()
-        }));
-    } catch (error) {
-        console.warn("Could not save app route:", error);
-    }
-}
-
-function getAppRoute() {
-    try {
-        const raw = localStorage.getItem(APP_ROUTE_KEY);
-        return raw ? JSON.parse(raw) : null;
-    } catch (error) {
-        return null;
-    }
-}
-
-function clearAppRoute() {
-    try {
-        localStorage.removeItem(APP_ROUTE_KEY);
-    } catch (error) {}
-}
-
-
-
-// ============================================
-// DOM / LOGIN INITIALIZATION
-// ============================================
-
-let studentTab = null;
-let staffTab = null;
-let loginForm = null;
-let loginButton = null;
-let loginMessage = null;
-
-function initLoginUI() {
-    studentTab = document.getElementById("studentTab");
-    staffTab = document.getElementById("staffTab");
-    loginForm = document.getElementById("loginForm");
-    loginButton = document.getElementById("loginButton");
-    loginMessage = document.getElementById("loginMessage");
-
-    if (!studentTab || !staffTab || !loginForm) {
-        console.warn("Login UI elements were not found. Check index.html IDs.");
-        return;
-    }
-
-    studentTab.type = "button";
-    staffTab.type = "button";
-
-    studentTab.addEventListener("click", () => {
-        loginMode = "student";
-        studentTab.classList.add("active");
-        staffTab.classList.remove("active");
-        if (loginMessage) loginMessage.textContent = "";
-    });
-
-    staffTab.addEventListener("click", () => {
-        loginMode = "staff";
-        staffTab.classList.add("active");
-        studentTab.classList.remove("active");
-        if (loginMessage) loginMessage.textContent = "";
-    });
-
-    loginForm.addEventListener("submit", handleLoginSubmit);
-}
-
-async function restoreAppSession() {
-    try {
-        const { data: sessionData, error: sessionError } =
-            await supabaseClient.auth.getSession();
-
-        if (sessionError) throw sessionError;
-
-        const session = sessionData?.session;
-
-        // No active Supabase session: keep the normal login screen.
-        if (!session?.user) return;
-
-        const { data: profile, error: profileError } =
-            await supabaseClient
-                .from("profiles")
-                .select("full_name, role, active")
-                .eq("id", session.user.id)
-                .single();
-
-        if (profileError) throw profileError;
-
-        if (!profile?.active) {
-            await supabaseClient.auth.signOut();
-            clearAppRoute();
-            return;
-        }
-
-        // Restore the page/module that was open before the browser refresh.
-        const route = getAppRoute();
-
-        if (profile.role === "admin" || profile.role === "tutor") {
-            if (route?.page === "students") {
-                await openStaffDashboard(profile);
-                await openStudents();
-            } else if (route?.page === "test-manager") {
-                await openStaffDashboard(profile);
-                await openTestManager(route.module || "all");
-            } else if (route?.page === "test-editor" && route.testId) {
-                await openStaffDashboard(profile);
-                await editAdminTest(route.testId);
-            } else if (route?.page === "results") {
-                await openStaffDashboard(profile);
-                await openAdminResults();
-            } else {
-                openStaffDashboard(profile);
-            }
-        } else if (profile.role === "student") {
-            openStudentDashboard(profile);
-        }
-    } catch (error) {
-        console.error("Session restore error:", error);
-        // Do not destroy a valid-looking session just because a transient
-        // profile query failed. The normal login screen remains available.
-    }
-}
-
-if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", async () => {
-        initLoginUI();
-        await restoreAppSession();
-    });
-} else {
-    initLoginUI();
-    restoreAppSession();
-}
-
-// Keep route state consistent with Supabase Auth.
-supabaseClient.auth.onAuthStateChange((event, session) => {
-    if (event === "SIGNED_OUT" || !session) {
-        clearAppRoute();
-    }
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
 });
 
-// ============================================
-// LOGIN FORM
-// ============================================
-
-async function handleLoginSubmit(event) {
-
-    event.preventDefault();
-
-    const email =
-        document.getElementById("email").value.trim();
-
-    const password =
-        document.getElementById("password").value;
-
-
-    // ----------------------------------------
-    // VALIDATION
-    // ----------------------------------------
-
-    if (!email || !password) {
-
-        showMessage(
-            "Please enter email and password.",
-            true
-        );
-
-        return;
-    }
-
-
-    // ----------------------------------------
-    // LOADING STATE
-    // ----------------------------------------
-
-    loginButton.disabled = true;
-    loginButton.textContent = "Logging in...";
-    loginMessage.textContent = "";
-
-
-    try {
-
-        // ------------------------------------
-        // SUPABASE AUTH LOGIN
-        // ------------------------------------
-
-        const { data, error } =
-            await supabaseClient.auth.signInWithPassword({
-
-                email: email,
-                password: password
-
-            });
-
-
-        if (error) {
-            throw error;
-        }
-
-
-        if (!data.user) {
-
-            throw new Error(
-                "Login failed."
-            );
-
-        }
-
-
-        // ------------------------------------
-        // GET USER PROFILE
-        // ------------------------------------
-
-        const { data: profile, error: profileError } =
-            await supabaseClient
-                .from("profiles")
-                .select(
-                    "full_name, role, active"
-                )
-                .eq("id", data.user.id)
-                .single();
-
-
-        if (profileError) {
-            throw profileError;
-        }
-
-
-        // ------------------------------------
-        // CHECK ACCOUNT STATUS
-        // ------------------------------------
-
-        if (!profile.active) {
-
-            await supabaseClient.auth.signOut();
-
-            throw new Error(
-                "This account is inactive."
-            );
-
-        }
-
-
-        // ------------------------------------
-        // CHECK LOGIN TYPE
-        // ------------------------------------
-
-        if (loginMode === "staff") {
-
-            // Admin / Tutor login
-
-            if (
-                profile.role !== "admin" &&
-                profile.role !== "tutor"
-            ) {
-
-                await supabaseClient.auth.signOut();
-
-                throw new Error(
-                    "This account is not an Admin / Tutor account."
-                );
-
-            }
-
-
-            showMessage(
-                "Admin / Tutor login successful."
-            );
-
-
-        } else {
-
-            // Student login
-
-            if (profile.role !== "student") {
-
-                await supabaseClient.auth.signOut();
-
-                throw new Error(
-                    "Please use Admin / Tutor login for this account."
-                );
-
-            }
-
-
-            showMessage(
-                "Student login successful."
-            );
-
-        }
-
-
-        // ------------------------------------
-        // OPEN DASHBOARD
-        // ------------------------------------
-
-        setTimeout(() => {
-
-            openDashboard(profile);
-
-        }, 500);
-
-
-    } catch (error) {
-
-        console.error(
-            "Login Error:",
-            error
-        );
-
-
-        showMessage(
-            error.message ||
-            "Unable to login.",
-            true
-        );
-
-
-    } finally {
-
-        loginButton.disabled = false;
-        loginButton.textContent = "Login";
-
-    }
-
-}
-
-
-// ============================================
-// MESSAGE FUNCTION
-// ============================================
-
-function showMessage(
-    message,
-    isError = false
-) {
-
-    loginMessage.textContent = message;
-
-    loginMessage.style.color =
-        isError
-            ? "#dc2626"
-            : "#15803d";
-
-}
-
-
-// ============================================
-// OPEN DASHBOARD
-// ============================================
-
-function openDashboard(profile) {
-
-    const isStaff =
-        profile.role === "admin" ||
-        profile.role === "tutor";
-
-
-    // ========================================
-    // STAFF DASHBOARD
-    // ========================================
-
-    if (isStaff) {
-
-        openStaffDashboard(profile);
-
-        return;
-    }
-
-
-    // ========================================
-    // STUDENT DASHBOARD
-    // ========================================
-
-    openStudentDashboard(profile);
-
-}
-
-
-// ============================================
-// ADMIN / TUTOR DASHBOARD
-// ============================================
-
-function openStaffDashboard(profile) {
-    setAppRoute("dashboard");
-
-    document.getElementById("app").innerHTML = `
-
-        <div class="dashboard">
-
-            <!-- HEADER -->
-
-            <header class="dashboard-header">
-
-                <div>
-
-                    <h1>
-                        Universal Education IELTS
-                    </h1>
-
-                    <p>
-                        Testing Platform
-                    </p>
-
-                </div>
-
-
-                <div class="user-area">
-
-                    <div>
-
-                        <strong>
-                            ${escapeHtml(profile.full_name)}
-                        </strong>
-
-                        <span>
-                            ${escapeHtml(profile.role)}
-                        </span>
-
-                    </div>
-
-
-                    <button
-                        id="dashboardLogout"
-                        type="button"
-                    >
-                        Logout
-                    </button>
-
-                </div>
-
-            </header>
-
-
-            <!-- CONTENT -->
-
-            <main class="dashboard-content">
-
-                <div class="dashboard-title">
-
-                    <h2>
-                        Admin Dashboard
-                    </h2>
-
-                    <p>
-                        Manage your IELTS testing platform
-                    </p>
-
-                </div>
-
-
-                <!-- MODULES -->
-
-                <section class="dashboard-grid">
-
-
-                    <!-- STUDENTS -->
-
-                    <button
-                        class="dashboard-card"
-                        data-module="students"
-                        type="button"
-                    >
-
-                        <span class="card-icon">
-                            👨‍🎓
-                        </span>
-
-                        <strong>
-                            Students
-                        </strong>
-
-                        <small>
-                            Manage students
-                        </small>
-
-                    </button>
-
-
-                    <!-- TESTS -->
-
-                    <button
-                        class="dashboard-card"
-                        data-module="tests"
-                        type="button"
-                    >
-
-                        <span class="card-icon">
-                            📝
-                        </span>
-
-                        <strong>
-                            Tests
-                        </strong>
-
-                        <small>
-                            Create and manage tests
-                        </small>
-
-                    </button>
-
-
-                    <!-- LISTENING -->
-
-                    <button
-                        class="dashboard-card"
-                        data-module="listening"
-                        type="button"
-                    >
-
-                        <span class="card-icon">
-                            🎧
-                        </span>
-
-                        <strong>
-                            Listening
-                        </strong>
-
-                        <small>
-                            Manage listening tests
-                        </small>
-
-                    </button>
-
-
-                    <!-- READING -->
-
-                    <button
-                        class="dashboard-card"
-                        data-module="reading"
-                        type="button"
-                    >
-
-                        <span class="card-icon">
-                            📖
-                        </span>
-
-                        <strong>
-                            Reading
-                        </strong>
-
-                        <small>
-                            Manage reading tests
-                        </small>
-
-                    </button>
-
-
-                    <!-- WRITING -->
-
-                    <button
-                        class="dashboard-card"
-                        data-module="writing"
-                        type="button"
-                    >
-
-                        <span class="card-icon">
-                            ✍️
-                        </span>
-
-                        <strong>
-                            Writing
-                        </strong>
-
-                        <small>
-                            Manage writing tasks
-                        </small>
-
-                    </button>
-
-
-                    <!-- RESULTS -->
-
-                    <button
-                        class="dashboard-card"
-                        data-module="results"
-                        type="button"
-                    >
-
-                        <span class="card-icon">
-                            📊
-                        </span>
-
-                        <strong>
-                            Results
-                        </strong>
-
-                        <small>
-                            View student results
-                        </small>
-
-                    </button>
-
-
-                </section>
-
-
-                <!-- MODULE MESSAGE -->
-
-                <div
-                    id="dashboardMessage"
-                ></div>
-
-
-            </main>
-
-        </div>
-
-    `;
-
-
-    // ========================================
-    // LOGOUT
-    // ========================================
-
-    document
-        .getElementById("dashboardLogout")
-        .addEventListener(
-            "click",
-            logout
-        );
-
-
-    // ========================================
-    // MODULE BUTTONS
-    // ========================================
-
-document
-    .querySelectorAll(".dashboard-card")
-    .forEach(card => {
-        card.addEventListener("click", async () => {
-            const module = card.dataset.module;
-            try {
-                if (module === "students") { await openStudents(); return; }
-                if (module === "tests") { await openTestManager("all"); return; }
-                if (module === "listening") { await openTestManager("listening"); return; }
-                if (module === "reading") { await openTestManager("reading"); return; }
-                if (module === "writing") { await openTestManager("writing"); return; }
-                if (module === "results") { await openAdminResults(); return; }
-            } catch (err) {
-                console.error(err);
-                const box = document.getElementById("dashboardMessage");
-                if (box) box.innerHTML = `<div class="coming-soon"><strong>Unable to open ${escapeHtml(module)}</strong><p>${escapeHtml(err.message || "Unknown error")}</p></div>`;
-            }
-        });
-    });
-
-}
-
-
-// ============================================
-// STUDENT DASHBOARD
-// ============================================
-
-function openStudentDashboard(profile) {
-    setAppRoute("student-dashboard");
-    const app = document.getElementById("app");
-    if (!app) return;
-    app.innerHTML = `
-        <div class="dashboard">
-            <header class="dashboard-header">
-                <div><h1>Universal Education IELTS</h1><p>Student Testing Platform</p></div>
-                <div class="user-area"><div><strong>${escapeHtml(profile.full_name || "Student")}</strong><span>Student</span></div><button id="studentLogout" type="button">Logout</button></div>
-            </header>
-            <main class="dashboard-content">
-                <div class="dashboard-title"><h2>Student Dashboard</h2><p>Select an available IELTS test</p></div>
-                <div id="studentDashboardContent"><div class="coming-soon">Loading published tests...</div></div>
-            </main>
-        </div>`;
-    document.getElementById("studentLogout")?.addEventListener("click", logout);
-    loadStudentTestList();
-}
-
-async function loadStudentTestList() {
-    const box = document.getElementById("studentDashboardContent");
-    if (!box) return;
-    try {
-        const { data: tests, error } = await supabaseClient
-            .from("tests")
-            .select("id,title,module,description,duration_minutes,total_questions,is_published")
-            .eq("is_published", true)
-            .order("module", { ascending: true })
-            .order("created_at", { ascending: false });
-        if (error) throw error;
-        if (!tests?.length) {
-            box.innerHTML = `<div class="coming-soon"><strong>No tests are published yet.</strong><p>Your Admin / Tutor can publish a test from the test manager.</p></div>`;
-            return;
-        }
-        box.innerHTML = `<section class="dashboard-grid">${tests.map(t => `
-            <button class="dashboard-card" type="button" onclick="startStudentTest('${t.id}')">
-                <span class="card-icon">${t.module === "listening" ? "🎧" : t.module === "reading" ? "📖" : "✍️"}</span>
-                <strong>${escapeHtml(t.title)}</strong>
-                <small>${escapeHtml(String(t.module).toUpperCase())} • ${Number(t.total_questions || 0)} Questions • ${Number(t.duration_minutes || 0)} min</small>
-            </button>`).join("")}</section>`;
-    } catch (error) {
-        box.innerHTML = `<div class="coming-soon"><strong>Unable to load tests</strong><p>${escapeHtml(error.message || "Unknown error")}</p></div>`;
-    }
-}
-
-let studentTestState = null;
-let adminCurrentTestAudio = null;
-let adminPreviewSnapshot = null;
-
-const STORAGE_BUCKET_AUDIO = "listening-audio";
-const STORAGE_BUCKET_IMAGES = "question-images";
-
-function safeFileName(name) {
-    return String(name || "file").replace(/[^a-zA-Z0-9._-]+/g, "_").replace(/^\.+/, "file");
-}
-
-async function getSignedStorageUrl(bucket, path, expiresIn = 3600) {
-    if (!path) return null;
-    const { data, error } = await supabaseClient.storage.from(bucket).createSignedUrl(path, expiresIn);
-    if (error) throw error;
-    return data?.signedUrl || null;
-}
-
-async function uploadStorageFile(bucket, path, file, upsert = true) {
-    const { data, error } = await supabaseClient.storage.from(bucket).upload(path, file, {
-        cacheControl: "3600",
-        upsert,
-        contentType: file.type || undefined
-    });
-    if (error) throw error;
-    return data?.path || path;
-}
-
-async function removeStorageFile(bucket, path) {
-    if (!path) return;
-    const { error } = await supabaseClient.storage.from(bucket).remove([path]);
-    if (error && !String(error.message || "").toLowerCase().includes("not found")) throw error;
-}
-
-async function loadListeningTestAudio(testId) {
-    if (!testId) return null;
-    const { data, error } = await supabaseClient.from("test_audio").select("*").eq("test_id", testId).maybeSingle();
-    if (error) {
-        if (String(error.message || "").toLowerCase().includes("test_audio")) return null;
-        throw error;
-    }
-    if (!data?.audio_path) return data || null;
-    const signedUrl = await getSignedStorageUrl(STORAGE_BUCKET_AUDIO, data.audio_path, 3600);
-    return { ...data, signedUrl };
-}
-
-async function uploadListeningTestAudio(testId, file) {
-    if (!testId || !file) throw new Error("Please select an audio file.");
-    const ext = (file.name.split(".").pop() || "mp3").toLowerCase();
-    const path = `${testId}/listening.${safeFileName(ext)}`;
-    const current = await loadListeningTestAudio(testId);
-    if (current?.audio_path && current.audio_path !== path) await removeStorageFile(STORAGE_BUCKET_AUDIO, current.audio_path);
-    await uploadStorageFile(STORAGE_BUCKET_AUDIO, path, file, true);
-    const payload = {
-        test_id: testId,
-        audio_path: path,
-        original_name: file.name,
-        mime_type: file.type || null,
-        duration_seconds: null,
-        updated_at: new Date().toISOString()
-    };
-    const { data, error } = await supabaseClient.from("test_audio").upsert(payload, { onConflict: "test_id" }).select().single();
-    if (error) throw error;
-    return data;
-}
-
-async function removeListeningTestAudio(testId) {
-    const current = await loadListeningTestAudio(testId);
-    if (current?.audio_path) await removeStorageFile(STORAGE_BUCKET_AUDIO, current.audio_path);
-    const { error } = await supabaseClient.from("test_audio").delete().eq("test_id", testId);
-    if (error && !String(error.message || "").toLowerCase().includes("test_audio")) throw error;
-}
-
-async function uploadImageForEntity(entityType, entityId, file, currentPath = null) {
-    if (!file) throw new Error("Please select an image file.");
-    const ext = (file.name.split(".").pop() || "png").toLowerCase();
-    const path = `${entityType}/${entityId}/image.${safeFileName(ext)}`;
-    if (currentPath && currentPath !== path) await removeStorageFile(STORAGE_BUCKET_IMAGES, currentPath);
-    await uploadStorageFile(STORAGE_BUCKET_IMAGES, path, file, true);
-    const signedUrl = await getSignedStorageUrl(STORAGE_BUCKET_IMAGES, path, 3600);
-    return { path, signedUrl };
-}
-
-async function deleteImagePath(path) {
-    if (path) await removeStorageFile(STORAGE_BUCKET_IMAGES, path);
-}
-
-async function getImageSignedUrl(path) {
-    return path ? getSignedStorageUrl(STORAGE_BUCKET_IMAGES, path, 3600) : null;
-}
-
-
-async function loadStudentTestData(testId) {
-    const { data: test, error: testError } = await supabaseClient.from("tests").select("*").eq("id", testId).single();
-    if (testError) throw testError;
-    if (!test.is_published && !studentTestState?.preview) throw new Error("This test is not published.");
-
-    const { data: sections, error: secError } = await supabaseClient.from("sections").select("*").eq("test_id", testId).order("section_number", { ascending: true });
-    if (secError) throw secError;
-    const listeningAudio = test.module === "listening" ? await loadListeningTestAudio(testId) : null;
-    const sectionIds = (sections || []).map(s => s.id);
-
-    let questions = [];
-    if (sectionIds.length) {
-        const { data, error } = await supabaseClient.from("questions").select("*").in("section_id", sectionIds).order("question_number", { ascending: true });
-        if (error) throw error;
-        questions = data || [];
-        const qids = questions.map(q => q.id);
-        if (qids.length) {
-            const { data: options, error: oError } = await supabaseClient.from("options").select("*").in("question_id", qids).order("option_key", { ascending: true });
-            if (oError) throw oError;
-            const byQ = {};
-            (options || []).forEach(o => (byQ[o.question_id] ||= []).push(o));
-            questions = questions.map(q => ({ ...q, options: byQ[q.id] || [] }));
-        }
-    }
-
-    let groups = [];
-    if (sectionIds.length) {
-        const { data: gdata, error: gError } = await supabaseClient.from("question_groups").select("*").in("section_id", sectionIds).order("group_order", { ascending: true });
-        if (gError) throw gError;
-        groups = await Promise.all((gdata || []).map(async g => ({
-            ...g,
-            image_url: g.image_path ? await getImageSignedUrl(g.image_path) : g.image_url
-        })));
-        const gids = groups.map(g => g.id);
-        if (gids.length) {
-            const { data: go, error: goError } = await supabaseClient.from("question_group_options").select("*").in("group_id", gids).order("sort_order", { ascending: true });
-            if (goError) throw goError;
-            const byG = {};
-            (go || []).forEach(o => (byG[o.group_id] ||= []).push(o));
-            groups = groups.map(g => ({ ...g, options: byG[g.id] || [] }));
-        }
-    }
-    return { test, sections: resolvedSections, questions, groups, listeningAudio };
-}
-
-async function startStudentTest(testId) {
-    studentTestState = { preview: false, testId, currentSection: 0, answers: {} };
-    try {
-        const data = await loadStudentTestData(testId);
-        studentTestState.data = data;
-        renderStudentTestRunner();
-    } catch (error) {
-        alert(error.message || "Unable to open test.");
-    }
-}
-
-async function openStudentTestPreview(testId) {
-    const app = document.getElementById("app");
-    if (app && !adminPreviewSnapshot) {
-        adminPreviewSnapshot = { html: app.innerHTML, scrollY: window.scrollY || 0 };
-    }
-    studentTestState = { preview: true, testId, currentSection: 0, answers: {} };
-    try {
-        const data = await loadStudentTestData(testId);
-        studentTestState.data = data;
-        renderStudentTestRunner();
-    } catch (error) {
-        alert(error.message || "Unable to preview test.");
-    }
-}
-
-function renderStudentTestRunner() {
-    const app = document.getElementById("app");
-    const state = studentTestState;
-    if (!app || !state?.data) return;
-    const { test, sections, listeningAudio } = state.data;
-    const s = sections[state.currentSection];
-    if (!s) return;
-    const isListening = test.module === "listening";
-    const isReading = test.module === "reading";
-    const sectionQuestions = state.data.questions.filter(q => q.section_id === s.id).sort((a,b) => Number(a.question_number) - Number(b.question_number));
-    const sectionGroups = state.data.groups.filter(g => g.section_id === s.id).sort((a,b) => Number(a.group_order) - Number(b.group_order));
-    const sectionLabel = isListening ? "Section" : isReading ? "Passage" : "Section";
-    const audioUrl = listeningAudio?.signedUrl || null;
-
-    app.innerHTML = `<div class="dashboard">
-        <header class="dashboard-header">
-            <div><h1>${escapeHtml(test.title)}</h1><p>${state.preview ? "Student View Preview" : "Student Test"}</p></div>
-            <div class="user-area"><button type="button" onclick="exitStudentTest()">✕ ${state.preview ? "Close Preview" : "Exit Test"}</button></div>
-        </header>
-        <main class="dashboard-content" style="max-width:1100px;margin:0 auto;width:100%">
-            ${state.preview ? `<div style="padding:10px 14px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;margin-bottom:14px"><strong>Preview Mode:</strong> This is how the test will appear to a student. Answers are not submitted.</div>` : ""}
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">${sections.map((sec,i) => `<button type="button" class="${i === state.currentSection ? "save-button" : "cancel-button"}" onclick="switchStudentSection(${i})">${sectionLabel} ${i+1}</button>`).join("")}</div>
-
-            <section style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px">
-                ${isListening && audioUrl ? `<div style="margin-bottom:20px;padding:14px;background:#f8fafc;border-radius:10px"><div style="font-weight:700;margin-bottom:8px">Listening Audio</div><audio id="listeningMainAudio" controls preload="metadata" style="width:100%" src="${escapeHtml(audioUrl)}"></audio></div>` : ""}
-                <h2 style="margin-top:0">${escapeHtml(s.title || `${sectionLabel} ${s.section_number}`)}</h2>
-                ${s.instructions ? `<div style="padding:12px;background:#fff7df;border-radius:8px;white-space:pre-wrap;margin:12px 0"><strong>Instructions</strong><br>${escapeHtml(s.instructions)}</div>` : ""}
-                ${s.image_url ? `<img src="${escapeHtml(s.image_url)}" alt="Section image" style="display:block;max-width:100%;height:auto;border-radius:8px;margin:12px 0">` : ""}
-                ${s.content ? `<div style="white-space:pre-wrap;line-height:1.7;margin-bottom:18px">${renderInlineBlanks(s.content, state)}</div>` : ""}
-                ${sectionGroups.length ? sectionGroups.map(g => renderStudentFullWidthGroup(g, sectionQuestions, state)).join("") : sectionQuestions.map(q => renderStudentQuestion(q)).join("")}
-                ${!sectionQuestions.length ? `<div class="coming-soon">No questions have been added to this section yet.</div>` : ""}
-            </section>
-
-            <div style="display:flex;justify-content:space-between;gap:10px;margin-top:16px">
-                <button type="button" class="cancel-button" ${state.currentSection === 0 ? "disabled" : ""} onclick="switchStudentSection(${state.currentSection - 1})">← Previous</button>
-                ${state.currentSection < sections.length - 1 ? `<button type="button" class="save-button" onclick="switchStudentSection(${state.currentSection + 1})">Next →</button>` : state.preview ? `<button type="button" class="save-button" onclick="exitStudentTest()">Close Preview</button>` : `<button type="button" class="save-button" onclick="submitStudentTest()">Submit Test</button>`}
-            </div>
-        </main>
-    </div>`;
-
-    // Keep one audio element across section changes as far as the browser allows.
-    // The source is the same test-level audio; changing section never creates a new audio file.
-}
-
-function renderInlineBlanks(text, state) {
-    const raw = String(text || "");
-    return escapeHtml(raw).replace(/\[BLANK\s*(\d+)\]/gi, (_, n) => {
-        const key = `blank_${n}`;
-        const value = state.answers?.[key] || "";
-        return `<input type="text" aria-label="Answer ${n}" value="${escAttr(value)}" style="display:inline-block;width:120px;max-width:40%;margin:0 4px;padding:6px 8px;border:1px solid #94a3b8;border-radius:5px" oninput="setStudentAnswer('${key}',this.value)">`;
-    });
-}
-
-function renderStudentFullWidthGroup(g, questions, state) {
-    const qs = questions.filter(q => Number(q.question_number) >= Number(g.start_question) && Number(q.question_number) <= Number(g.end_question)).sort((a,b)=>Number(a.question_number)-Number(b.question_number));
-    return `<div style="margin-top:24px;padding-top:18px;border-top:1px solid #e5e7eb">
-        <div style="font-weight:700;margin-bottom:10px">Questions ${Number(g.start_question)}–${Number(g.end_question)}</div>
-        ${g.instructions ? `<div style="padding:12px;background:#fff7df;border-radius:8px;white-space:pre-wrap;margin:10px 0"><strong>Instructions</strong><br>${escapeHtml(g.instructions)}</div>` : ""}
-        ${g.image_url ? `<img src="${escapeHtml(g.image_url)}" alt="Question image" style="display:block;max-width:100%;height:auto;border-radius:8px;margin:10px 0">` : ""}
-        ${g.content ? `<div style="white-space:pre-wrap;line-height:1.7;margin:12px 0">${renderInlineBlanks(g.content, state)}</div>` : ""}
-        ${g.options?.length ? `<div style="margin:12px 0;padding:12px;background:#f8fafc;border-radius:8px">${g.options.map(o => `<div style="margin:4px 0"><strong>${escapeHtml(o.option_key)}.</strong> ${escapeHtml(o.option_text)}</div>`).join("")}</div>` : ""}
-        <div>${qs.map(q => renderStudentQuestion(q, g.options || [])).join("")}</div>
-    </div>`;
-}
-
-function renderStudentGroupContent(g, questions) {
-    const qs = questions.filter(q => Number(q.question_number) >= Number(g.start_question) && Number(q.question_number) <= Number(g.end_question));
-    return `<div style="margin-top:20px;padding-top:16px;border-top:1px solid #e5e7eb">
-        <h3>Questions ${Number(g.start_question)}-${Number(g.end_question)}</h3>
-        ${g.instructions ? `<div style="padding:12px;background:#fff7df;border-radius:8px;white-space:pre-wrap;margin:10px 0"><strong>Instructions</strong><br>${escapeHtml(g.instructions)}</div>` : ""}
-        ${g.image_url ? `<img src="${escapeHtml(g.image_url)}" alt="Question group" style="max-width:100%;border-radius:8px;margin:8px 0">` : ""}
-        ${g.content ? `<div style="white-space:pre-wrap;line-height:1.7">${escapeHtml(g.content)}</div>` : ""}
-        ${g.options?.length ? `<div style="margin-top:12px"><strong>Options</strong><div style="display:grid;gap:6px;margin-top:6px">${g.options.map(o => `<div><strong>${escapeHtml(o.option_key)}.</strong> ${escapeHtml(o.option_text)}</div>`).join("")}</div></div>` : ""}
-    </div>`;
-}
-
-function renderStudentQuestionGroup(g, questions) {
-    const qs = questions.filter(q => Number(q.question_number) >= Number(g.start_question) && Number(q.question_number) <= Number(g.end_question));
-    if (!qs.length) return `<div style="margin:16px 0;padding:12px;background:#f8fafc;border-radius:8px">Questions ${Number(g.start_question)}-${Number(g.end_question)} are not added yet.</div>`;
-    return `<div style="margin:0 0 22px"><h3>Questions ${Number(g.start_question)}-${Number(g.end_question)}</h3>${qs.map(q => renderStudentQuestion(q, g.options || [])).join("")}</div>`;
-}
-
-function renderStudentQuestion(q, sharedOptions = []) {
-    const type = q.question_type || "short";
-    const saved = studentTestState.answers[q.id] ?? "";
-    const opts = q.options || [];
-    const optionBank = opts.length ? opts : sharedOptions;
-    let control = "";
-    if (["single"].includes(type)) {
-        control = optionBank.map(o => `<label style="display:block;margin:8px 0"><input type="radio" name="ans-${q.id}" value="${escapeHtml(o.option_key)}" ${saved === o.option_key ? "checked" : ""} onchange="setStudentAnswer('${q.id}',this.value)"> <strong>${escapeHtml(o.option_key)}.</strong> ${escapeHtml(o.option_text)}</label>`).join("");
-    } else if (["multi"].includes(type)) {
-        const selected = Array.isArray(saved) ? saved : [];
-        control = optionBank.map(o => `<label style="display:block;margin:8px 0"><input type="checkbox" value="${escapeHtml(o.option_key)}" ${selected.includes(o.option_key) ? "checked" : ""} onchange="toggleStudentAnswer('${q.id}',this.value,this.checked)"> <strong>${escapeHtml(o.option_key)}.</strong> ${escapeHtml(o.option_text)}</label>`).join("");
-    } else if (["matching","map"].includes(type) && optionBank.length) {
-        control = `<select style="width:100%;padding:9px" onchange="setStudentAnswer('${q.id}',this.value)"><option value="">Select answer</option>${optionBank.map(o => `<option value="${escapeHtml(o.option_key)}" ${saved === o.option_key ? "selected" : ""}>${escapeHtml(o.option_key)} — ${escapeHtml(o.option_text)}</option>`).join("")}</select>`;
-    } else {
-        control = `<input type="text" style="width:100%;padding:9px" value="${escapeHtml(Array.isArray(saved) ? saved.join(", ") : saved)}" oninput="setStudentAnswer('${q.id}',this.value)" placeholder="Type your answer">`;
-    }
-    return `<div style="padding:14px 0;border-bottom:1px solid #e5e7eb"><div style="font-weight:700;margin-bottom:8px">${Number(q.question_number)}. ${escapeHtml(q.question_text || "")}</div>${q.image_url ? `<img src="${escapeHtml(q.image_url)}" alt="Question" style="max-width:100%;margin:8px 0;border-radius:8px">` : ""}<div>${control}</div></div>`;
-}
-
-function setStudentAnswer(qid, value) { if (studentTestState) studentTestState.answers[qid] = value; }
-function toggleStudentAnswer(qid, value, checked) {
-    if (!studentTestState) return;
-    const arr = Array.isArray(studentTestState.answers[qid]) ? [...studentTestState.answers[qid]] : [];
-    if (checked && !arr.includes(value)) arr.push(value);
-    if (!checked) studentTestState.answers[qid] = arr.filter(x => x !== value);
-    else studentTestState.answers[qid] = arr;
-}
-function switchStudentSection(index) {
-    if (!studentTestState?.data) return;
-    studentTestState.currentSection = Math.max(0, Math.min(index, studentTestState.data.sections.length - 1));
-    renderStudentTestRunner();
-}
-function exitStudentTest() {
-    const preview = studentTestState?.preview;
-    const testId = studentTestState?.testId;
-    studentTestState = null;
-    if (preview && adminPreviewSnapshot) {
-        const app = document.getElementById("app");
-        if (app) app.innerHTML = adminPreviewSnapshot.html;
-        const y = adminPreviewSnapshot.scrollY || 0;
-        adminPreviewSnapshot = null;
-        requestAnimationFrame(() => window.scrollTo(0, y));
-        return;
-    }
-    if (testId) {
-        clearAppRoute();
-        openStudentDashboard();
-        return;
-    }
-    window.location.reload();
-}
-async function submitStudentTest() {
-    alert("Test submission screen is ready. Result/answer persistence can be connected after you confirm the Student View layout.");
-}
-
-// ============================================
-// LOGOUT
-// ============================================
-
-async function logout() {
-
-    clearAppRoute();
-
-    try {
-
-        await supabaseClient.auth.signOut();
-
-    } catch (error) {
-
-        console.error(
-            "Logout Error:",
-            error
-        );
-
-    }
-
-    window.location.reload();
-
-}
-
-
-// ============================================
-// HTML ESCAPE
-// ============================================
-
-function escapeHtml(value) {
-
-    return String(value)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-
-}
-// ============================================
-// STUDENTS MANAGEMENT
-// ============================================
-
-async function callStudentAdmin(action, payload = {}) {
-    const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
-    if (sessionError) throw sessionError;
-    const session = sessionData.session;
-    if (!session) throw new Error("Your login session has expired. Please login again.");
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/student-admin`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${session.access_token}`,
-            "apikey": SUPABASE_PUBLISHABLE_KEY
-        },
-        body: JSON.stringify({ action, ...payload })
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || !result.success) throw new Error(result.error || "Student account operation failed.");
-    return result;
-}
-
-async function openStudents() {
-    setAppRoute("students");
-    const message = document.getElementById("dashboardMessage");
-    if (!message) return;
-    message.innerHTML = `<div class="coming-soon">Loading students...</div>`;
-    try {
-        const { data: students, error } = await supabaseClient
-            .from("students")
-            .select("id, student_id, full_name, email, active, created_at")
-            .order("created_at", { ascending: false });
-        if (error) throw error;
-        const rows = (students || []).map(student => `
-            <tr>
-                <td>${escapeHtml(student.student_id || "-")}</td>
-                <td>${escapeHtml(student.full_name || "-")}</td>
-                <td>${escapeHtml(student.email || "-")}</td>
-                <td><span class="${student.active ? "status-active" : "status-inactive"}">${student.active ? "Active" : "Inactive"}</span></td>
-                <td>${new Date(student.created_at).toLocaleDateString()}</td>
-                <td><div style="display:flex;gap:5px;flex-wrap:wrap">
-                    <button type="button" onclick="editStudentAccount('${student.id}')">Edit</button>
-                    <button type="button" onclick="resetStudentPassword('${student.id}','${escapeHtml(student.full_name || "Student")}')">Reset Password</button>
-                    <button type="button" onclick="toggleStudentAccount('${student.id}',${!student.active})">${student.active ? "Deactivate" : "Activate"}</button>
-                    <button type="button" class="danger" onclick="deleteStudentAccount('${student.id}','${escapeHtml(student.full_name || "Student")}')">Delete</button>
-                </div></td>
-            </tr>`).join("");
-        message.innerHTML = `<div class="students-panel">
-            <div class="students-panel-header"><div><h2>Students</h2><p>Add, edit, activate/deactivate, reset password or delete student accounts.</p></div><button type="button" class="add-student-button" onclick="openAddStudentForm()">+ Add Student</button></div>
-            <div class="students-table-wrapper"><table class="students-table"><thead><tr><th>Student ID</th><th>Name</th><th>Email</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody>${rows || `<tr><td colspan="6" style="text-align:center;padding:30px">No students found.</td></tr>`}</tbody></table></div>
-        </div>`;
-    } catch (error) {
-        message.innerHTML = `<div class="coming-soon"><strong>Unable to load students</strong><p>${escapeHtml(error.message || "Unknown error")}</p></div>`;
-    }
-}
-
-function openAddStudentForm(student = null) {
-    const message = document.getElementById("dashboardMessage");
-    if (!message) return;
-    const editing = !!student;
-    message.innerHTML = `<div class="students-panel">
-        <div class="students-panel-header"><div><h2>${editing ? "Edit Student" : "Add New Student"}</h2><p>${editing ? "Update student profile details." : "Create a student login account."}</p></div><button type="button" class="cancel-button" onclick="openStudents()">Cancel</button></div>
-        <form id="studentAdminForm" class="student-form">
-            <div class="grid"><label>Student ID<input id="adminStudentId" value="${escapeHtml(student?.student_id || "")}" required></label><label>Full Name<input id="adminStudentName" value="${escapeHtml(student?.full_name || "")}" required></label></div>
-            <label>Email Address<input id="adminStudentEmail" type="email" value="${escapeHtml(student?.email || "")}" required></label>
-            ${editing ? `<label><input id="adminStudentActive" type="checkbox" ${student.active ? "checked" : ""}> Account Active</label>` : `<label>Password<input id="adminStudentPassword" type="password" minlength="8" required placeholder="Minimum 8 characters"></label>`}
-            <div style="display:flex;gap:8px"><button type="button" class="cancel-button" onclick="openStudents()">Cancel</button><button type="submit" class="save-button">${editing ? "Save Changes" : "Create Student Account"}</button></div>
-            <div id="studentAdminFormMessage" class="login-message"></div>
-        </form></div>`;
-    document.getElementById("studentAdminForm").addEventListener("submit", async e => {
-        e.preventDefault();
-        const formMessage = document.getElementById("studentAdminFormMessage");
-        try {
-            if (!editing) {
-                await callStudentAdmin("create", {
-                    student_id: document.getElementById("adminStudentId").value.trim(),
-                    full_name: document.getElementById("adminStudentName").value.trim(),
-                    email: document.getElementById("adminStudentEmail").value.trim(),
-                    password: document.getElementById("adminStudentPassword").value
-                });
-            } else {
-                await callStudentAdmin("update", {
-                    id: student.id,
-                    student_id: document.getElementById("adminStudentId").value.trim(),
-                    full_name: document.getElementById("adminStudentName").value.trim(),
-                    email: document.getElementById("adminStudentEmail").value.trim(),
-                    active: document.getElementById("adminStudentActive").checked
-                });
-            }
-            formMessage.style.color = "#15803d";
-            formMessage.textContent = "Saved successfully.";
-            setTimeout(openStudents, 500);
-        } catch (error) {
-            formMessage.style.color = "#dc2626";
-            formMessage.textContent = error.message || "Operation failed.";
-        }
-    });
-}
-
-async function editStudentAccount(id) {
-    try {
-        const { data: student, error } = await supabaseClient.from("students").select("id,student_id,full_name,email,active").eq("id", id).single();
-        if (error) throw error;
-        openAddStudentForm(student);
-    } catch (error) { alert(error.message || "Could not open student."); }
-}
-
-async function resetStudentPassword(id, name) {
-    const password = prompt(`Set a new password for ${name}. Minimum 8 characters:`);
-    if (password === null) return;
-    if (password.length < 8) return alert("Password must contain at least 8 characters.");
-    try { await callStudentAdmin("reset_password", { id, password }); alert("Password reset successfully."); }
-    catch (error) { alert(error.message || "Could not reset password."); }
-}
-
-async function toggleStudentAccount(id, active) {
-    const action = active ? "activate" : "deactivate";
-    if (!confirm(`Are you sure you want to ${action} this student account?`)) return;
-    try { await callStudentAdmin("update", { id, active }); await openStudents(); }
-    catch (error) { alert(error.message || "Could not update account status."); }
-}
-
-async function deleteStudentAccount(id, name) {
-    if (!confirm(`Delete the student account for ${name}? This cannot be undone. Students with saved results are protected from deletion.`)) return;
-    try { await callStudentAdmin("delete", { id }); alert("Student account deleted."); await openStudents(); }
-    catch (error) { alert(error.message || "Could not delete student account."); }
-}
-
-// ============================================================================
-// TEST / QUESTION MANAGEMENT — SUPABASE EDITION
-// ============================================================================
-
-const LISTENING_QUESTION_TYPES = {
-    single: "Multiple Choice — Single Answer",
-    multi: "Multiple Choice — Multiple Answers",
-    matching: "Matching",
-    note: "Note Completion",
-    form: "Form Completion",
-    table: "Table Completion",
-    sentence: "Sentence Completion",
-    summary: "Summary Completion",
-    short: "Short Answer Questions",
-    map: "Map / Plan / Diagram Labelling",
-    flow: "Flowchart Completion"
+const app = () => document.getElementById("app");
+const esc = v => String(v ?? "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+const attr = v => esc(v).replace(/`/g,"&#96;");
+const $ = id => document.getElementById(id);
+const routeKey="ue_ielts_route_v1", examPrefix="ue_ielts_exam_v1_";
+let loginMode="student", currentProfile=null, admin={test:null,sections:[],groups:[],questions:[],audio:null,sectionIndex:0}, exam=null, timerHandle=null;
+
+const L_TYPES = {
+ single:"Multiple Choice — Single Answer",multi:"Multiple Choice — Multiple Answers",matching:"Matching",
+ note:"Note Completion",form:"Form Completion",table:"Table Completion",sentence:"Sentence Completion",
+ summary:"Summary Completion",short:"Short Answer",map:"Plan / Map / Diagram Labelling",flow:"Flow-chart Completion",list:"List Selection"
 };
-
-const READING_QUESTION_TYPES = {
-    single: "Multiple Choice — Single Answer",
-    multi: "Multiple Choice — Multiple Answers",
-    tfng: "True / False / Not Given",
-    yng: "Yes / No / Not Given",
-    headings: "Matching Headings",
-    information: "Matching Information",
-    features: "Matching Features",
-    endings: "Matching Sentence Endings",
-    sentence: "Sentence Completion",
-    summary: "Summary Completion",
-    note: "Note Completion",
-    table: "Table Completion",
-    short: "Short Answer Questions",
-    matching: "Matching",
-    map: "Map / Plan / Diagram Labelling",
-    flow: "Flowchart Completion"
+const R_TYPES = {
+ single:"Multiple Choice — Single Answer",multi:"Multiple Choice — Multiple Answers",tfng:"True / False / Not Given",
+ yng:"Yes / No / Not Given",headings:"Matching Headings",information:"Matching Information",features:"Matching Features",
+ endings:"Matching Sentence Endings",sentence:"Sentence Completion",summary:"Summary Completion",note:"Note Completion",
+ table:"Table Completion",flow:"Flow-chart Completion",map:"Diagram Label Completion",short:"Short Answer",title:"Choosing a Title",list:"List Selection"
 };
+const COMPLETION_TYPES=["note","form","table","sentence","summary","flow","short"];
 
-let adminCurrentTest = null;
-let adminCurrentSections = [];
-let adminCurrentQuestions = [];
-let adminCurrentGroups = [];
+function setRoute(page,extra={}){localStorage.setItem(routeKey,JSON.stringify({page,...extra}));}
+function getRoute(){try{return JSON.parse(localStorage.getItem(routeKey)||"null")}catch{return null}}
+function clearRoute(){localStorage.removeItem(routeKey)}
+function examKey(id){return examPrefix+id}
+function saveExam(){if(exam&&!exam.preview)localStorage.setItem(examKey(exam.testId),JSON.stringify({testId:exam.testId,resultId:exam.resultId,currentSection:exam.currentSection,currentTask:exam.currentTask,answers:exam.answers,endAt:exam.endAt,startedAt:exam.startedAt}))}
+function loadExam(id){try{return JSON.parse(localStorage.getItem(examKey(id))||"null")}catch{return null}}
+function clearExam(id){localStorage.removeItem(examKey(id))}
 
-function adminModuleBox(title, subtitle = "") {
-    return `<div class="students-panel" style="margin-top:10px">
-        <div class="students-panel-header">
-            <div><h2>${escapeHtml(title)}</h2><p>${escapeHtml(subtitle)}</p></div>
-            <button type="button" class="cancel-button" onclick="backToAdminDashboard()">← Dashboard</button>
-        </div>
-        <div id="adminModuleBody"></div>
-    </div>`;
+function shell(body, title="Universal Education IELTS", sub="Testing Platform"){
+  app().innerHTML=`<div class="topbar"><div><div class="brand">${esc(title)}</div><div class="subbrand">${esc(sub)}</div></div>
+  <div class="userbox">${currentProfile?`<span>${esc(currentProfile.full_name||"")} • ${esc(currentProfile.role||"")}</span><button class="btn secondary" onclick="logout()">Logout</button>`:""}</div></div>
+  <div class="shell">${body}</div>`;
+}
+function messageBox(msg,type="notice"){return `<div class="${type}">${esc(msg)}</div>`}
+
+async function init(){
+  bindLogin();
+  const {data}=await sb.auth.getSession();
+  if(!data.session) return;
+  const p=await getProfile(data.session.user.id);
+  if(!p?.active){await sb.auth.signOut();return}
+  currentProfile=p;
+  const r=getRoute();
+  if(p.role==="student"){
+    if(r?.page==="exam"&&r.testId) return startStudentTest(r.testId,true);
+    return studentDashboard();
+  }
+  if(r?.page==="students") return studentsPage();
+  if(r?.page==="tests") return testsPage(r.module||"all");
+  if(r?.page==="builder"&&r.testId) return openBuilder(r.testId);
+  if(r?.page==="results") return resultsPage();
+  return staffDashboard();
+}
+function bindLogin(){
+  const st=$("studentTab"), sf=$("staffTab"), form=$("loginForm");
+  if(!st||!sf||!form)return;
+  st.onclick=()=>{loginMode="student";st.classList.add("active");sf.classList.remove("active")};
+  sf.onclick=()=>{loginMode="staff";sf.classList.add("active");st.classList.remove("active")};
+  form.onsubmit=login;
+}
+async function getProfile(uid){
+  const {data,error}=await sb.from("profiles").select("*").eq("id",uid).single();
+  if(error) throw error; return data;
+}
+async function login(e){
+  e.preventDefault(); const btn=$("loginButton"),msg=$("loginMessage"); btn.disabled=true; msg.textContent="";
+  try{
+    const {data,error}=await sb.auth.signInWithPassword({email:$("email").value.trim(),password:$("password").value});
+    if(error) throw error;
+    const p=await getProfile(data.user.id); if(!p.active) throw new Error("Account inactive.");
+    if(loginMode==="student"&&p.role!=="student") throw new Error("Use Admin / Tutor login.");
+    if(loginMode==="staff"&&!["admin","tutor"].includes(p.role)) throw new Error("Use Student login.");
+    currentProfile=p; clearRoute(); p.role==="student"?studentDashboard():staffDashboard();
+  }catch(err){msg.textContent=err.message;msg.style.color="#dc2626"}finally{btn.disabled=false}
+}
+async function logout(){clearRoute();if(exam)clearExam(exam.testId);exam=null;currentProfile=null;await sb.auth.signOut();location.reload()}
+
+function staffDashboard(){
+  setRoute("dashboard");
+  shell(`<h2>Admin Dashboard</h2><p class="muted">Create IELTS tests, manage students, publish exams and view results.</p>
+  <div class="dashboard-grid">
+    <button class="dashbtn" onclick="studentsPage()">👨‍🎓<strong>Students</strong><span class="muted">Manage student profiles</span></button>
+    <button class="dashbtn" onclick="testsPage('all')">📝<strong>All Tests</strong><span class="muted">Create / edit / publish</span></button>
+    <button class="dashbtn" onclick="testsPage('listening')">🎧<strong>Listening</strong><span class="muted">4 Parts • 40 Questions</span></button>
+    <button class="dashbtn" onclick="testsPage('reading')">📖<strong>Reading</strong><span class="muted">3 Passages • 40 Questions</span></button>
+    <button class="dashbtn" onclick="testsPage('writing')">✍️<strong>Writing</strong><span class="muted">Task 1 + Task 2</span></button>
+    <button class="dashbtn" onclick="resultsPage()">📊<strong>Results</strong><span class="muted">Scores and writing evaluation</span></button>
+  </div>`);
 }
 
-function backToAdminDashboard() {
-    supabaseClient.auth.getUser().then(({ data }) => {
-        const user = data?.user;
-        if (!user) return window.location.reload();
-        supabaseClient.from("profiles").select("full_name,role,active").eq("id", user.id).single().then(({ data: profile }) => {
-            if (profile) openStaffDashboard(profile);
-            else window.location.reload();
-        });
-    });
+async function studentsPage(){
+  setRoute("students");
+  const {data,error}=await sb.from("profiles").select("id,full_name,email,role,active,created_at").eq("role","student").order("created_at",{ascending:false});
+  if(error)return alert(error.message);
+  shell(`<div class="actions"><button class="btn secondary" onclick="staffDashboard()">← Dashboard</button></div>
+  <h2>Students</h2><p class="muted">Student login accounts are created through the included secure Edge Function. Existing students are listed below.</p>
+  <div class="card"><div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Created</th></tr></thead>
+  <tbody>${(data||[]).map(s=>`<tr><td>${esc(s.full_name)}</td><td>${esc(s.email)}</td><td>${s.active?"Active":"Inactive"}</td><td>${new Date(s.created_at).toLocaleDateString()}</td></tr>`).join("")||`<tr><td colspan="4">No students.</td></tr>`}</tbody></table></div></div>`);
 }
 
-async function getCurrentUserId() {
-    const { data, error } = await supabaseClient.auth.getUser();
-    if (error) throw error;
-    if (!data.user) throw new Error("Your session has expired. Please log in again.");
-    return data.user.id;
+async function testsPage(module="all"){
+  setRoute("tests",{module});
+  let q=sb.from("tests").select("*").order("created_at",{ascending:false}); if(module!=="all")q=q.eq("module",module);
+  const {data,error}=await q;if(error)return alert(error.message);
+  shell(`<div class="actions"><button class="btn secondary" onclick="staffDashboard()">← Dashboard</button><button class="btn primary" onclick="newTestForm('${module}')">+ Create Test</button></div>
+  <h2>${module==="all"?"All Tests":module[0].toUpperCase()+module.slice(1)+" Tests"}</h2>
+  <div class="card table-wrap"><table><thead><tr><th>Title</th><th>Module</th><th>Duration</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+  ${(data||[]).map(t=>`<tr><td><strong>${esc(t.title)}</strong><br><small>${esc(t.description||"")}</small></td><td>${esc(t.module)}</td><td>${t.duration_minutes} min</td>
+  <td><span class="status ${t.is_published?"published":"draft"}">${t.is_published?"Published":"Draft"}</span></td><td><div class="actions">
+  <button class="btn secondary" onclick="openBuilder('${t.id}')">Edit</button><button class="btn ${t.is_published?"warning":"success"}" onclick="togglePublish('${t.id}',${!t.is_published})">${t.is_published?"Unpublish":"Publish"}</button>
+  <button class="btn danger" onclick="deleteTest('${t.id}')">Delete</button></div></td></tr>`).join("")||`<tr><td colspan="5">No tests.</td></tr>`}</tbody></table></div>`);
 }
-
-function testModuleTitle(module) {
-    if (module === "listening") return "🎧 Listening Tests";
-    if (module === "reading") return "📖 Reading Tests";
-    if (module === "writing") return "✍️ Writing Tests";
-    return "📝 All Tests";
+function newTestForm(module="all"){
+  const m=["listening","reading","writing"].includes(module)?module:"listening";
+  shell(`<div class="actions"><button class="btn secondary" onclick="testsPage('${module}')">← Back</button></div><h2>Create New Test</h2><div class="card">
+  <div class="grid"><div><label>Title</label><input id="ntTitle" value="${m[0].toUpperCase()+m.slice(1)} Test"></div><div><label>Module</label><select id="ntModule" onchange="syncNewTestDefaults()">
+  <option value="listening" ${m==="listening"?"selected":""}>Listening</option><option value="reading" ${m==="reading"?"selected":""}>Reading</option><option value="writing" ${m==="writing"?"selected":""}>Writing</option></select></div></div>
+  <label>Description</label><textarea id="ntDesc"></textarea><div class="grid"><div><label>Duration</label><input id="ntDur" type="number" value="${m==="listening"?40:60}"></div><div><label>Total Questions</label><input id="ntTotal" type="number" value="${m==="writing"?2:40}"></div></div>
+  <div class="actions" style="margin-top:14px"><button class="btn primary" onclick="createTest()">Create & Open Builder</button></div></div>`);
 }
-
-function moduleFilter(module) {
-    if (module === "all") return null;
-    return module;
+function syncNewTestDefaults(){const m=$("ntModule").value;$("ntDur").value=m==="listening"?40:60;$("ntTotal").value=m==="writing"?2:40}
+async function createTest(){
+  try{
+    const uid=(await sb.auth.getUser()).data.user.id,m=$("ntModule").value;
+    const {data:t,error}=await sb.from("tests").insert({title:$("ntTitle").value.trim(),module:m,description:$("ntDesc").value.trim(),duration_minutes:+$("ntDur").value,total_questions:+$("ntTotal").value,is_published:false,created_by:uid}).select().single();if(error)throw error;
+    const count=m==="listening"?4:m==="reading"?3:1;
+    const rows=Array.from({length:count},(_,i)=>({test_id:t.id,section_number:i+1,title:m==="listening"?`Part ${i+1}`:m==="reading"?`Passage ${i+1}`:"Writing Tasks",instructions:"",content:""}));
+    const {error:e2}=await sb.from("sections").insert(rows);if(e2)throw e2;openBuilder(t.id);
+  }catch(e){alert(e.message)}
 }
-
-async function openTestManager(module = "all") {
-    setAppRoute("test-manager", { module });
-    const message = document.getElementById("dashboardMessage");
-    if (!message) return;
-    message.innerHTML = adminModuleBox(testModuleTitle(module), "Create, edit, publish/unpublish, and delete tests.");
-    await renderTestManager(module);
-}
-
-async function renderTestManager(module = "all") {
-    const body = document.getElementById("adminModuleBody");
-    if (!body) return;
-
-    const filter = moduleFilter(module);
-    let query = supabaseClient
-        .from("tests")
-        .select("id,title,module,description,duration_minutes,total_questions,is_published,created_at,created_by")
-        .order("created_at", { ascending: false });
-    if (filter) query = query.eq("module", filter);
-
-    const { data: tests, error } = await query;
-    if (error) throw error;
-
-    body.innerHTML = `
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px">
-            <button type="button" class="save-button" onclick="openCreateTestForm('${escapeHtml(module)}')">+ Create New Test</button>
-            ${module !== "all" ? `<button type="button" class="cancel-button" onclick="openTestManager('all')">View All Tests</button>` : ""}
-        </div>
-        <div style="overflow:auto">
-        <table class="students-table">
-            <thead><tr><th>Test</th><th>Module</th><th>Questions</th><th>Duration</th><th>Status</th><th>Actions</th></tr></thead>
-            <tbody>
-                ${(tests || []).length ? tests.map(t => `
-                    <tr>
-                        <td><strong>${escapeHtml(t.title)}</strong><br><small>${escapeHtml(t.description || "")}</small></td>
-                        <td>${escapeHtml(t.module || "-")}</td>
-                        <td>${Number(t.total_questions || 0)}</td>
-                        <td>${Number(t.duration_minutes || 0)} min</td>
-                        <td><span class="${t.is_published ? "status-active" : "status-inactive"}">${t.is_published ? "Published" : "Draft"}</span></td>
-                        <td style="white-space:nowrap">
-                            <button type="button" onclick="editAdminTest('${t.id}')">Edit</button>
-                            <button type="button" onclick="toggleAdminTestPublish('${t.id}',${!t.is_published})">${t.is_published ? "Unpublish" : "Publish"}</button>
-                            <button type="button" class="danger" onclick="deleteAdminTest('${t.id}')">Delete</button>
-                        </td>
-                    </tr>`).join("") : `<tr><td colspan="6" style="text-align:center;padding:30px">No tests found.</td></tr>`}
-            </tbody>
-        </table></div>`;
-}
-
-async function openCreateTestForm(module = "all") {
-    setAppRoute("test-manager", { module });
-    const body = document.getElementById("adminModuleBody");
-    if (!body) return;
-    const selected = ["listening", "reading", "writing"].includes(module) ? module : "listening";
-    body.innerHTML = `
-        <div class="student-form">
-            <h3>Create New IELTS Test</h3>
-            <label>Test Title<input id="newTestTitle" type="text" placeholder="e.g. Listening Test 03" required></label>
-            <label>Module<select id="newTestModule"><option value="listening" ${selected === "listening" ? "selected" : ""}>Listening</option><option value="reading" ${selected === "reading" ? "selected" : ""}>Reading</option><option value="writing" ${selected === "writing" ? "selected" : ""}>Writing</option></select></label>
-            <label>Description<textarea id="newTestDescription" placeholder="Short description/instructions"></textarea></label>
-            <div class="grid"><label>Duration (minutes)<input id="newTestDuration" type="number" min="1" value="40"></label><label>Total Questions<input id="newTestTotal" type="number" min="1" max="40" value="40"></label></div>
-            <label><input id="newTestPublished" type="checkbox"> Publish immediately</label>
-            <div style="display:flex;gap:10px"><button type="button" class="save-button" onclick="createAdminTest()">Create Test</button><button type="button" class="cancel-button" onclick="openTestManager('${escapeHtml(module)}')">Cancel</button></div>
-            <div id="newTestMessage" class="login-message"></div>
-        </div>`;
-    document.getElementById("newTestModule").addEventListener("change", e => {
-        const duration = document.getElementById("newTestDuration");
-        const total = document.getElementById("newTestTotal");
-        if (e.target.value === "listening") { duration.value = 30; total.value = 40; }
-        if (e.target.value === "reading") { duration.value = 60; total.value = 40; }
-        if (e.target.value === "writing") { duration.value = 60; total.value = 2; }
-    });
-}
-
-async function createAdminTest() {
-    const title = document.getElementById("newTestTitle")?.value.trim();
-    const module = document.getElementById("newTestModule")?.value;
-    const description = document.getElementById("newTestDescription")?.value.trim();
-    const duration = Number(document.getElementById("newTestDuration")?.value || 0);
-    const total = Number(document.getElementById("newTestTotal")?.value || 0);
-    const published = !!document.getElementById("newTestPublished")?.checked;
-    const msg = document.getElementById("newTestMessage");
-    if (!title || !module || !duration || !total) { if (msg) msg.textContent = "Please fill all required fields."; return; }
-    try {
-        const userId = await getCurrentUserId();
-        const { data: test, error } = await supabaseClient.from("tests").insert({
-            title, module, description: description || null, duration_minutes: duration, total_questions: total, is_published: published, created_by: userId
-        }).select().single();
-        if (error) throw error;
-        const sectionCount = module === "listening" ? 4 : module === "reading" ? 3 : 1;
-        const sectionRows = Array.from({ length: sectionCount }, (_, i) => ({
-            test_id: test.id,
-            section_number: i + 1,
-            title: module === "listening" ? `Section ${i + 1}` : module === "reading" ? `Passage ${i + 1}` : "Writing Task",
-            instructions: "",
-            content: "",
-            audio_url: null,
-            image_url: null
-        }));
-        const { error: secError } = await supabaseClient.from("sections").insert(sectionRows);
-        if (secError) throw secError;
-        await editAdminTest(test.id);
-    } catch (error) {
-        if (msg) msg.textContent = error.message || "Unable to create test.";
-        console.error(error);
+async function togglePublish(id,val){
+  try{
+    if(val){
+      const issues=await validateTest(id); if(issues.length)return alert("Cannot publish yet:\n\n"+issues.join("\n"));
     }
+    const {error}=await sb.from("tests").update({is_published:val,updated_at:new Date().toISOString()}).eq("id",id);if(error)throw error;
+    const {data:t}=await sb.from("tests").select("module").eq("id",id).single(); testsPage(t?.module||"all");
+  }catch(e){alert(e.message)}
+}
+async function deleteTest(id){
+  if(!confirm("Delete this test and its questions?"))return;
+  const {error}=await sb.from("tests").delete().eq("id",id); if(error)alert(error.message); else testsPage("all");
+}
+async function validateTest(id){
+  const d=await loadTestBundle(id),issues=[];
+  if(d.test.module==="listening"&&d.sections.length!==4)issues.push("Listening must have 4 Parts.");
+  if(d.test.module==="reading"&&d.sections.length!==3)issues.push("Reading must have 3 Passages.");
+  if(d.test.module==="writing"&&d.writingTasks.length<2)issues.push("Writing requires Task 1 and Task 2.");
+  if(["listening","reading"].includes(d.test.module)&&d.questions.length<1)issues.push("Add questions before publishing.");
+  if(d.test.module==="listening"&&!d.audio?.audio_path)issues.push("Upload Listening audio before publishing.");
+  d.questions.forEach(q=>{if(d.test.module!=="writing"&&!String(q.correct_answer||"").trim())issues.push(`Question ${q.question_number}: correct answer missing.`)});
+  return issues;
 }
 
-async function toggleAdminTestPublish(id, publish) {
-    const { error } = await supabaseClient.from("tests").update({ is_published: !!publish }).eq("id", id);
-    if (error) return alert(error.message);
-    await openTestManager("all");
+async function loadTestBundle(id){
+  const {data:test,error}=await sb.from("tests").select("*").eq("id",id).single();if(error)throw error;
+  const {data:sections,error:se}=await sb.from("sections").select("*").eq("test_id",id).order("section_number");if(se)throw se;
+  const sids=(sections||[]).map(x=>x.id);let groups=[],questions=[];
+  if(sids.length){
+    const g=await sb.from("question_groups").select("*").in("section_id",sids).order("group_order");if(g.error)throw g.error;groups=g.data||[];
+    const q=await sb.from("questions").select("*").in("section_id",sids).order("question_number");if(q.error)throw q.error;questions=q.data||[];
+  }
+  const qids=questions.map(x=>x.id),gids=groups.map(x=>x.id);
+  let options=[],groupOptions=[];
+  let writingTasks=[];
+  if(test.module==="writing"){const wt=await sb.from("writing_tasks").select("*").eq("test_id",id).order("part");if(wt.error)throw wt.error;writingTasks=wt.data||[]}
+  if(qids.length){const o=await sb.from("options").select("*").in("question_id",qids).order("sort_order");if(o.error)throw o.error;options=o.data||[]}
+  if(gids.length){const o=await sb.from("question_group_options").select("*").in("group_id",gids).order("sort_order");if(o.error)throw o.error;groupOptions=o.data||[]}
+  const byQ={};options.forEach(o=>(byQ[o.question_id]??=[]).push(o));questions=questions.map(q=>({...q,options:byQ[q.id]||[],config:q.question_config||{}}));
+  const byG={};groupOptions.forEach(o=>(byG[o.group_id]??=[]).push(o));groups=groups.map(g=>({...g,options:byG[g.id]||[]}));
+  let audio=null;if(test.module==="listening"){const a=await sb.from("test_audio").select("*").eq("test_id",id).maybeSingle();if(!a.error)audio=a.data}
+  return {test,sections:sections||[],groups,questions,audio,writingTasks};
 }
+async function openBuilder(id){
+  setRoute("builder",{testId:id});admin=await loadTestBundle(id);admin.sectionIndex=Math.min(admin.sectionIndex,Math.max(0,admin.sections.length-1));renderBuilder();
+}
+function normalizeType(t){let x=String(t||"").toLowerCase();x=x.replace(/^listening_/,'').replace(/^reading_/,'');const m={multiple_choice:'single',multiple_choice_single:'single',multiple_choice_multiple:'multi',short_answer:'short',note_completion:'note',form_completion:'form',table_completion:'table',sentence_completion:'sentence',summary_completion:'summary',flowchart_completion:'flow',flow_chart_completion:'flow',diagram_label:'map',diagram_label_completion:'map',plan_map:'map',true_false_not_given:'tfng',yes_no_not_given:'yng'};return m[x]||x}
+function typeMap(){return admin.test.module==="reading"?R_TYPES:L_TYPES}
+function renderBuilder(){
+  const t=admin.test,s=admin.sections[admin.sectionIndex],qs=admin.questions.filter(q=>q.section_id===s?.id),gs=admin.groups.filter(g=>g.section_id===s?.id);
+  shell(`<div class="actions"><button class="btn secondary" onclick="testsPage('${t.module}')">← Tests</button><button class="btn primary" onclick="previewCurrentTest()">👁 Preview</button></div>
+  <h2>Edit: ${esc(t.title)}</h2><div class="card"><h3>Test Details</h3><div class="grid"><div><label>Title</label><input id="btTitle" value="${attr(t.title)}"></div><div><label>Duration</label><input id="btDur" type="number" value="${t.duration_minutes}"></div></div>
+  <label>Description</label><textarea id="btDesc">${esc(t.description||"")}</textarea><button class="btn primary" onclick="saveTestHeader()">Save Test Details</button></div>
+  ${t.module==="listening"?renderAudioAdmin():""}
+  <div class="section-tabs">${admin.sections.map((x,i)=>`<button class="btn ${i===admin.sectionIndex?"primary":"secondary"}" onclick="switchAdminSection(${i})">${t.module==="reading"?"Passage":"Part"} ${i+1}</button>`).join("")}</div>
+  ${s?`<div class="card"><h3>${esc(s.title||"Section")}</h3><div class="grid"><div><label>Title</label><input id="bsTitle" value="${attr(s.title||"")}"></div><div><label>Image URL / Path</label><input id="bsImage" value="${attr(s.image_url||s.image_path||"")}"></div></div>
+  <label>Instructions</label><textarea id="bsInst">${esc(s.instructions||"")}</textarea><label>${t.module==="reading"?"Passage Text":"Content / Notes"}</label><textarea id="bsContent" style="min-height:220px">${esc(s.content||"")}</textarea>
+  <div class="actions"><button class="btn primary" onclick="saveSection('${s.id}')">Save ${t.module==="reading"?"Passage":"Part"}</button></div></div>`:""}
+  ${t.module==="writing"?renderWritingAdmin(qs):renderQuestionAdmin(gs,qs)}`);
+}
+function renderAudioAdmin(){
+  return `<div class="card" style="margin-top:12px"><h3>Listening Audio</h3><p class="muted">Use one complete Listening audio file for the test.</p>
+  <input id="audioFile" type="file" accept="audio/*"><div class="actions" style="margin-top:10px"><button class="btn primary" onclick="uploadAudio()">Upload / Replace Audio</button>
+  ${admin.audio?`<button class="btn danger" onclick="removeAudio()">Remove Audio</button>`:""}</div>${admin.audio?`<p>Current: ${esc(admin.audio.original_name||admin.audio.audio_path)}</p>`:""}</div>`;
+}
+function renderQuestionAdmin(gs,qs){
+  return `<div class="card" style="margin-top:12px"><div class="actions"><button class="btn primary" onclick="groupForm()">+ Question Group</button><button class="btn primary" onclick="questionForm()">+ Question</button></div>
+  <h3>Question Groups</h3>${gs.map(g=>`<div class="editor-block"><strong>Q${g.start_question}–${g.end_question} • ${esc(typeMap()[g.question_type]||g.question_type)}</strong><div class="muted">${esc(g.instructions||"")}</div>
+  <div class="actions"><button class="btn secondary" onclick="groupForm('${g.id}')">Edit</button><button class="btn danger" onclick="deleteGroup('${g.id}')">Delete</button></div></div>`).join("")||`<p class="muted">No groups yet.</p>`}
+  <h3>Questions</h3>${qs.map(q=>`<div class="editor-block"><strong>${q.question_number}. ${esc(q.question_text||"(inline blank)")}</strong><div>${esc(typeMap()[q.question_type]||q.question_type)} • Correct: ${esc(q.correct_answer||"")}</div>
+  <div class="actions"><button class="btn secondary" onclick="questionForm('${q.id}')">Edit</button><button class="btn danger" onclick="deleteQuestion('${q.id}')">Delete</button></div></div>`).join("")||`<p class="muted">No questions yet.</p>`}</div>`;
+}
+function renderWritingAdmin(qs){
+  const tasks=(admin.writingTasks||[]).slice().sort((a,b)=>a.part-b.part);
+  return `<div class="card" style="margin-top:12px"><h3>Writing Tasks</h3><p class="muted">Task 1 minimum 150 words; Task 2 minimum 250 words. These tasks are stored in <code>writing_tasks</code>.</p>
+  <div class="actions"><button class="btn primary" onclick="writingTaskForm()">+ Add / Edit Task</button></div>
+  ${tasks.map(q=>`<div class="editor-block"><strong>Task ${q.part} • ${esc(q.task_type||'task')}</strong><div>${esc(q.prompt||'')}</div><div class="muted">Minimum: ${q.minimum||'-'} • Maximum: ${q.maximum||'-'} • Evaluation: ${esc(q.evaluation_status||'pending')}</div><div class="actions"><button class="btn secondary" onclick="writingTaskForm(${q.part})">Edit</button><button class="btn danger" onclick="deleteWritingTask('${q.id}')">Delete</button></div></div>`).join("")||`<p class="muted">No writing tasks yet.</p>`}</div>`;
+}
+function switchAdminSection(i){admin.sectionIndex=i;renderBuilder()}
+async function saveTestHeader(){const {error}=await sb.from("tests").update({title:$("btTitle").value.trim(),description:$("btDesc").value.trim(),duration_minutes:+$("btDur").value,updated_at:new Date().toISOString()}).eq("id",admin.test.id);if(error)alert(error.message);else openBuilder(admin.test.id)}
+async function saveSection(id){const {error}=await sb.from("sections").update({title:$("bsTitle").value.trim(),instructions:$("bsInst").value,content:$("bsContent").value,image_url:$("bsImage").value.trim()||null}).eq("id",id);if(error)alert(error.message);else openBuilder(admin.test.id)}
 
-async function deleteAdminTest(id) {
-    if (!confirm("Delete this entire test, its sections, questions and options? This cannot be undone.")) return;
-    try {
-        const { data: sections, error: secReadError } = await supabaseClient.from("sections").select("id").eq("test_id", id);
-        if (secReadError) throw secReadError;
-        const sectionIds = (sections || []).map(s => s.id);
-        if (sectionIds.length) {
-            const { error: groupDeleteError } = await supabaseClient.from("question_groups").delete().in("section_id", sectionIds);
-            if (groupDeleteError && !String(groupDeleteError.message || "").toLowerCase().includes("does not exist")) throw groupDeleteError;
-            const { data: qs, error: qReadError } = await supabaseClient.from("questions").select("id").in("section_id", sectionIds);
-            if (qReadError) throw qReadError;
-            const qids = (qs || []).map(q => q.id);
-            if (qids.length) {
-                const { error: optError } = await supabaseClient.from("options").delete().in("question_id", qids);
-                if (optError) throw optError;
-                const { error: ansError } = await supabaseClient.from("answers").delete().in("question_id", qids);
-                if (ansError && !String(ansError.message || "").toLowerCase().includes("foreign")) throw ansError;
-                const { error: qError } = await supabaseClient.from("questions").delete().in("id", qids);
-                if (qError) throw qError;
-            }
-            const { error: sError } = await supabaseClient.from("sections").delete().in("id", sectionIds);
-            if (sError) throw sError;
-        }
-        const { error } = await supabaseClient.from("tests").delete().eq("id", id);
-        if (error) throw error;
-        await openTestManager("all");
-    } catch (error) {
-        alert("Could not delete test: " + (error.message || "Unknown error"));
+function groupForm(id=null){
+  const s=admin.sections[admin.sectionIndex],g=id?admin.groups.find(x=>x.id===id):null;
+  shell(`<div class="actions"><button class="btn secondary" onclick="renderBuilder()">← Builder</button></div><h2>${g?"Edit":"Add"} Question Group</h2><div class="card">
+  <div class="grid3"><div><label>Start Question</label><input id="gStart" type="number" value="${g?.start_question||1}"></div><div><label>End Question</label><input id="gEnd" type="number" value="${g?.end_question||1}"></div>
+  <div><label>Question Type</label><select id="gType">${Object.entries(typeMap()).map(([k,v])=>`<option value="${k}" ${normalizeType(g?.question_type)===k?"selected":""}>${esc(v)}</option>`).join("")}</select></div></div>
+  <label>Group Title / Heading</label><input id="gTitle" value="${attr(g?.group_title||"")}">
+  <label>Instructions</label><textarea id="gInst">${esc(g?.instructions||"")}</textarea><label>Group Content / Heading / Notes</label><textarea id="gContent" style="min-height:220px">${esc(g?.content||"")}</textarea>
+  <p class="inline-help">For completion types use tokens such as: Cheapest properties: £ [BLANK 1] per week</p><label>Image URL / Path</label><input id="gImage" value="${attr(g?.image_url||g?.image_path||"")}">
+  <label>Shared Option Bank (one per line: A|Option text)</label><textarea id="gOptions">${esc((g?.options||[]).map(o=>`${o.option_key}|${o.option_text}`).join("\n"))}</textarea>
+  <button class="btn primary" onclick="saveGroup('${id||""}','${s.id}')">Save Group</button></div>`);
+}
+async function saveGroup(id,sid){
+  try{
+    const payload={section_id:sid,start_question:+$("gStart").value,end_question:+$("gEnd").value,question_type:$("gType").value,instructions:$("gInst").value,content:$("gContent").value,image_url:$("gImage").value.trim()||null,group_order:+$("gStart").value,group_title:$("gTitle").value.trim()||null};
+    let gid=id;if(id){const {error}=await sb.from("question_groups").update(payload).eq("id",id);if(error)throw error}else{const {data,error}=await sb.from("question_groups").insert(payload).select().single();if(error)throw error;gid=data.id}
+    await sb.from("question_group_options").delete().eq("group_id",gid);
+    const rows=$("gOptions").value.split("\n").map((x,i)=>{const [k,...rest]=x.split("|");return k&&rest.length?{group_id:gid,option_key:k.trim(),option_text:rest.join("|").trim(),sort_order:i}:null}).filter(Boolean);
+    if(rows.length){const {error}=await sb.from("question_group_options").insert(rows);if(error)throw error}
+    openBuilder(admin.test.id);
+  }catch(e){alert(e.message)}
+}
+async function deleteGroup(id){if(!confirm("Delete this group?"))return;const {error}=await sb.from("question_groups").delete().eq("id",id);if(error)alert(error.message);else openBuilder(admin.test.id)}
+
+function questionForm(id=null){
+  const s=admin.sections[admin.sectionIndex],q=id?admin.questions.find(x=>x.id===id):null;
+  shell(`<div class="actions"><button class="btn secondary" onclick="renderBuilder()">← Builder</button></div><h2>${q?"Edit":"Add"} Question</h2><div class="card">
+  <div class="grid3"><div><label>Question No.</label><input id="qNo" type="number" value="${q?.question_number||1}"></div><div><label>Question Type</label><select id="qType">${Object.entries(typeMap()).map(([k,v])=>`<option value="${k}" ${normalizeType(q?.question_type)===k?"selected":""}>${esc(v)}</option>`).join("")}</select></div><div><label>Marks</label><input id="qMarks" type="number" value="${q?.marks||1}"></div></div>
+  <label>Question Text</label><textarea id="qText">${esc(q?.question_text||"")}</textarea><label>Correct Answer</label><input id="qCorrect" value="${attr(q?.correct_answer||"")}"><p class="inline-help">For multiple accepted answers, separate with ||, e.g. centre||center</p>
+  <label>Alternative Accepted Answers (optional)</label><input id="qAccepted" value="${attr((q?.config?.acceptedAnswers||[]).join("||"))}"><div class="grid"><div><label>Word Limit</label><input id="qLimit" type="number" value="${q?.config?.wordLimit||""}"></div><div><label>Case Sensitive</label><select id="qCase"><option value="false" ${q?.config?.caseSensitive?"":"selected"}>No</option><option value="true" ${q?.config?.caseSensitive?"selected":""}>Yes</option></select></div></div>
+  <label>Options (one per line: A|Option text)</label><textarea id="qOptions">${esc((q?.options||[]).map(o=>`${o.option_key}|${o.option_text}`).join("\n"))}</textarea><label>Image URL / Path</label><input id="qImage" value="${attr(q?.image_url||"")}">
+  <button class="btn primary" onclick="saveQuestion('${id||""}','${s.id}')">Save Question</button></div>`);
+}
+async function saveQuestion(id,sid){
+  try{
+    const accepted=$("qAccepted").value.split("||").map(x=>x.trim()).filter(Boolean);
+    const config={...(id?((admin.questions.find(x=>x.id===id)||{}).question_config||{}):{}),acceptedAnswers:accepted,wordLimit:+$("qLimit").value||null,caseSensitive:$("qCase").value==="true"};
+    const payload={section_id:sid,question_number:+$("qNo").value,question_type:$("qType").value,question_text:$("qText").value,marks:+$("qMarks").value||1,correct_answer:$("qCorrect").value.trim(),image_url:$("qImage").value.trim()||null,question_config:config};
+    let qid=id;if(id){const {error}=await sb.from("questions").update(payload).eq("id",id);if(error)throw error}else{const {data,error}=await sb.from("questions").insert(payload).select().single();if(error)throw error;qid=data.id}
+    await sb.from("options").delete().eq("question_id",qid);
+    const rows=$("qOptions").value.split("\n").map((x,i)=>{const [k,...rest]=x.split("|");return k&&rest.length?{question_id:qid,option_key:k.trim(),option_text:rest.join("|").trim(),sort_order:i,is_correct:false}:null}).filter(Boolean);
+    if(rows.length){const {error}=await sb.from("options").insert(rows);if(error)throw error}
+    openBuilder(admin.test.id);
+  }catch(e){alert(e.message)}
+}
+function writingTaskForm(part=null){
+  const tasks=admin.writingTasks||[],w=part?tasks.find(x=>x.part===part):null,n=part||([1,2].find(x=>!tasks.some(t=>t.part===x))||1);
+  shell(`<div class="actions"><button class="btn secondary" onclick="renderBuilder()">← Builder</button></div><h2>${w?"Edit":"Add"} Writing Task ${n}</h2><div class="card">
+  <label>Task Number</label><select id="wNo"><option value="1" ${n==1?"selected":""}>Task 1</option><option value="2" ${n==2?"selected":""}>Task 2</option></select>
+  <label>Instructions</label><textarea id="wInst">${esc(w?.instructions||"")}</textarea><label>Prompt</label><textarea id="wPrompt" style="min-height:180px">${esc(w?.prompt||"")}</textarea>
+  <div class="grid"><div><label>Minimum Words</label><input id="wMin" type="number" value="${w?.minimum??(n==1?150:250)}"></div><div><label>Maximum Words (optional)</label><input id="wMax" type="number" value="${w?.maximum??""}"></div></div>
+  <label>Visual Media URL / Path (Task 1 optional)</label><input id="wMedia" value="${attr(w?.media_url||"")}">
+  <button class="btn primary" onclick="saveWritingTask('${w?.id||""}')">Save Task</button></div>`);
+}
+async function saveWritingTask(id){
+  try{const part=+$('wNo').value;const payload={test_id:admin.test.id,part,task_type:part===1?'task1':'task2',instructions:$('wInst').value,prompt:$('wPrompt').value,minimum:+$('wMin').value||null,maximum:+$('wMax').value||null,suggested:part===1?20:40,media_url:$('wMedia').value.trim()||null,evaluation_status:'pending',updated_at:new Date().toISOString()};
+    let error; if(id){({error}=await sb.from('writing_tasks').update(payload).eq('id',id))}else{({error}=await sb.from('writing_tasks').insert(payload))} if(error)throw error;openBuilder(admin.test.id)
+  }catch(e){alert(e.message)}
+}
+async function deleteWritingTask(id){if(!confirm('Delete this writing task?'))return;const {error}=await sb.from('writing_tasks').delete().eq('id',id);if(error)alert(error.message);else openBuilder(admin.test.id)}
+async function deleteQuestion(id){if(!confirm("Delete this question?"))return;const {error}=await sb.from("questions").delete().eq("id",id);if(error)alert(error.message);else openBuilder(admin.test.id)}
+
+async function deleteQuestion(id){if(!confirm("Delete this question?"))return;const {error}=await sb.from("questions").delete().eq("id",id);if(error)alert(error.message);else openBuilder(admin.test.id)}
+
+async function uploadAudio(){
+  const f=$("audioFile").files[0];if(!f)return alert("Choose audio file.");
+  try{
+    const path=`${admin.test.id}/listening.${(f.name.split(".").pop()||"mp3").replace(/[^a-z0-9]/gi,"")}`;
+    const u=await sb.storage.from("listening-audio").upload(path,f,{upsert:true,contentType:f.type});if(u.error)throw u.error;
+    const {error}=await sb.from("test_audio").upsert({test_id:admin.test.id,audio_path:path,original_name:f.name,mime_type:f.type,updated_at:new Date().toISOString()},{onConflict:"test_id"});if(error)throw error;openBuilder(admin.test.id)
+  }catch(e){alert(e.message)}
+}
+async function removeAudio(){if(!admin.audio)return;await sb.storage.from("listening-audio").remove([admin.audio.audio_path]);await sb.from("test_audio").delete().eq("test_id",admin.test.id);openBuilder(admin.test.id)}
+async function signed(bucket,path){if(!path)return null;const {data,error}=await sb.storage.from(bucket).createSignedUrl(path,3600);if(error)throw error;return data.signedUrl}
+
+async function studentDashboard(){
+  setRoute("student-dashboard");
+  const {data,error}=await sb.from("tests").select("id,title,module,description,duration_minutes,total_questions").eq("is_published",true).order("module");if(error)return alert(error.message);
+  shell(`<h2>Student Dashboard</h2><p class="muted">Select a published test to begin.</p><div class="dashboard-grid">${(data||[]).map(t=>`<button class="dashbtn" onclick="startStudentTest('${t.id}',true)"><div style="font-size:32px">${t.module==="listening"?"🎧":t.module==="reading"?"📖":"✍️"}</div><strong>${esc(t.title)}</strong><span class="muted">${t.module.toUpperCase()} • ${t.duration_minutes} min</span></button>`).join("")||`<div class="card">No published tests are available.</div>`}</div>`,"Universal Education IELTS","Student Testing Platform");
+}
+async function createAttempt(test){
+  const user=(await sb.auth.getUser()).data.user;
+  const {data,error}=await sb.from("results").insert({student_id:user.id,test_id:test.id,status:"in_progress",started_at:new Date().toISOString()}).select().single();
+  if(error)throw error;return data;
+}
+async function startStudentTest(id,resume=true,preview=false){
+  try{
+    const d=await loadTestBundle(id);if(!d.test.is_published&&!preview)throw new Error("This test is not published.");
+    let saved=resume?loadExam(id):null,attempt=null;if(!preview&&!saved?.resultId)attempt=await createAttempt(d.test);
+    let audioUrl=null;if(d.audio?.audio_path)audioUrl=await signed("listening-audio",d.audio.audio_path);
+    exam={preview,testId:id,resultId:preview?null:(saved?.resultId||attempt?.id),data:d,currentSection:saved?.currentSection||0,currentTask:saved?.currentTask||0,answers:saved?.answers||{},startedAt:saved?.startedAt||new Date().toISOString(),endAt:preview?null:(saved?.endAt>Date.now()?saved.endAt:Date.now()+d.test.duration_minutes*60000),audioUrl};
+    if(!preview){setRoute("exam",{testId:id});saveExam()}renderExam();startTimer();
+  }catch(e){alert(e.message)}
+}
+function previewCurrentTest(){startStudentTest(admin.test.id,false,true)}
+function headerExam(){return `<div class="topbar"><div><div class="brand">${esc(exam.data.test.title)}</div><div class="subbrand">${exam.preview?"Student Preview":exam.data.test.module.toUpperCase()+" Test"}</div></div><div class="userbox"><span id="timer" class="timer">${exam.preview?"PREVIEW":fmtTime(exam.endAt-Date.now())}</span><button class="btn secondary" onclick="exitExam()">${exam.preview?"Close Preview":"Exit"}</button></div></div>`}
+function fmtTime(ms){const x=Math.max(0,Math.ceil(ms/1000)),h=Math.floor(x/3600),m=Math.floor(x%3600/60),s=x%60;return `${h?String(h).padStart(2,"0")+":":""}${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`}
+function startTimer(){if(timerHandle)clearInterval(timerHandle);if(exam?.preview)return;timerHandle=setInterval(()=>{if(!exam)return clearInterval(timerHandle);const ms=exam.endAt-Date.now(),el=$("timer");if(el)el.textContent=fmtTime(ms);if(ms<=0){clearInterval(timerHandle);submitExam(true)}},1000)}
+function setAns(k,v){exam.answers[k]=v;saveExam()}
+function toggleAns(k,v,on){let a=Array.isArray(exam.answers[k])?[...exam.answers[k]]:[];if(on&&!a.includes(v))a.push(v);if(!on)a=a.filter(x=>x!==v);exam.answers[k]=a;saveExam()}
+function switchExamSection(i){exam.currentSection=Math.max(0,Math.min(i,exam.data.sections.length-1));saveExam();renderExam();startTimer()}
+function switchTask(i){exam.currentTask=Math.max(0,Math.min(i,1));saveExam();renderExam();startTimer()}
+function tabs(label){return `<div class="section-tabs">${exam.data.sections.map((s,i)=>`<button class="btn ${i===exam.currentSection?"primary":"secondary"}" onclick="switchExamSection(${i})">${label} ${i+1}</button>`).join("")}</div>`}
+function qnav(qs){return `<div class="qnav">${qs.map(q=>`<button class="${hasAns(q.id)?"done":""}" onclick="document.getElementById('q-${q.id}')?.scrollIntoView({behavior:'smooth'})">${q.question_number}</button>`).join("")}</div>`}
+function hasAns(id){const v=exam.answers[id];return Array.isArray(v)?v.length>0:String(v??"").trim()!==""}
+function renderExam(){
+  const m=exam.data.test.module;if(m==="writing")return renderWritingExam();
+  const s=exam.data.sections[exam.currentSection],qs=exam.data.questions.filter(q=>q.section_id===s.id).sort((a,b)=>a.question_number-b.question_number),gs=exam.data.groups.filter(g=>g.section_id===s.id).sort((a,b)=>a.group_order-b.group_order);
+  if(m==="reading"){
+    app().innerHTML=headerExam()+`<div class="shell">${tabs("Passage")}<div class="exam-split"><div class="pane"><h2>${esc(s.title)}</h2>${s.instructions?`<div class="instructions">${esc(s.instructions)}</div>`:""}${s.image_url?`<img class="media" src="${attr(s.image_url)}">`:""}<div style="white-space:pre-wrap;line-height:1.8">${esc(s.content||"")}</div></div>
+    <div class="pane"><h3>Questions</h3>${qnav(qs)}${renderGroupsOrQuestions(gs,qs)}</div></div>${examNav()}</div>`;
+  }else{
+    app().innerHTML=headerExam()+`<div class="shell">${tabs("Part")}${exam.audioUrl?`<div class="audio-box"><strong>Listening Audio</strong><audio controls src="${attr(exam.audioUrl)}"></audio></div>`:""}
+    <div class="card"><h2>${esc(s.title)}</h2>${s.instructions?`<div class="instructions">${esc(s.instructions)}</div>`:""}${s.image_url?`<img class="media" src="${attr(s.image_url)}">`:""}${s.content?`<div style="white-space:pre-wrap;line-height:1.8">${renderInline(s.content,qs)}</div>`:""}${qnav(qs)}${renderGroupsOrQuestions(gs,qs)}</div>${examNav()}</div>`;
+  }
+}
+function renderGroupsOrQuestions(gs,qs){return gs.length?gs.map(g=>renderGroup(g,qs)).join(""):qs.map(q=>renderQuestion(q)).join("")}
+function renderInline(txt,qs){return esc(txt).replace(/\[BLANK\s*(\d+)\]/gi,(_,n)=>{const q=qs.find(x=>+x.question_number===+n),k=q?.id||`blank_${n}`;return `<input style="display:inline-block;width:130px;margin:0 4px" value="${attr(exam.answers[k]||"")}" oninput="setAns('${k}',this.value)">`})}
+function renderGroup(g,qs){
+  const sub=qs.filter(q=>q.question_number>=g.start_question&&q.question_number<=g.end_question),inline=COMPLETION_TYPES.includes(normalizeType(g.question_type))&&/\[BLANK\s*\d+\]/i.test(g.content||"");
+  return `<div class="group"><strong>Questions ${g.start_question}–${g.end_question}</strong>${g.instructions?`<div class="instructions">${esc(g.instructions)}</div>`:""}${g.image_url?`<img class="media" src="${attr(g.image_url)}">`:""}${g.content?`<div style="white-space:pre-wrap;line-height:1.8">${renderInline(g.content,sub)}</div>`:""}
+  ${(g.options||[]).length?`<div class="notice">${g.options.map(o=>`<div><strong>${esc(o.option_key)}.</strong> ${esc(o.option_text)}</div>`).join("")}</div>`:""}${inline?"":sub.map(q=>renderQuestion(q,g.options||[])).join("")}</div>`;
+}
+function renderQuestion(q,shared=[]){
+  const opts=(q.options||[]).length?q.options:shared,s=exam.answers[q.id]??"",t=normalizeType(q.question_type);let c="";
+  if(t==="single"||["tfng","yng","title"].includes(t)){c=opts.map(o=>`<label style="font-weight:400"><input style="width:auto" type="radio" name="r-${q.id}" value="${attr(o.option_key)}" ${s===o.option_key?"checked":""} onchange="setAns('${q.id}',this.value)"> <strong>${esc(o.option_key)}.</strong> ${esc(o.option_text)}</label>`).join("")}
+  else if(t==="multi"||t==="list"){const a=Array.isArray(s)?s:[];c=opts.map(o=>`<label style="font-weight:400"><input style="width:auto" type="checkbox" value="${attr(o.option_key)}" ${a.includes(o.option_key)?"checked":""} onchange="toggleAns('${q.id}',this.value,this.checked)"> ${esc(o.option_key)}. ${esc(o.option_text)}</label>`).join("")}
+  else if(["matching","map","headings","information","features","endings"].includes(t)&&opts.length){c=`<select onchange="setAns('${q.id}',this.value)"><option value="">Select answer</option>${opts.map(o=>`<option value="${attr(o.option_key)}" ${s===o.option_key?"selected":""}>${esc(o.option_key)} — ${esc(o.option_text)}</option>`).join("")}</select>`}
+  else c=`<input value="${attr(Array.isArray(s)?s.join(", "):s)}" oninput="setAns('${q.id}',this.value)" placeholder="Type your answer">`;
+  return `<div id="q-${q.id}" class="question"><strong>${q.question_number}. ${esc(q.question_text||"")}</strong>${q.image_url?`<img class="media" src="${attr(q.image_url)}">`:""}<div style="margin-top:8px">${c}</div></div>`;
+}
+function examNav(){return `<div class="actions" style="justify-content:space-between;margin-top:14px"><button class="btn secondary" ${exam.currentSection===0?"disabled":""} onclick="switchExamSection(${exam.currentSection-1})">← Previous</button>${exam.currentSection<exam.data.sections.length-1?`<button class="btn primary" onclick="switchExamSection(${exam.currentSection+1})">Next →</button>`:`<button class="btn success" onclick="${exam.preview?"exitExam()":"submitExam(false)"}">${exam.preview?"Close Preview":"Submit Test"}</button>`}</div>`}
+function renderWritingExam(){
+  const tasks=(exam.data.writingTasks||[]).slice().sort((a,b)=>a.part-b.part),q=tasks[Math.min(exam.currentTask,tasks.length-1)];
+  app().innerHTML=headerExam()+`<div class="shell"><div class="section-tabs">${tasks.map((x,i)=>`<button class="btn ${i===exam.currentTask?"primary":"secondary"}" onclick="switchTask(${i})">Task ${i+1}</button>`).join("")}</div>
+  ${q?`<div class="writing-grid"><div class="pane"><h2>Writing Task ${q.part}</h2>${q.instructions?`<div class="instructions">${esc(q.instructions)}</div>`:""}${q.media_url?`<img class="media" src="${attr(q.media_url)}">`:""}<div style="white-space:pre-wrap;line-height:1.8">${esc(q.prompt||"")}</div></div>
+  <div class="pane"><div class="actions" style="justify-content:space-between"><h3>Your Answer</h3><strong id="wc">0 words</strong></div><textarea class="writing-answer" id="wa" oninput="setWriting('task_${q.id}',this.value)">${esc(exam.answers['task_'+q.id]||"")}</textarea><p class="muted">Minimum: ${q.minimum|| (q.part===1?150:250)} words${q.maximum?` • Maximum: ${q.maximum}`:""}</p></div></div>`:`<div class="card">Writing tasks not configured.</div>`}
+  <div class="actions" style="justify-content:space-between;margin-top:14px"><button class="btn secondary" ${exam.currentTask===0?"disabled":""} onclick="switchTask(${exam.currentTask-1})">← Previous Task</button>${exam.currentTask<tasks.length-1?`<button class="btn primary" onclick="switchTask(${exam.currentTask+1})">Next Task →</button>`:`<button class="btn success" onclick="${exam.preview?"exitExam()":"submitExam(false)"}">${exam.preview?"Close Preview":"Submit Writing Test"}</button>`}</div></div>`;
+  updateWC();
+}
+function setWriting(id,v){setAns(id,v);updateWC()}function updateWC(){const v=$("wa")?.value||"",n=v.trim()?v.trim().split(/\s+/).length:0;if($("wc"))$("wc").textContent=n+" words"}
+
+function norm(v){return String(v??"").trim().toLowerCase().replace(/\s+/g," ")}
+function evalQ(q,a){
+  const cfg=q.config||q.question_config||{};
+  const clean=v=>cfg.caseSensitive?String(v??"").trim().replace(/\s+/g," "):norm(v);
+  const base=String(q.correct_answer||"").split("||");
+  const extra=Array.isArray(cfg.acceptedAnswers)?cfg.acceptedAnswers:[];
+  const exp=[...base,...extra].map(clean).filter(Boolean);
+  if(Array.isArray(a)){const aa=a.map(clean).sort(),ee=exp.slice().sort();return JSON.stringify(aa)===JSON.stringify(ee)}
+  return exp.includes(clean(a));
+}
+async function submitExam(auto=false){
+  if(exam.preview)return exitExam();
+  if(!auto&&!confirm("Submit test? Answers will be locked."))return;
+  try{
+    if(timerHandle)clearInterval(timerHandle);
+    const mod=exam.data.test.module;
+    const qs=mod==="writing"?(exam.data.questions.length?exam.data.questions.slice().sort((a,b)=>a.question_number-b.question_number).slice(0,2):(exam.data.writingTasks||[]).map(w=>({id:null,question_number:w.part,marks:0,correct_answer:null,writingTaskId:w.id}))):exam.data.questions;
+    if(mod==="writing"){
+      for(const q of qs){
+        if(!q.id){const wt=(exam.data.writingTasks||[]).find(w=>w.part===q.question_number);const sec=exam.data.sections[0];const ins={section_id:sec.id,question_number:q.question_number,question_type:'writing',question_text:wt?.prompt||'',marks:0,correct_answer:null,image_url:wt?.media_url||null,question_config:{writingTaskId:wt?.id}};const {data,error}=await sb.from('questions').insert(ins).select().single();if(error)throw error;q.id=data.id;}
+      }
     }
-}
-
-async function editAdminTest(id) {
-    setAppRoute("test-editor", { testId: id });
-    const message = document.getElementById("dashboardMessage");
-    if (!message) return;
-    const { data: test, error: testError } = await supabaseClient.from("tests").select("*").eq("id", id).single();
-    if (testError) throw testError;
-    const { data: sections, error: secError } = await supabaseClient.from("sections").select("*").eq("test_id", id).order("section_number", { ascending: true });
-    if (secError) throw secError;
-    let resolvedSections = sections || [];
-    resolvedSections = await Promise.all(resolvedSections.map(async s => ({
-        ...s,
-        image_url: s.image_path ? await getImageSignedUrl(s.image_path) : s.image_url
-    })));
-    const sectionIds = resolvedSections.map(s => s.id);
-    let questions = [];
-    if (sectionIds.length) {
-        const { data: qrows, error: qError } = await supabaseClient.from("questions").select("*").in("section_id", sectionIds).order("question_number", { ascending: true });
-        if (qError) throw qError;
-        questions = qrows || [];
-        const qids = questions.map(q => q.id);
-        if (qids.length) {
-            const { data: options, error: oError } = await supabaseClient.from("options").select("*").in("question_id", qids).order("option_key", { ascending: true });
-            if (oError) throw oError;
-            const byQ = {};
-            (options || []).forEach(o => { (byQ[o.question_id] ||= []).push(o); });
-            questions = questions.map(q => ({ ...q, options: byQ[q.id] || [] }));
-        }
+    const rows=qs.map(q=>({result_id:exam.resultId,question_id:q.id,answer_text:Array.isArray(exam.answers[mod==="writing"?"task_"+((exam.data.writingTasks||[]).find(w=>w.part===q.question_number)?.id||q.id):q.id])?exam.answers[mod==="writing"?"task_"+((exam.data.writingTasks||[]).find(w=>w.part===q.question_number)?.id||q.id):q.id].join(", "):String(exam.answers[mod==="writing"?"task_"+((exam.data.writingTasks||[]).find(w=>w.part===q.question_number)?.id||q.id):q.id]??""),is_correct:mod==="writing"?null:evalQ(q,exam.answers[q.id]),marks_obtained:mod==="writing"?0:(evalQ(q,exam.answers[q.id])?Number(q.marks||1):0)}));
+    if(rows.length){const {error}=await sb.from("answers").insert(rows);if(error)throw error}
+    if(mod==="writing"){
+      // Writing responses are stored in the common answers table; writing_tasks remains the task definition/evaluation source.
     }
-    let groups = [];
-    if (sectionIds.length) {
-        const { data: grow, error: gError } = await supabaseClient
-            .from("question_groups")
-            .select("*")
-            .in("section_id", sectionIds)
-            .order("group_order", { ascending: true });
-        if (gError) {
-            if (String(gError.message || "").toLowerCase().includes("question_groups")) {
-                throw new Error("Question Groups table is not created yet. Run the SQL provided with this update first.");
-            }
-            throw gError;
-        }
-        groups = await Promise.all((grow || []).map(async g => ({
-            ...g,
-            image_url: g.image_path ? await getImageSignedUrl(g.image_path) : g.image_url
-        })));
-        const groupIds = groups.map(g => g.id);
-        if (groupIds.length) {
-            const { data: groupOptions, error: goError } = await supabaseClient
-                .from("question_group_options")
-                .select("*")
-                .in("group_id", groupIds)
-                .order("sort_order", { ascending: true });
-            if (goError) throw goError;
-            const byGroup = {};
-            (groupOptions || []).forEach(o => (byGroup[o.group_id] ||= []).push(o));
-            groups = groups.map(g => ({ ...g, options: byGroup[g.id] || [] }));
-        }
-    }
-    adminCurrentTest = test;
-    adminCurrentTestAudio = test.module === "listening" ? await loadListeningTestAudio(id) : null;
-    adminCurrentSections = resolvedSections;
-    adminCurrentQuestions = questions;
-    adminCurrentGroups = groups;
+    const total=mod==="writing"?0:qs.reduce((s,q)=>s+Number(q.marks||1),0),score=mod==="writing"?null:qs.reduce((s,q)=>s+(evalQ(q,exam.answers[q.id])?Number(q.marks||1):0),0);
+    const upd={status:"submitted",submitted_at:new Date().toISOString()};if(mod==="listening")upd.listening_score=score;if(mod==="reading")upd.reading_score=score;if(mod==="writing")upd.writing_score=null;
+    const {error}=await sb.from("results").update(upd).eq("id",exam.resultId);if(error)throw error;
+    const id=exam.testId;clearExam(id);clearRoute();exam=null;
+    shell(`<div class="card" style="max-width:700px;margin:30px auto;text-align:center"><div style="font-size:52px">✅</div><h2>${auto?"Time ended — Test submitted":"Test submitted successfully"}</h2>
+    ${mod==="writing"?`<p>Writing response saved. <strong>Evaluation Pending</strong>.</p>`:`<p>Your score: <strong>${score} / ${total}</strong></p>`}<button class="btn primary" onclick="studentDashboard()">Back to Student Dashboard</button></div>`,"Universal Education IELTS","Result");
+  }catch(e){alert("Submission failed: "+e.message)}
+}
+function exitExam(){if(timerHandle)clearInterval(timerHandle);if(exam?.preview){exam=null;return openBuilder(admin.test.id)}saveExam();exam=null;clearRoute();studentDashboard()}
 
-    message.innerHTML = adminModuleBox(`Edit: ${test.title}`, `${test.module.toUpperCase()} • Full test editor`);
-    await renderAdminTestEditor();
+async function resultsPage(){
+  setRoute("results");
+  const {data,error}=await sb.from("results").select("*,tests(title,module)").order("created_at",{ascending:false});if(error)return alert(error.message);
+  const ids=[...new Set((data||[]).map(r=>r.student_id).filter(Boolean))];let profiles=[];if(ids.length){const p=await sb.from("profiles").select("id,full_name,email").in("id",ids);if(!p.error)profiles=p.data||[]}const pm=new Map(profiles.map(x=>[x.id,x]));
+  shell(`<div class="actions"><button class="btn secondary" onclick="staffDashboard()">← Dashboard</button></div><h2>Results</h2><div class="card table-wrap"><table><thead><tr><th>Student</th><th>Test</th><th>Status</th><th>Score</th><th>Submitted</th></tr></thead><tbody>
+  ${(data||[]).map(r=>{const mod=r.tests?.module,p=pm.get(r.student_id);const score=mod==="listening"?r.listening_score??"-":mod==="reading"?r.reading_score??"-":r.writing_score??"Pending";return `<tr><td>${esc(p?.full_name||p?.email||r.student_id||"")}</td><td>${esc(r.tests?.title||"")}<br><small>${esc(mod||"")}</small></td><td>${esc(r.status||"")}</td><td>${score}</td><td>${r.submitted_at?new Date(r.submitted_at).toLocaleString():"-"}</td></tr>`}).join("")||`<tr><td colspan="5">No results.</td></tr>`}</tbody></table></div>`);
 }
 
-async function renderAdminTestEditor() {
-    const body = document.getElementById("adminModuleBody");
-    if (!body || !adminCurrentTest) return;
-    const isListening = adminCurrentTest.module === "listening";
-    const isReading = adminCurrentTest.module === "reading";
-    const typeMap = isListening ? LISTENING_QUESTION_TYPES : READING_QUESTION_TYPES;
-
-    body.innerHTML = `
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
-            <button type="button" class="save-button" onclick="saveAdminTestHeader()">💾 Save Test Details</button>
-            <button type="button" onclick="openStudentTestPreview('${adminCurrentTest.id}')">👁 Preview Student View</button>
-            <button type="button" onclick="addAdminQuestion()">+ Add Question</button>
-            <button type="button" class="danger" onclick="deleteAdminTest('${adminCurrentTest.id}')">Delete Entire Test</button>
-            <button type="button" class="cancel-button" onclick="openTestManager('${adminCurrentTest.module}')">← Back to Tests</button>
-        </div>
-        <div class="student-form">
-            <h3>Test Details</h3>
-            <label>Title<input id="editTestTitle" value="${escapeHtml(adminCurrentTest.title || "")}"></label>
-            <label>Module<select id="editTestModule" disabled><option>${escapeHtml(adminCurrentTest.module)}</option></select></label>
-            <label>Description<textarea id="editTestDescription">${escapeHtml(adminCurrentTest.description || "")}</textarea></label>
-            <div class="grid"><label>Duration (minutes)<input id="editTestDuration" type="number" min="1" value="${Number(adminCurrentTest.duration_minutes || 0)}"></label><label>Total Questions<input id="editTestTotal" type="number" min="1" max="40" value="${Number(adminCurrentTest.total_questions || 0)}"></label></div>
-            <label><input id="editTestPublished" type="checkbox" ${adminCurrentTest.is_published ? "checked" : ""}> Published</label>
-        </div>
-        ${isListening ? renderAdminListeningAudioCard() : ""}
-        <hr>
-        <h3>${isListening ? "🎧 Listening Parts" : isReading ? "📖 Reading Passages" : "✍️ Writing Section"}</h3>
-        <div id="adminSections">${adminCurrentSections.map((s, idx) => adminSectionEditor(s, idx, isListening, isReading)).join("")}</div>
-        <hr>
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-            <div><h3>Questions</h3><p class="muted">Add, edit or delete questions. Options are fully dynamic.</p></div>
-            <button type="button" onclick="addAdminQuestion()">+ Add Question</button>
-        </div>
-        <div id="adminQuestions">${adminCurrentQuestions.map(q => adminQuestionEditor(q, typeMap, isListening, isReading)).join("")}</div>`;
-}
-
-function adminSectionEditor(s, idx, isListening, isReading) {
-    const label = isListening ? `Section ${s.section_number}` : isReading ? `Passage ${s.section_number}` : "Writing Section";
-    const groups = adminCurrentGroups.filter(g => g.section_id === s.id).sort((a,b) => Number(a.group_order || 0) - Number(b.group_order || 0));
-    return `<div class="students-panel" style="margin:12px 0;padding:16px">
-        <h4>${label}</h4>
-        <input type="hidden" id="sec-id-${s.id}" value="${s.id}">
-        <label>Title<input id="sec-title-${s.id}" value="${escapeHtml(s.title || label)}"></label>
-        <label>Part / Section Instructions<textarea id="sec-instructions-${s.id}" placeholder="General instructions for this section">${escapeHtml(s.instructions || "")}</textarea></label>
-        <label>${isReading ? "Passage Content" : isListening ? "Section Content / Notes" : "Task Content / Notes"}<textarea id="sec-content-${s.id}" style="min-height:120px" placeholder="Optional content for this section">${escapeHtml(s.content || "")}</textarea></label>
-        <div style="padding:12px;background:#f8fafc;border-radius:8px;margin:10px 0">
-            <strong>Section Image</strong>
-            <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
-                <input id="sec-image-file-${s.id}" type="file" accept="image/*">
-                <button type="button" onclick="uploadAdminSectionImage('${s.id}')">Upload / Change Image</button>
-                ${s.image_url ? `<button type="button" class="danger" onclick="removeAdminSectionImage('${s.id}')">Remove Image</button>` : ""}
-            </div>
-            ${s.image_url ? `<div style="margin-top:10px"><img src="${escapeHtml(s.image_url)}" alt="Current section image" style="max-width:260px;border-radius:8px"></div>` : `<small class="muted">No image uploaded.</small>`}
-        </div>
-        <button type="button" onclick="saveAdminSection('${s.id}')">Save ${label}</button>
-
-        <div style="margin-top:22px;border-top:1px solid #e5e7eb;padding-top:16px">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-                <div><h4 style="margin:0">Question Groups</h4><small class="muted">Create separate IELTS-style blocks. Question numbers and ranges are fully manual.</small></div>
-                <button type="button" class="save-button" onclick="addAdminQuestionGroup('${s.id}')">+ Add Question Group</button>
-            </div>
-            <div style="margin-top:12px">
-                ${groups.length ? groups.map(g => adminQuestionGroupEditor(g, label)).join("") : `<div style="padding:14px;background:#f8fafc;border-radius:8px;margin-top:10px">No question groups yet. Click <strong>+ Add Question Group</strong> to create one.</div>`}
-            </div>
-        </div>
-    </div>`;
-}
-
-function adminQuestionGroupEditor(g, sectionLabel) {
-    const typeMap = adminCurrentTest?.module === "listening" ? LISTENING_QUESTION_TYPES : READING_QUESTION_TYPES;
-    const typeOptions = Object.entries(typeMap).map(([k, v]) => `<option value="${k}" ${g.question_type === k ? "selected" : ""}>${escapeHtml(v)}</option>`).join("");
-    const start = Number(g.start_question || 1);
-    const end = Number(g.end_question || start);
-    const groupQuestions = adminCurrentQuestions.filter(q => q.section_id === g.section_id && Number(q.question_number) >= start && Number(q.question_number) <= end).sort((a,b) => Number(a.question_number) - Number(b.question_number));
-    const groupOptions = g.options || [];
-    return `<div class="students-panel" style="margin:10px 0;padding:14px;border:1px solid #dbe3ee;background:#fff">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-            <strong>Question Group ${Number(g.group_order || 1)} — ${escapeHtml(sectionLabel)}</strong>
-            <div style="display:flex;gap:6px;flex-wrap:wrap">
-                <button type="button" onclick="addAdminQuestionToGroup('${g.id}')">+ Add Question</button>
-                <button type="button" class="danger" onclick="deleteAdminQuestionGroup('${g.id}')">Delete Group</button>
-            </div>
-        </div>
-        <div class="grid" style="margin-top:10px">
-            <label>Start Question No.<input id="group-start-${g.id}" type="number" min="1" max="40" value="${start}"></label>
-            <label>End Question No.<input id="group-end-${g.id}" type="number" min="1" max="40" value="${end}"></label>
-            <label>Question Type<select id="group-type-${g.id}">${typeOptions}</select></label>
-            <label>Group Order<input id="group-order-${g.id}" type="number" min="1" value="${Number(g.group_order || 1)}"></label>
-        </div>
-        <label>Instructions<textarea id="group-instructions-${g.id}" style="min-height:90px" placeholder="Example:\nComplete the notes below.\nWrite ONE WORD AND/OR A NUMBER for each answer.">${escapeHtml(g.instructions || "")}</textarea></label>
-        <label>Group Content / Heading / Notes<textarea id="group-content-${g.id}" style="min-height:130px" placeholder="Example:\nEasyl​​et Accommodation Agency\n\nCheapest properties: £ ___ per week...">${escapeHtml(g.content || "")}</textarea></label>
-        <div style="padding:12px;background:#f8fafc;border-radius:8px;margin:10px 0">
-            <strong>Question Group Image</strong>
-            <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
-                <input id="group-image-file-${g.id}" type="file" accept="image/*">
-                <button type="button" onclick="uploadAdminGroupImage('${g.id}')">Upload / Change Image</button>
-                ${g.image_url ? `<button type="button" class="danger" onclick="removeAdminGroupImage('${g.id}')">Remove Image</button>` : ""}
-            </div>
-            ${g.image_url ? `<div style="margin-top:10px"><img src="${escapeHtml(g.image_url)}" alt="Current group image" style="max-width:260px;border-radius:8px"></div>` : `<small class="muted">No image uploaded.</small>`}
-        </div>
-        <div style="margin-top:14px;padding:12px;background:#f8fafc;border-radius:8px">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-                <div><strong>Shared Options / Answer Bank</strong><div class="muted">Use this for shared A-G options, matching lists, map labels, etc. Leave empty when the question has its own options.</div></div>
-                <button type="button" onclick="addAdminGroupOption('${g.id}')">+ Add Option</button>
-            </div>
-            <div id="group-option-list-${g.id}" style="margin-top:8px">${groupOptions.length ? groupOptions.map((o,i)=>adminGroupOptionRow(g.id,i,o.option_key,o.option_text)).join("") : adminGroupOptionRow(g.id,0,"A","")}</div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px">
-            <button type="button" class="save-button" onclick="saveAdminQuestionGroup('${g.id}')">💾 Save Question Group + Options</button>
-            <small class="muted">This group currently contains ${groupQuestions.length} question(s) by number range ${start}–${end}.</small>
-        </div>
-    </div>`;
-}
-
-function adminGroupOptionRow(groupId, index, key, value) {
-    return `<div class="grid" style="grid-template-columns:70px 1fr 90px;align-items:end;margin:6px 0" data-group-option-row="${groupId}">
-        <label>Key<input class="group-option-key" value="${escapeHtml(key || String.fromCharCode(65 + index))}"></label>
-        <label>Option<input class="group-option-text" value="${escapeHtml(value || "")}" placeholder="Option ${index + 1}"></label>
-        <button type="button" onclick="removeAdminGroupOption(this)">Remove</button>
-    </div>`;
-}
-function addAdminGroupOption(groupId) {
-    const list = document.getElementById(`group-option-list-${groupId}`);
-    if (!list) return;
-    const index = list.querySelectorAll(`[data-group-option-row="${groupId}"]`).length;
-    list.insertAdjacentHTML("beforeend", adminGroupOptionRow(groupId,index,String.fromCharCode(65+index),""));
-}
-function removeAdminGroupOption(button) {
-    const row = button.closest("[data-group-option-row]");
-    if (!row) return;
-    const list = row.parentElement;
-    if (list.children.length > 1) row.remove();
-}
-function collectAdminGroupOptions(groupId) {
-    const rows = document.querySelectorAll(`[data-group-option-row="${groupId}"]`);
-    return Array.from(rows).map((row,i) => ({
-        option_key: row.querySelector(".group-option-key")?.value.trim() || String.fromCharCode(65+i),
-        option_text: row.querySelector(".group-option-text")?.value.trim() || "",
-        sort_order: i+1
-    })).filter(o => o.option_text);
-}
-
-async function addAdminQuestionGroup(sectionId) {
-    const existing = adminCurrentGroups.filter(g => g.section_id === sectionId);
-    const nextOrder = existing.reduce((m, g) => Math.max(m, Number(g.group_order || 0)), 0) + 1;
-    const nextStart = existing.length ? Math.min(40, Math.max(...existing.map(g => Number(g.end_question || 0))) + 1) : 1;
-    const { data, error } = await supabaseClient.from("question_groups").insert({
-        section_id: sectionId,
-        group_order: nextOrder,
-        start_question: nextStart,
-        end_question: nextStart,
-        question_type: adminCurrentTest?.module === "listening" ? "note" : "single",
-        instructions: "",
-        content: "",
-        image_url: null
-    }).select().single();
-    if (error) return alert("Could not create question group: " + error.message);
-    adminCurrentGroups.push(data);
-    await renderAdminTestEditor();
-    setTimeout(() => document.getElementById(`group-start-${data.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
-}
-
-async function saveAdminQuestionGroup(groupId) {
-    const start = Number(document.getElementById(`group-start-${groupId}`)?.value || 0);
-    const end = Number(document.getElementById(`group-end-${groupId}`)?.value || 0);
-    const order = Number(document.getElementById(`group-order-${groupId}`)?.value || 1);
-    if (!start || !end || start > end || start > 40 || end > 40) return alert("Please enter a valid question range. Start must be less than or equal to End.");
-    const payload = {
-        start_question: start,
-        end_question: end,
-        group_order: order,
-        question_type: document.getElementById(`group-type-${groupId}`)?.value || "short",
-        instructions: document.getElementById(`group-instructions-${groupId}`)?.value || "",
-        content: document.getElementById(`group-content-${groupId}`)?.value || "",
-    };
-    const { error } = await supabaseClient.from("question_groups").update(payload).eq("id", groupId);
-    if (error) return alert("Could not save question group: " + error.message);
-    const groupOptions = collectAdminGroupOptions(groupId);
-    const { error: deleteOptionError } = await supabaseClient.from("question_group_options").delete().eq("group_id", groupId);
-    if (deleteOptionError) return alert("Could not update group options: " + deleteOptionError.message);
-    if (groupOptions.length) {
-        const { error: insertOptionError } = await supabaseClient.from("question_group_options").insert(groupOptions.map(o => ({ group_id: groupId, ...o })));
-        if (insertOptionError) return alert("Could not save group options: " + insertOptionError.message);
-    }
-    alert("Question Group and Options saved successfully.");
-    await editAdminTest(adminCurrentTest.id);
-}
-
-async function deleteAdminQuestionGroup(groupId) {
-    if (!confirm("Delete this question group? Questions inside the number range will NOT be deleted.")) return;
-    const { error } = await supabaseClient.from("question_groups").delete().eq("id", groupId);
-    if (error) return alert("Could not delete question group: " + error.message);
-    await editAdminTest(adminCurrentTest.id);
-}
-
-async function addAdminQuestionToGroup(groupId) {
-    const group = adminCurrentGroups.find(g => g.id === groupId);
-    if (!group) return;
-    const section = adminCurrentSections.find(s => s.id === group.section_id);
-    if (!section) return;
-    const start = Number(group.start_question || 1);
-    const end = Number(group.end_question || start);
-    const used = new Set(adminCurrentQuestions.filter(q => q.section_id === section.id).map(q => Number(q.question_number)));
-    let next = start;
-    while (next <= end && used.has(next)) next++;
-    if (next > end) return alert(`All question numbers ${start}-${end} are already used in this group. Change the range or edit existing questions.`);
-    const defaultType = group.question_type || (adminCurrentTest?.module === "listening" ? "note" : "single");
-    const { data: question, error } = await supabaseClient.from("questions").insert({
-        section_id: section.id,
-        question_number: next,
-        question_type: defaultType,
-        question_text: `Question ${next}`,
-        marks: 1,
-        correct_answer: "",
-        explanation: "",
-        image_url: null
-    }).select().single();
-    if (error) return alert("Could not add question: " + error.message);
-    await editAdminTest(adminCurrentTest.id);
-    setTimeout(() => document.getElementById(`q-num-${question.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 150);
-}
-
-function adminQuestionEditor(q, typeMap, isListening, isReading) {
-    const options = q.options || [];
-    const typeOptions = Object.entries(typeMap).map(([k, v]) => `<option value="${k}" ${q.question_type === k ? "selected" : ""}>${escapeHtml(v)}</option>`).join("");
-    const part = adminCurrentSections.find(s => s.id === q.section_id);
-    return `<div class="students-panel admin-question-editor" style="margin:12px 0;padding:16px" id="admin-q-${q.id}">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-            <h4>Question ${Number(q.question_number || 0)}</h4>
-            <button type="button" class="danger" onclick="deleteAdminQuestion('${q.id}')">Delete Question</button>
-        </div>
-        <div class="grid">
-            <label>Question No.<input id="q-num-${q.id}" type="number" min="1" max="40" value="${Number(q.question_number || 1)}"></label>
-            ${isListening ? `<label>Section<select id="q-sec-${q.id}">${adminCurrentSections.map(s => `<option value="${s.id}" ${s.id === q.section_id ? "selected" : ""}>Section ${s.section_number}</option>`).join("")}</select></label>` : isReading ? `<label>Passage<select id="q-sec-${q.id}">${adminCurrentSections.map(s => `<option value="${s.id}" ${s.id === q.section_id ? "selected" : ""}>Passage ${s.section_number}</option>`).join("")}</select></label>` : ""}
-        </div>
-        <label>Question Type<select id="q-type-${q.id}" onchange="refreshAdminQuestion('${q.id}')">${typeOptions}</select></label>
-        <label>Question / Prompt<textarea id="q-text-${q.id}" style="min-height:90px">${escapeHtml(q.question_text || "")}</textarea></label>
-        <div id="q-extra-${q.id}">${renderAdminQuestionExtras(q)}</div>
-        <div class="grid">
-            <label>Marks<input id="q-marks-${q.id}" type="number" min="0" step="0.5" value="${Number(q.marks || 1)}"></label>
-            <label>Correct Answer / Accepted Answers<textarea id="q-answer-${q.id}" placeholder="For multiple accepted answers, separate with ||">${escapeHtml(q.correct_answer || "")}</textarea></label>
-        </div>
-        <label>Explanation / Tutor Note<textarea id="q-exp-${q.id}">${escapeHtml(q.explanation || "")}</textarea></label>
-        <label>Question Image URL (optional)<input id="q-image-${q.id}" value="${escapeHtml(q.image_url || "")}" placeholder="https://..."></label>
-        <button type="button" class="save-button" onclick="saveAdminQuestion('${q.id}')">💾 Save Question</button>
-    </div>`;
-}
-
-function renderAdminQuestionExtras(q) {
-    const type = q.question_type || "short";
-    const opts = (q.options || []).map(o => o.option_text || "");
-    const needsOptions = ["single", "multi", "matching", "map"].includes(type);
-    if (!needsOptions) {
-        const hint = type === "note" ? "Fill the missing information in the notes." :
-            type === "form" ? "Use form fields / labels in the prompt; correct answers go in the answer box." :
-            type === "table" ? "Describe the table/rows/columns in the prompt." :
-            type === "sentence" ? "Sentence completion; use the answer box for accepted answers." :
-            type === "summary" ? "Summary completion; use the answer box for accepted answers." :
-            type === "short" ? "Short answer; use the answer box for accepted answers." :
-            type === "flow" ? "Flowchart completion; describe the process/stages in the prompt." : "";
-        return `<div style="padding:10px;background:#f8fafc;border-radius:8px"><small>${escapeHtml(hint)}</small></div>`;
-    }
-    return `<div class="option-builder" id="options-${q.id}">
-        <div style="display:flex;justify-content:space-between;align-items:center"><strong>${type === "map" ? "Label / Answer Bank" : type === "matching" ? "Matching Answer Bank" : "Answer Options"}</strong><button type="button" onclick="addAdminOption('${q.id}')">+ Add Option</button></div>
-        <div id="option-list-${q.id}">${opts.length ? opts.map((v, i) => adminOptionRow(q.id, i, v)).join("") : adminOptionRow(q.id, 0, "")}</div>
-    </div>`;
-}
-
-function adminOptionRow(qid, index, value) {
-    return `<div class="grid" style="grid-template-columns:70px 1fr 90px;align-items:end;margin:6px 0" data-option-row="${qid}">
-        <label>Key<input value="${String.fromCharCode(65 + index)}" disabled></label>
-        <label>Option<input class="q-option-input" data-qid="${qid}" value="${escapeHtml(value)}" placeholder="Option ${index + 1}"></label>
-        <button type="button" onclick="removeAdminOption(this)">Remove</button>
-    </div>`;
-}
-
-function addAdminOption(qid) {
-    const list = document.getElementById(`option-list-${qid}`);
-    if (!list) return;
-    const index = list.querySelectorAll(`[data-option-row="${qid}"]`).length;
-    list.insertAdjacentHTML("beforeend", adminOptionRow(qid, index, ""));
-    renumberAdminOptions(qid);
-}
-
-function removeAdminOption(button) {
-    const row = button.closest("[data-option-row]");
-    if (!row) return;
-    const qid = row.getAttribute("data-option-row");
-    const list = document.getElementById(`option-list-${qid}`);
-    if (list && list.children.length > 1) row.remove();
-    renumberAdminOptions(qid);
-}
-
-function renumberAdminOptions(qid) {
-    const list = document.getElementById(`option-list-${qid}`);
-    if (!list) return;
-    list.querySelectorAll(`[data-option-row="${qid}"]`).forEach((row, i) => {
-        const key = row.querySelector("label:first-child input");
-        if (key) key.value = String.fromCharCode(65 + i);
-    });
-}
-
-function refreshAdminQuestion(qid) {
-    const q = adminCurrentQuestions.find(x => x.id === qid);
-    if (!q) return;
-    const type = document.getElementById(`q-type-${qid}`)?.value || "short";
-    q.question_type = type;
-    q.options = [];
-    const old = document.getElementById(`q-extra-${qid}`);
-    if (old) old.innerHTML = renderAdminQuestionExtras(q);
-}
-
-function collectAdminOptions(qid) {
-    return Array.from(document.querySelectorAll(`.q-option-input[data-qid="${qid}"]`)).map(i => i.value.trim()).filter(Boolean);
-}
-
-async function saveAdminTestHeader() {
-    if (!adminCurrentTest) return;
-    const payload = {
-        title: document.getElementById("editTestTitle")?.value.trim(),
-        description: document.getElementById("editTestDescription")?.value.trim() || null,
-        duration_minutes: Number(document.getElementById("editTestDuration")?.value || 0),
-        total_questions: Number(document.getElementById("editTestTotal")?.value || 0),
-        is_published: !!document.getElementById("editTestPublished")?.checked
-    };
-    const { error } = await supabaseClient.from("tests").update(payload).eq("id", adminCurrentTest.id);
-    if (error) return alert(error.message);
-    await editAdminTest(adminCurrentTest.id);
-}
-
-function renderAdminListeningAudioCard() {
-    const a = adminCurrentTestAudio;
-    return `<div class="student-form" style="margin-top:14px;border:1px solid #dbe3ee;background:#fff">
-        <h3>🎧 Listening Test Audio — One Audio for the Entire Test</h3>
-        <p class="muted">Upload one audio file for Sections 1–4. The same audio is used for Questions 1–40.</p>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <input id="listening-audio-file" type="file" accept="audio/*">
-            <button type="button" class="save-button" onclick="uploadAdminListeningAudio('${adminCurrentTest.id}')">Upload / Change Audio</button>
-            ${a?.audio_path ? `<button type="button" class="danger" onclick="removeAdminListeningAudio('${adminCurrentTest.id}')">Remove Audio</button>` : ""}
-        </div>
-        ${a?.signedUrl ? `<div style="margin-top:12px"><div><strong>${escapeHtml(a.original_name || "Current listening audio")}</strong></div><audio controls preload="metadata" style="width:100%;margin-top:8px" src="${escapeHtml(a.signedUrl)}"></audio></div>` : `<small class="muted">No listening audio uploaded yet.</small>`}
-    </div>`;
-}
-
-async function uploadAdminListeningAudio(testId) {
-    try {
-        const file = document.getElementById("listening-audio-file")?.files?.[0];
-        if (!file) return alert("Please select the Listening audio file first.");
-        await uploadListeningTestAudio(testId, file);
-        await editAdminTest(testId);
-    } catch (error) { alert("Could not upload audio: " + (error.message || "Unknown error")); }
-}
-
-async function removeAdminListeningAudio(testId) {
-    if (!confirm("Remove the Listening audio from this test?")) return;
-    try { await removeListeningTestAudio(testId); await editAdminTest(testId); }
-    catch (error) { alert("Could not remove audio: " + (error.message || "Unknown error")); }
-}
-
-async function uploadAdminSectionImage(sectionId) {
-    try {
-        const file = document.getElementById(`sec-image-file-${sectionId}`)?.files?.[0];
-        if (!file) return alert("Please select an image first.");
-        const section = adminCurrentSections.find(s => s.id === sectionId);
-        const uploaded = await uploadImageForEntity("sections", sectionId, file, section?.image_path || null);
-        const { error } = await supabaseClient.from("sections").update({ image_url: uploaded.path, image_path: uploaded.path }).eq("id", sectionId);
-        if (error) throw error;
-        await editAdminTest(adminCurrentTest.id);
-    } catch (error) { alert("Could not upload image: " + (error.message || "Unknown error")); }
-}
-
-async function removeAdminSectionImage(sectionId) {
-    if (!confirm("Remove this section image?")) return;
-    try {
-        const section = adminCurrentSections.find(s => s.id === sectionId);
-        await deleteImagePath(section?.image_path || null);
-        const { error } = await supabaseClient.from("sections").update({ image_url: null, image_path: null }).eq("id", sectionId);
-        if (error) throw error;
-        await editAdminTest(adminCurrentTest.id);
-    } catch (error) { alert("Could not remove image: " + (error.message || "Unknown error")); }
-}
-
-async function uploadAdminGroupImage(groupId) {
-    try {
-        const file = document.getElementById(`group-image-file-${groupId}`)?.files?.[0];
-        if (!file) return alert("Please select an image first.");
-        const group = adminCurrentGroups.find(g => g.id === groupId);
-        const uploaded = await uploadImageForEntity("groups", groupId, file, group?.image_path || null);
-        const { error } = await supabaseClient.from("question_groups").update({ image_url: uploaded.path, image_path: uploaded.path }).eq("id", groupId);
-        if (error) throw error;
-        await editAdminTest(adminCurrentTest.id);
-    } catch (error) { alert("Could not upload group image: " + (error.message || "Unknown error")); }
-}
-
-async function removeAdminGroupImage(groupId) {
-    if (!confirm("Remove this question group image?")) return;
-    try {
-        const group = adminCurrentGroups.find(g => g.id === groupId);
-        await deleteImagePath(group?.image_path || null);
-        const { error } = await supabaseClient.from("question_groups").update({ image_url: null, image_path: null }).eq("id", groupId);
-        if (error) throw error;
-        await editAdminTest(adminCurrentTest.id);
-    } catch (error) { alert("Could not remove image: " + (error.message || "Unknown error")); }
-}
-
-async function saveAdminSection(sectionId) {
-    const payload = {
-        title: document.getElementById(`sec-title-${sectionId}`)?.value.trim(),
-        instructions: document.getElementById(`sec-instructions-${sectionId}`)?.value || "",
-        content: document.getElementById(`sec-content-${sectionId}`)?.value || ""
-    };
-    const { error } = await supabaseClient.from("sections").update(payload).eq("id", sectionId);
-    if (error) return alert(error.message);
-    alert("Section saved successfully.");
-}
-
-async function saveAdminQuestion(qid) {
-    const q = adminCurrentQuestions.find(x => x.id === qid);
-    if (!q) return;
-    const options = collectAdminOptions(qid);
-    const payload = {
-        section_id: document.getElementById(`q-sec-${qid}`)?.value || q.section_id,
-        question_number: Number(document.getElementById(`q-num-${qid}`)?.value || q.question_number),
-        question_type: document.getElementById(`q-type-${qid}`)?.value || q.question_type,
-        question_text: document.getElementById(`q-text-${qid}`)?.value || "",
-        marks: Number(document.getElementById(`q-marks-${qid}`)?.value || 1),
-        correct_answer: document.getElementById(`q-answer-${qid}`)?.value || "",
-        explanation: document.getElementById(`q-exp-${qid}`)?.value || "",
-        image_url: document.getElementById(`q-image-${qid}`)?.value.trim() || null
-    };
-    try {
-        const { error } = await supabaseClient.from("questions").update(payload).eq("id", qid);
-        if (error) throw error;
-        await supabaseClient.from("options").delete().eq("question_id", qid);
-        if (options.length) {
-            const rows = options.map((text, i) => ({ question_id: qid, option_key: String.fromCharCode(65 + i), option_text: text, is_correct: false }));
-            const { error: oError } = await supabaseClient.from("options").insert(rows);
-            if (oError) throw oError;
-        }
-        alert("Question saved successfully.");
-        await editAdminTest(adminCurrentTest.id);
-    } catch (error) {
-        alert("Could not save question: " + (error.message || "Unknown error"));
-    }
-}
-
-async function addAdminQuestion() {
-    if (!adminCurrentTest || !adminCurrentSections.length) return;
-    const section = adminCurrentSections[0];
-    const defaultType = adminCurrentTest.module === "listening" ? "note" : "single";
-    const { data: question, error } = await supabaseClient.from("questions").insert({
-        section_id: section.id,
-        question_number: 1,
-        question_type: defaultType,
-        question_text: "New Question",
-        marks: 1,
-        correct_answer: "",
-        explanation: "",
-        image_url: null
-    }).select().single();
-    if (error) return alert(error.message);
-    await editAdminTest(adminCurrentTest.id);
-    setTimeout(() => document.getElementById(`q-num-${question.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 150);
-}
-
-async function deleteAdminQuestion(qid) {
-    if (!confirm("Delete this question and its options?")) return;
-    try {
-        const { error: oError } = await supabaseClient.from("options").delete().eq("question_id", qid);
-        if (oError) throw oError;
-        const { error } = await supabaseClient.from("questions").delete().eq("id", qid);
-        if (error) throw error;
-        await editAdminTest(adminCurrentTest.id);
-    } catch (error) {
-        alert("Could not delete question: " + (error.message || "Unknown error"));
-    }
-}
-
-async function openAdminResults() {
-    setAppRoute("results");
-    const message = document.getElementById("dashboardMessage");
-    if (!message) return;
-    message.innerHTML = adminModuleBox("📊 Results", "Student test results stored in Supabase.");
-    const body = document.getElementById("adminModuleBody");
-    const { data: results, error } = await supabaseClient.from("results").select("id,student_id,test_id,listening_score,reading_score,writing_score,overall_band,started_at,submitted_at,status,created_at").order("created_at", { ascending: false });
-    if (error) throw error;
-    body.innerHTML = `<div style="overflow:auto"><table class="students-table"><thead><tr><th>Result ID</th><th>Student</th><th>Test</th><th>Scores</th><th>Band</th><th>Status</th></tr></thead><tbody>${(results || []).map(r => `<tr><td>${escapeHtml(String(r.id))}</td><td>${escapeHtml(String(r.student_id || "-"))}</td><td>${escapeHtml(String(r.test_id || "-"))}</td><td>L:${r.listening_score ?? "-"} / R:${r.reading_score ?? "-"} / W:${r.writing_score ?? "-"}</td><td>${escapeHtml(String(r.overall_band ?? "-"))}</td><td>${escapeHtml(String(r.status ?? "-"))}</td></tr>`).join("") || `<tr><td colspan="6" style="text-align:center;padding:30px">No results found.</td></tr>`}</tbody></table></div>`;
-}
-
-// Expose admin functions for the inline editor controls.
-window.openStudents = openStudents;
-window.openAddStudentForm = openAddStudentForm;
-window.editStudentAccount = editStudentAccount;
-window.resetStudentPassword = resetStudentPassword;
-window.toggleStudentAccount = toggleStudentAccount;
-window.deleteStudentAccount = deleteStudentAccount;
-window.openTestManager = openTestManager;
-window.openStudentTestPreview = openStudentTestPreview;
-window.startStudentTest = startStudentTest;
-window.switchStudentSection = switchStudentSection;
-window.setStudentAnswer = setStudentAnswer;
-window.toggleStudentAnswer = toggleStudentAnswer;
-window.exitStudentTest = exitStudentTest;
-window.submitStudentTest = submitStudentTest;
-window.addAdminGroupOption = addAdminGroupOption;
-window.removeAdminGroupOption = removeAdminGroupOption;
-window.openCreateTestForm = openCreateTestForm;
-window.createAdminTest = createAdminTest;
-window.toggleAdminTestPublish = toggleAdminTestPublish;
-window.deleteAdminTest = deleteAdminTest;
-window.editAdminTest = editAdminTest;
-window.saveAdminTestHeader = saveAdminTestHeader;
-window.saveAdminSection = saveAdminSection;
-window.saveAdminQuestion = saveAdminQuestion;
-window.addAdminQuestion = addAdminQuestion;
-window.addAdminQuestionGroup = addAdminQuestionGroup;
-window.saveAdminQuestionGroup = saveAdminQuestionGroup;
-window.deleteAdminQuestionGroup = deleteAdminQuestionGroup;
-window.addAdminQuestionToGroup = addAdminQuestionToGroup;
-window.deleteAdminQuestion = deleteAdminQuestion;
-window.addAdminOption = addAdminOption;
-window.removeAdminOption = removeAdminOption;
-window.refreshAdminQuestion = refreshAdminQuestion;
-window.openAdminResults = openAdminResults;
-window.backToAdminDashboard = backToAdminDashboard;
-window.uploadAdminListeningAudio = uploadAdminListeningAudio;
-window.removeAdminListeningAudio = removeAdminListeningAudio;
-window.uploadAdminSectionImage = uploadAdminSectionImage;
-window.removeAdminSectionImage = removeAdminSectionImage;
-window.uploadAdminGroupImage = uploadAdminGroupImage;
-window.removeAdminGroupImage = removeAdminGroupImage;
+window.staffDashboard=staffDashboard;window.studentDashboard=studentDashboard;window.studentsPage=studentsPage;window.testsPage=testsPage;window.newTestForm=newTestForm;window.syncNewTestDefaults=syncNewTestDefaults;window.createTest=createTest;window.togglePublish=togglePublish;window.deleteTest=deleteTest;window.openBuilder=openBuilder;window.renderBuilder=renderBuilder;window.switchAdminSection=switchAdminSection;window.saveTestHeader=saveTestHeader;window.saveSection=saveSection;window.groupForm=groupForm;window.saveGroup=saveGroup;window.deleteGroup=deleteGroup;window.questionForm=questionForm;window.saveQuestion=saveQuestion;window.deleteQuestion=deleteQuestion;window.writingTaskForm=writingTaskForm;window.saveWritingTask=saveWritingTask;window.deleteWritingTask=deleteWritingTask;window.uploadAudio=uploadAudio;window.removeAudio=removeAudio;window.previewCurrentTest=previewCurrentTest;window.startStudentTest=startStudentTest;window.switchExamSection=switchExamSection;window.switchTask=switchTask;window.setAns=setAns;window.toggleAns=toggleAns;window.setWriting=setWriting;window.submitExam=submitExam;window.exitExam=exitExam;window.resultsPage=resultsPage;window.logout=logout;
+document.addEventListener("DOMContentLoaded",init);
