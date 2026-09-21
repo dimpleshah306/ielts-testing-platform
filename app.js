@@ -219,19 +219,47 @@ async function saveSection(id){const {error}=await sb.from("sections").update({t
 
 function groupForm(id=null){
   const s=admin.sections[admin.sectionIndex],g=id?admin.groups.find(x=>x.id===id):null;
+  const current=g?.image_path||g?.image_url||"";
   shell(`<div class="actions"><button class="btn secondary" onclick="renderBuilder()">← Builder</button></div><h2>${g?"Edit":"Add"} Question Group</h2><div class="card">
   <div class="grid3"><div><label>Start Question</label><input id="gStart" type="number" value="${g?.start_question||1}"></div><div><label>End Question</label><input id="gEnd" type="number" value="${g?.end_question||1}"></div>
   <div><label>Question Type</label><select id="gType">${Object.entries(typeMap()).map(([k,v])=>`<option value="${k}" ${normalizeType(g?.question_type)===k?"selected":""}>${esc(v)}</option>`).join("")}</select></div></div>
   <label>Group Title / Heading</label><input id="gTitle" value="${attr(g?.group_title||"")}">
   <label>Instructions</label><textarea id="gInst">${esc(g?.instructions||"")}</textarea><label>Group Content / Heading / Notes</label><textarea id="gContent" style="min-height:220px">${esc(g?.content||"")}</textarea>
-  <p class="inline-help">For completion types use tokens such as: Cheapest properties: £ [BLANK 1] per week</p><label>Image URL / Path</label><input id="gImage" value="${attr(g?.image_url||g?.image_path||"")}">
+  <p class="inline-help">For completion types use tokens such as: Cheapest properties: £ [BLANK 1] per week</p>
+  <div class="media-upload-box">
+    <label><strong>Group Image / Map / Plan / Diagram</strong></label>
+    <input id="gImageFile" type="file" accept="image/*">
+    <div class="inline-help">Choose an image file. It will be uploaded to Supabase <b>question-images</b> and shown to students above the group questions.</div>
+    ${current ? `<div class="editor-block" style="margin-top:8px"><strong>Current image:</strong> ${esc(current)}<br><img class="media" style="max-width:420px;max-height:220px;object-fit:contain" src="${attr(current)}" onerror="this.style.display='none'"><label style="display:inline-flex;gap:6px;align-items:center;margin-top:6px"><input id="gRemoveImage" type="checkbox"> Remove current image</label></div>` : ""}
+    <input id="gImage" type="hidden" value="${attr(current)}">
+  </div>
   <label>Shared Option Bank (one per line: A|Option text)</label><textarea id="gOptions">${esc((g?.options||[]).map(o=>`${o.option_key}|${o.option_text}`).join("\n"))}</textarea>
   <button class="btn primary" onclick="saveGroup('${id||""}','${s.id}')">Save Group</button></div>`);
 }
 async function saveGroup(id,sid){
   try{
-    const payload={section_id:sid,start_question:+$("gStart").value,end_question:+$("gEnd").value,question_type:$("gType").value,instructions:$("gInst").value,content:$("gContent").value,image_url:$("gImage").value.trim()||null,group_order:+$("gStart").value,group_title:$("gTitle").value.trim()||null};
-    let gid=id;if(id){const {error}=await sb.from("question_groups").update(payload).eq("id",id);if(error)throw error}else{const {data,error}=await sb.from("question_groups").insert(payload).select().single();if(error)throw error;gid=data.id}
+    const payload={section_id:sid,start_question:+$("gStart").value,end_question:+$("gEnd").value,question_type:$("gType").value,instructions:$("gInst").value,content:$("gContent").value,image_url:null,group_order:+$("gStart").value,group_title:$("gTitle").value.trim()||null};
+    let gid=id;
+    if(id){const {error}=await sb.from("question_groups").update(payload).eq("id",id);if(error)throw error}
+    else{const {data,error}=await sb.from("question_groups").insert(payload).select().single();if(error)throw error;gid=data.id}
+
+    const file=$("gImageFile")?.files?.[0];
+    const remove=$("gRemoveImage")?.checked===true;
+    let imagePath=$("gImage")?.value?.trim()||null;
+    if(remove && imagePath && !String(imagePath).startsWith("http")){const rm=await sb.storage.from("question-images").remove([imagePath]);if(rm.error)throw rm.error;imagePath=null}
+     else if(remove){imagePath=null}
+    if(file){
+      if(imagePath) await sb.storage.from("question-images").remove([imagePath]);
+      const ext=(file.name.split(".").pop()||"png").toLowerCase().replace(/[^a-z0-9]/g,"")||"png";
+      imagePath=`${admin.test.id}/${sid}/groups/${gid}-${Date.now()}.${ext}`;
+      const up=await sb.storage.from("question-images").upload(imagePath,file,{upsert:true,contentType:file.type||`image/${ext}`});
+      if(up.error)throw up.error;
+    }
+    if(imagePath!==($("gImage")?.value?.trim()||null) || remove || file){
+      const {error}=await sb.from("question_groups").update({image_path:imagePath,image_url:null}).eq("id",gid);
+      if(error)throw error;
+    }
+
     await sb.from("question_group_options").delete().eq("group_id",gid);
     const rows=$("gOptions").value.split("\n").map((x,i)=>{const [k,...rest]=x.split("|");return k&&rest.length?{group_id:gid,option_key:k.trim(),option_text:rest.join("|").trim(),sort_order:i}:null}).filter(Boolean);
     if(rows.length){const {error}=await sb.from("question_group_options").insert(rows);if(error)throw error}
@@ -246,15 +274,35 @@ function questionForm(id=null){
   <div class="grid3"><div><label>Question No.</label><input id="qNo" type="number" value="${q?.question_number||1}"></div><div><label>Question Type</label><select id="qType">${Object.entries(typeMap()).map(([k,v])=>`<option value="${k}" ${normalizeType(q?.question_type)===k?"selected":""}>${esc(v)}</option>`).join("")}</select></div><div><label>Marks</label><input id="qMarks" type="number" value="${q?.marks||1}"></div></div>
   <label>Question Text</label><textarea id="qText">${esc(q?.question_text||"")}</textarea><label>Correct Answer</label><input id="qCorrect" value="${attr(q?.correct_answer||"")}"><p class="inline-help">For multiple accepted answers, separate with ||, e.g. centre||center</p>
   <label>Alternative Accepted Answers (optional)</label><input id="qAccepted" value="${attr((q?.config?.acceptedAnswers||[]).join("||"))}"><div class="grid"><div><label>Word Limit</label><input id="qLimit" type="number" value="${q?.config?.wordLimit||""}"></div><div><label>Case Sensitive</label><select id="qCase"><option value="false" ${q?.config?.caseSensitive?"":"selected"}>No</option><option value="true" ${q?.config?.caseSensitive?"selected":""}>Yes</option></select></div></div>
-  <label>Options (one per line: A|Option text)</label><textarea id="qOptions">${esc((q?.options||[]).map(o=>`${o.option_key}|${o.option_text}`).join("\n"))}</textarea><label>Image URL / Path</label><input id="qImage" value="${attr(q?.image_url||"")}">
+  <label>Options (one per line: A|Option text)</label><textarea id="qOptions">${esc((q?.options||[]).map(o=>`${o.option_key}|${o.option_text}`).join("\n"))}</textarea>
+  <div class="media-upload-box">
+    <label><strong>Question Image</strong></label>
+    <input id="qImageFile" type="file" accept="image/*">
+    <div class="inline-help">Optional. Upload a question-specific image, chart, diagram or picture. It will be stored in Supabase <b>question-images</b>.</div>
+    ${q?.image_url?`<div class="editor-block" style="margin-top:8px"><strong>Current image:</strong> ${esc(q.image_url)}<br><img class="media" style="max-width:420px;max-height:220px;object-fit:contain" src="${attr(q.image_url)}" onerror="this.style.display='none'"><label style="display:inline-flex;gap:6px;align-items:center;margin-top:6px"><input id="qRemoveImage" type="checkbox"> Remove current image</label></div>`:""}
+    <input id="qImage" type="hidden" value="${attr(q?.image_url||"")}">
+  </div>
   <button class="btn primary" onclick="saveQuestion('${id||""}','${s.id}')">Save Question</button></div>`);
 }
 async function saveQuestion(id,sid){
   try{
     const accepted=$("qAccepted").value.split("||").map(x=>x.trim()).filter(Boolean);
     const config={...(id?((admin.questions.find(x=>x.id===id)||{}).question_config||{}):{}),acceptedAnswers:accepted,wordLimit:+$("qLimit").value||null,caseSensitive:$("qCase").value==="true"};
-    const payload={section_id:sid,question_number:+$("qNo").value,question_type:$("qType").value,question_text:$("qText").value,marks:+$("qMarks").value||1,correct_answer:$("qCorrect").value.trim(),image_url:$("qImage").value.trim()||null,question_config:config};
+    const existingImage=$("qImage").value.trim()||null;
+    const remove=$("qRemoveImage")?.checked===true;
+    const payload={section_id:sid,question_number:+$("qNo").value,question_type:$("qType").value,question_text:$("qText").value,marks:+$("qMarks").value||1,correct_answer:$("qCorrect").value.trim(),image_url:remove?null:existingImage,question_config:config};
     let qid=id;if(id){const {error}=await sb.from("questions").update(payload).eq("id",id);if(error)throw error}else{const {data,error}=await sb.from("questions").insert(payload).select().single();if(error)throw error;qid=data.id}
+    const file=$("qImageFile")?.files?.[0];
+    let imagePath=remove?null:existingImage;
+    if(remove && existingImage && !String(existingImage).startsWith("http")) await sb.storage.from("question-images").remove([existingImage]);
+    if(file){
+      if(existingImage && !String(existingImage).startsWith("http")) await sb.storage.from("question-images").remove([existingImage]);
+      const ext=(file.name.split(".").pop()||"png").toLowerCase().replace(/[^a-z0-9]/g,"")||"png";
+      imagePath=`${admin.test.id}/${sid}/questions/${qid}-${Date.now()}.${ext}`;
+      const up=await sb.storage.from("question-images").upload(imagePath,file,{upsert:true,contentType:file.type||`image/${ext}`});
+      if(up.error)throw up.error;
+      const {error}=await sb.from("questions").update({image_url:imagePath}).eq("id",qid);if(error)throw error;
+    }
     await sb.from("options").delete().eq("question_id",qid);
     const rows=$("qOptions").value.split("\n").map((x,i)=>{const [k,...rest]=x.split("|");return k&&rest.length?{question_id:qid,option_key:k.trim(),option_text:rest.join("|").trim(),sort_order:i,is_correct:false}:null}).filter(Boolean);
     if(rows.length){const {error}=await sb.from("options").insert(rows);if(error)throw error}
@@ -306,6 +354,16 @@ async function startStudentTest(id,resume=true,preview=false){
     const d=await loadTestBundle(id);if(!d.test.is_published&&!preview)throw new Error("This test is not published.");
     let saved=resume?loadExam(id):null,attempt=null;if(!preview&&!saved?.resultId)attempt=await createAttempt(d.test);
     let audioUrl=null;if(d.audio?.audio_path)audioUrl=await signed("listening-audio",d.audio.audio_path);
+    if(d.groups?.length){
+      for(const g of d.groups){
+        if(g.image_path){try{g.image_url=await signed("question-images",g.image_path)}catch(e){console.warn("Group image could not be signed",e)}}
+      }
+    }
+    if(d.questions?.length){
+      for(const q of d.questions){
+        if(q.image_url && !String(q.image_url).startsWith("http")){try{q.image_url=await signed("question-images",q.image_url)}catch(e){console.warn("Question image could not be signed",e)}}
+      }
+    }
     exam={preview,testId:id,resultId:preview?null:(saved?.resultId||attempt?.id),data:d,currentSection:saved?.currentSection||0,currentTask:saved?.currentTask||0,answers:saved?.answers||{},startedAt:saved?.startedAt||new Date().toISOString(),endAt:preview?null:(saved?.endAt>Date.now()?saved.endAt:Date.now()+d.test.duration_minutes*60000),audioUrl};
     if(!preview){setRoute("exam",{testId:id});saveExam()}renderExam();startTimer();
   }catch(e){alert(e.message)}
