@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Universal Education IELTS Testing Platform</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    if(!window.supabase){document.write('<script src="https://unpkg.com/@supabase/supabase-js@2"><\/script>');}
+  </script>
   <style>
     :root{--navy:#0f172a;--blue:#2563eb;--bg:#f1f5f9;--card:#fff;--line:#e2e8f0;--muted:#64748b;--green:#15803d;--red:#dc2626;--amber:#b45309}
     *{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:var(--bg);color:#0f172a}
@@ -34,8 +37,8 @@
         <h1 style="margin:0">Universal Education IELTS</h1>
         <p class="muted">Testing Platform</p>
         <div class="tabs">
-          <button id="studentTab" class="tab active" type="button">Student</button>
-          <button id="staffTab" class="tab" type="button">Admin / Tutor</button>
+          <button id="studentTab" class="tab active" type="button" onclick="window.__setLoginMode&&window.__setLoginMode('student')">Student</button>
+          <button id="staffTab" class="tab" type="button" onclick="window.__setLoginMode&&window.__setLoginMode('staff')">Admin / Tutor</button>
         </div>
         <form id="loginForm">
           <label>Email</label>
@@ -49,5 +52,17 @@
     </div>
   </div>
   <script src="app.js"></script>
+  <script>
+    window.__setLoginMode=function(mode){
+      var st=document.getElementById('studentTab'), sf=document.getElementById('staffTab');
+      if(!st||!sf)return;
+      if(mode==='staff'){sf.classList.add('active');st.classList.remove('active');}
+      else{st.classList.add('active');sf.classList.remove('active');}
+      var label=document.querySelector('#loginForm label');
+      var input=document.getElementById('email');
+      if(label) label.textContent=mode==='staff'?'Admin / Tutor Email':'Email';
+      if(input) input.placeholder=mode==='staff'?'Admin email':'Student email';
+    };
+  </script>
 </body>
 </html>
