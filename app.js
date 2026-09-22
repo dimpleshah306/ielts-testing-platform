@@ -267,8 +267,65 @@ async function testsPage(module="all"){
   <div class="card table-wrap"><table><thead><tr><th>Title</th><th>Module</th><th>Duration</th><th>Status</th><th>Actions</th></tr></thead><tbody>
   ${(data||[]).map(t=>`<tr><td><strong>${esc(t.title)}</strong><br><small>${esc(t.description||"")}</small></td><td>${esc(t.module)}</td><td>${t.duration_minutes} min</td>
   <td><span class="status ${t.is_published?"published":"draft"}">${t.is_published?"Published":"Draft"}</span></td><td><div class="actions">
-  <button class="btn secondary" onclick="openBuilder('${t.id}')">Edit</button><button class="btn ${t.is_published?"warning":"success"}" onclick="togglePublish('${t.id}',${!t.is_published})">${t.is_published?"Unpublish":"Publish"}</button>
+  <button class="btn secondary" onclick="openBuilder('${t.id}')">Edit</button><button class="btn primary" onclick="answerKeyPage('${t.id}')">Answer Key</button><button class="btn ${t.is_published?"warning":"success"}" onclick="togglePublish('${t.id}',${!t.is_published})">${t.is_published?"Unpublish":"Publish"}</button>
   <button class="btn danger" onclick="deleteTest('${t.id}')">Delete</button></div></td></tr>`).join("")||`<tr><td colspan="5">No tests.</td></tr>`}</tbody></table></div>`);
+}
+async function answerKeyPage(testId){
+  try{
+    const d=await loadTestBundle(testId),t=d.test,mod=normalizeModule(t.module);
+    if(mod==="writing"){
+      shell(`<div class="actions"><button class="btn secondary" onclick="testsPage('all')">← All Tests</button><button class="btn secondary" onclick="openBuilder('${t.id}')">Open Builder</button></div>
+      <h2>Answer Key — ${esc(t.title)}</h2><div class="card"><div class="notice"><strong>Writing Test:</strong> Writing Tasks do not use an objective correct-answer key. Task 1 and Task 2 are evaluated separately using the configured writing evaluation workflow.</div></div>`);
+      return;
+    }
+    const questions=(mod==="listening"?listeningQuestions40(d):readingQuestions40(d));
+    const expected=40;
+    const rows=Array.from({length:expected},(_,i)=>{
+      const no=i+1,q=questions.find(x=>Number(x.question_number)===no);
+      if(!q) return `<tr class="missing-row"><td><strong>Q${no}</strong></td><td colspan="6"><span class="status warning">Question not configured</span> — Add Question ${no} in the Test Builder before publishing.</td></tr>`;
+      const cfg=q.question_config||{};
+      const accepted=Array.isArray(cfg.acceptedAnswers)?cfg.acceptedAnswers:[];
+      const opts=(q.options||[]).map(o=>`${esc(o.option_key)} — ${esc(o.option_text)}`).join('<br>');
+      return `<tr>
+        <td><strong>Q${no}</strong><div class="inline-help">${esc(q.question_type||'')}</div></td>
+        <td style="min-width:240px"><strong>${esc(q.question_text||'')}</strong>${opts?`<div class="answer-options"><strong>Options:</strong><br>${opts}</div>`:''}</td>
+        <td style="min-width:170px"><input id="ak-c-${q.id}" value="${attr(String(q.correct_answer||'').split('||')[0].trim())}" placeholder="Correct answer"></td>
+        <td style="min-width:220px"><textarea id="ak-a-${q.id}" rows="3" placeholder="One alternative answer per line">${esc(accepted.join('\n'))}</textarea><div class="inline-help">All alternatives are accepted automatically.</div></td>
+        <td style="width:90px"><input id="ak-w-${q.id}" type="number" min="1" value="${cfg.wordLimit??''}" placeholder="—"></td>
+        <td style="width:120px"><select id="ak-case-${q.id}"><option value="false" ${cfg.caseSensitive?'':'selected'}>No</option><option value="true" ${cfg.caseSensitive?'selected':''}>Yes</option></select></td>
+        <td><span class="status published">Auto</span></td>
+      </tr>`;
+    }).join('');
+    shell(`<div class="actions"><button class="btn secondary" onclick="testsPage('all')">← All Tests</button><button class="btn secondary" onclick="openBuilder('${t.id}')">Open Builder</button><button class="btn primary" onclick="saveAnswerKey('${t.id}')">💾 Save Answer Key</button></div>
+      <h2>Answer Key — ${esc(t.title)}</h2>
+      <p class="muted">Set the official answer once here. Student answers matching the Correct Answer or any Alternative Accepted Answer will automatically receive 1 mark. The same key is used for every student attempt.</p>
+      <div class="notice"><strong>${mod==='listening'?'Listening':'Reading'}:</strong> Questions Q1–Q40 are shown. Correct = 1 mark; Wrong/Not Answered = 0. For completion questions, add accepted spelling/synonym variants as alternatives. For MCQ/Matching, enter the option key such as <b>B</b>.</div>
+      <div class="card table-wrap"><table><thead><tr><th>Q</th><th>Question / Options</th><th>Correct Answer</th><th>Alternative Accepted Answers</th><th>Word Limit</th><th>Case Sensitive</th><th>Scoring</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <div class="actions" style="margin-top:14px"><button class="btn primary" onclick="saveAnswerKey('${t.id}')">💾 Save All Answers</button></div>`);
+  }catch(e){alert('Could not load answer key: '+e.message)}
+}
+async function saveAnswerKey(testId){
+  try{
+    const d=await loadTestBundle(testId),mod=normalizeModule(d.test.module);
+    if(mod==='writing') return;
+    const questions=(mod==='listening'?listeningQuestions40(d):readingQuestions40(d));
+    if(!questions.length) throw new Error('No questions configured yet.');
+    for(const q of questions){
+      const rawCorrect=$("ak-c-"+q.id)?.value?.trim()||'';
+      const rawAlt=$("ak-a-"+q.id)?.value||'';
+      const parts=rawCorrect.split('||').map(x=>x.trim()).filter(Boolean);
+      const correct=parts.shift()||'';
+      const alts=[...parts,...rawAlt.split(/\n/).map(x=>x.trim()).filter(Boolean)];
+      const unique=[...new Set(alts.filter(x=>norm(x)!==norm(correct)))];
+      if(!correct) throw new Error(`Q${q.question_number}: Correct Answer is required.`);
+      const old=q.question_config||{};
+      const config={...old,acceptedAnswers:unique,wordLimit:Number($("ak-w-"+q.id)?.value||0)||null,caseSensitive:$("ak-case-"+q.id)?.value==='true'};
+      const {error}=await sb.from('questions').update({correct_answer:correct,question_config:config}).eq('id',q.id);
+      if(error) throw error;
+    }
+    alert('Answer Key saved successfully. Student scoring will automatically use these Correct + Alternative Answers.');
+    await answerKeyPage(testId);
+  }catch(e){alert('Could not save Answer Key: '+e.message)}
 }
 function newTestForm(module="all"){
   const m=["listening","reading","writing"].includes(module)?module:"listening";
@@ -338,7 +395,7 @@ function normalizeType(t){let x=String(t||"").toLowerCase();x=x.replace(/^listen
 function typeMap(){return admin.test.module==="reading"?R_TYPES:L_TYPES}
 function renderBuilder(){
   const t=admin.test,s=admin.sections[admin.sectionIndex],qs=admin.questions.filter(q=>q.section_id===s?.id),gs=admin.groups.filter(g=>g.section_id===s?.id);
-  shell(`<div class="actions"><button class="btn secondary" onclick="testsPage('${t.module}')">← Tests</button><button class="btn primary" onclick="previewCurrentTest()">👁 Preview</button></div>
+  shell(`<div class="actions"><button class="btn secondary" onclick="testsPage('${t.module}')">← Tests</button><button class="btn primary" onclick="answerKeyPage('${t.id}')">🔑 Answer Key</button><button class="btn primary" onclick="previewCurrentTest()">👁 Preview</button></div>
   <h2>Edit: ${esc(t.title)}</h2><div class="card"><h3>Test Details</h3><div class="grid"><div><label>Title</label><input id="btTitle" value="${attr(t.title)}"></div><div><label>Duration</label><input id="btDur" type="number" value="${t.duration_minutes}"></div></div>
   <label>Description</label><textarea id="btDesc">${esc(t.description||"")}</textarea><button class="btn primary" onclick="saveTestHeader()">Save Test Details</button></div>
   ${t.module==="listening"?renderAudioAdmin():""}
@@ -926,5 +983,5 @@ async function resultDetails(resultId){
   }catch(e){alert("Could not load result details: "+e.message)}
 }
 
-window.staffDashboard=staffDashboard;window.studentDashboard=studentDashboard;window.studentsPage=studentsPage;window.newStudentForm=newStudentForm;window.createStudent=createStudent;window.manageStudent=manageStudent;window.saveStudent=saveStudent;window.toggleStudent=toggleStudent;window.setTestAccess=setTestAccess;window.deleteStudent=deleteStudent;window.testsPage=testsPage;window.newTestForm=newTestForm;window.syncNewTestDefaults=syncNewTestDefaults;window.createTest=createTest;window.togglePublish=togglePublish;window.deleteTest=deleteTest;window.openBuilder=openBuilder;window.renderBuilder=renderBuilder;window.switchAdminSection=switchAdminSection;window.saveTestHeader=saveTestHeader;window.saveSection=saveSection;window.groupForm=groupForm;window.saveGroup=saveGroup;window.deleteGroup=deleteGroup;window.questionForm=questionForm;window.saveQuestion=saveQuestion;window.deleteQuestion=deleteQuestion;window.writingTaskForm=writingTaskForm;window.saveWritingTask=saveWritingTask;window.deleteWritingTask=deleteWritingTask;window.uploadAudio=uploadAudio;window.removeAudio=removeAudio;window.previewCurrentTest=previewCurrentTest;window.startStudentTest=startStudentTest;window.switchExamSection=switchExamSection;window.switchTask=switchTask;window.setAns=setAns;window.toggleAns=toggleAns;window.setWriting=setWriting;window.submitExam=submitExam;window.exitExam=exitExam;window.resultsPage=resultsPage;window.resultDetails=resultDetails;window.studentResultPage=studentResultPage;window.studentReviewAnswers=studentReviewAnswers;window.deleteResult=deleteResult;window.logout=logout;
+window.staffDashboard=staffDashboard;window.studentDashboard=studentDashboard;window.studentsPage=studentsPage;window.newStudentForm=newStudentForm;window.createStudent=createStudent;window.manageStudent=manageStudent;window.saveStudent=saveStudent;window.toggleStudent=toggleStudent;window.setTestAccess=setTestAccess;window.deleteStudent=deleteStudent;window.testsPage=testsPage;window.answerKeyPage=answerKeyPage;window.saveAnswerKey=saveAnswerKey;window.newTestForm=newTestForm;window.syncNewTestDefaults=syncNewTestDefaults;window.createTest=createTest;window.togglePublish=togglePublish;window.deleteTest=deleteTest;window.openBuilder=openBuilder;window.renderBuilder=renderBuilder;window.switchAdminSection=switchAdminSection;window.saveTestHeader=saveTestHeader;window.saveSection=saveSection;window.groupForm=groupForm;window.saveGroup=saveGroup;window.deleteGroup=deleteGroup;window.questionForm=questionForm;window.saveQuestion=saveQuestion;window.deleteQuestion=deleteQuestion;window.writingTaskForm=writingTaskForm;window.saveWritingTask=saveWritingTask;window.deleteWritingTask=deleteWritingTask;window.uploadAudio=uploadAudio;window.removeAudio=removeAudio;window.previewCurrentTest=previewCurrentTest;window.startStudentTest=startStudentTest;window.switchExamSection=switchExamSection;window.switchTask=switchTask;window.setAns=setAns;window.toggleAns=toggleAns;window.setWriting=setWriting;window.submitExam=submitExam;window.exitExam=exitExam;window.resultsPage=resultsPage;window.resultDetails=resultDetails;window.studentResultPage=studentResultPage;window.studentReviewAnswers=studentReviewAnswers;window.deleteResult=deleteResult;window.logout=logout;
 document.addEventListener("DOMContentLoaded",init);
