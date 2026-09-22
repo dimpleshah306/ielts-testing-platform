@@ -555,11 +555,74 @@ function exitExam(){if(timerHandle)clearInterval(timerHandle);if(exam?.preview){
 
 async function resultsPage(){
   setRoute("results");
-  const {data,error}=await sb.from("results").select("*,tests(title,module)").order("created_at",{ascending:false});if(error)return alert(error.message);
-  const ids=[...new Set((data||[]).map(r=>r.student_id).filter(Boolean))];let profiles=[];if(ids.length){const p=await sb.from("profiles").select("id,full_name,email").in("id",ids);if(!p.error)profiles=p.data||[]}const pm=new Map(profiles.map(x=>[x.id,x]));
-  shell(`<div class="actions"><button class="btn secondary" onclick="staffDashboard()">← Dashboard</button></div><h2>Results</h2><div class="card table-wrap"><table><thead><tr><th>Student</th><th>Test</th><th>Status</th><th>Score</th><th>Submitted</th></tr></thead><tbody>
-  ${(data||[]).map(r=>{const mod=r.tests?.module,p=pm.get(r.student_id);const score=mod==="listening"?r.listening_score??"-":mod==="reading"?r.reading_score??"-":r.writing_score??"Pending";return `<tr><td>${esc(p?.full_name||p?.email||r.student_id||"")}</td><td>${esc(r.tests?.title||"")}<br><small>${esc(mod||"")}</small></td><td>${esc(r.status||"")}</td><td>${score}</td><td>${r.submitted_at?new Date(r.submitted_at).toLocaleString():"-"}</td></tr>`}).join("")||`<tr><td colspan="5">No results.</td></tr>`}</tbody></table></div>`);
+  const {data,error}=await sb.from("results").select("*,tests(title,module,total_questions)").order("created_at",{ascending:false});
+  if(error)return alert(error.message);
+  const ids=[...new Set((data||[]).map(r=>r.student_id).filter(Boolean))];
+  let profiles=[];
+  if(ids.length){
+    const p=await sb.from("profiles").select("id,full_name,role,active,created_at").in("id",ids);
+    if(p.error)return alert("Could not load student names: "+p.error.message);
+    profiles=p.data||[];
+  }
+  const pm=new Map(profiles.map(x=>[x.id,x]));
+  shell(`<div class="actions"><button class="btn secondary" onclick="staffDashboard()">← Dashboard</button></div>
+  <h2>Student Results</h2><p class="muted">Open a submitted attempt to see the student's answer for every question, the correct answer, and the marking status.</p>
+  <div class="card table-wrap"><table><thead><tr><th>Student</th><th>Test</th><th>Module</th><th>Status</th><th>Score</th><th>Submitted</th><th>Details</th></tr></thead><tbody>
+  ${(data||[]).map(r=>{
+    const mod=r.tests?.module,p=pm.get(r.student_id);
+    const score=mod==="listening"?r.listening_score??"-":mod==="reading"?r.reading_score??"-":r.writing_score??"Pending";
+    const name=p?.full_name||r.student_id||"Unknown Student";
+    return `<tr><td><strong>${esc(name)}</strong></td><td>${esc(r.tests?.title||"")}</td><td>${esc((mod||"").toUpperCase())}</td><td>${esc(r.status||"")}</td><td><strong>${esc(score)}</strong></td><td>${r.submitted_at?new Date(r.submitted_at).toLocaleString():"-"}</td><td><button class="btn primary" onclick="resultDetails('${r.id}')">View Answers</button></td></tr>`
+  }).join("")||`<tr><td colspan="7">No results.</td></tr>`}</tbody></table></div>`);
 }
 
-window.staffDashboard=staffDashboard;window.studentDashboard=studentDashboard;window.studentsPage=studentsPage;window.testsPage=testsPage;window.newTestForm=newTestForm;window.syncNewTestDefaults=syncNewTestDefaults;window.createTest=createTest;window.togglePublish=togglePublish;window.deleteTest=deleteTest;window.openBuilder=openBuilder;window.renderBuilder=renderBuilder;window.switchAdminSection=switchAdminSection;window.saveTestHeader=saveTestHeader;window.saveSection=saveSection;window.groupForm=groupForm;window.saveGroup=saveGroup;window.deleteGroup=deleteGroup;window.questionForm=questionForm;window.saveQuestion=saveQuestion;window.deleteQuestion=deleteQuestion;window.writingTaskForm=writingTaskForm;window.saveWritingTask=saveWritingTask;window.deleteWritingTask=deleteWritingTask;window.uploadAudio=uploadAudio;window.removeAudio=removeAudio;window.previewCurrentTest=previewCurrentTest;window.startStudentTest=startStudentTest;window.switchExamSection=switchExamSection;window.switchTask=switchTask;window.setAns=setAns;window.toggleAns=toggleAns;window.setWriting=setWriting;window.submitExam=submitExam;window.exitExam=exitExam;window.resultsPage=resultsPage;window.logout=logout;
+async function resultDetails(resultId){
+  try{
+    const {data:r,error:re}=await sb.from("results").select("*,tests(title,module,total_questions)").eq("id",resultId).single();
+    if(re)throw re;
+    const {data:p,error:pe}=await sb.from("profiles").select("id,full_name,role,active").eq("id",r.student_id).single();
+    if(pe)throw pe;
+    const {data:ans,error:ae}=await sb.from("answers").select("*").eq("result_id",resultId).order("created_at");
+    if(ae)throw ae;
+    const qids=(ans||[]).map(a=>a.question_id).filter(Boolean);
+    let questions=[];
+    if(qids.length){
+      const q=await sb.from("questions").select("*").in("id",qids).order("question_number");
+      if(q.error)throw q.error;
+      questions=q.data||[];
+    }
+    const qm=new Map(questions.map(q=>[q.id,q]));
+    const rows=(ans||[]).map(a=>{
+      const q=qm.get(a.question_id)||{};
+      const given=String(a.answer_text??"").trim();
+      const correct=a.is_correct===true;
+      const unanswered=!given;
+      const status=unanswered?"Not Answered":correct?"Correct":"Wrong";
+      const cls=unanswered?"warning":correct?"success":"danger";
+      const cfg=q.question_config||{};
+      const accepted=Array.isArray(cfg.acceptedAnswers)?cfg.acceptedAnswers:[];
+      const acceptedText=accepted.length?accepted.join(" / "):"";
+      return `<tr><td><strong>Q${esc(q.question_number??"-")}</strong></td><td>${esc(q.question_text||"")}</td><td>${esc(given||"—")}</td><td>${esc(q.correct_answer||"—")}</td><td>${esc(acceptedText||"—")}</td><td><span class="status ${cls}">${status}</span></td><td>${Number(a.marks_obtained||0)}</td></tr>`;
+    }).join("");
+    const correctCount=(ans||[]).filter(a=>a.is_correct===true).length;
+    const wrongCount=(ans||[]).filter(a=>a.is_correct===false && String(a.answer_text??"").trim()!=="").length;
+    const unansweredCount=(ans||[]).filter(a=>String(a.answer_text??"").trim()==="").length;
+    const score=(ans||[]).reduce((n,a)=>n+Number(a.marks_obtained||0),0);
+    const total=(questions||[]).reduce((n,q)=>n+Number(q.marks||1),0);
+    const mod=r.tests?.module||"";
+    const scoreField=mod==="listening"?r.listening_score:mod==="reading"?r.reading_score:r.writing_score;
+    shell(`<div class="actions"><button class="btn secondary" onclick="resultsPage()">← Results</button></div>
+      <h2>${esc(p.full_name||"Student")}</h2>
+      <p class="muted"><strong>${esc(r.tests?.title||"")}</strong> • ${esc(mod.toUpperCase())} • ${r.submitted_at?`Submitted ${new Date(r.submitted_at).toLocaleString()}`:"Not submitted"}</p>
+      <div class="dashboard-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));margin:14px 0">
+        <div class="card"><strong>Score</strong><div style="font-size:26px;margin-top:6px">${esc(scoreField??score)}${mod==="writing"?"":" / "+total}</div></div>
+        <div class="card"><strong>Correct</strong><div style="font-size:26px;margin-top:6px">${correctCount}</div></div>
+        <div class="card"><strong>Wrong</strong><div style="font-size:26px;margin-top:6px">${wrongCount}</div></div>
+        <div class="card"><strong>Not Answered</strong><div style="font-size:26px;margin-top:6px">${unansweredCount}</div></div>
+      </div>
+      <div class="card table-wrap"><h3>Question-by-Question Review</h3><table><thead><tr><th>Q</th><th>Question</th><th>Student Answer</th><th>Correct Answer</th><th>Alternative Accepted</th><th>Status</th><th>Marks</th></tr></thead><tbody>${rows||`<tr><td colspan="7">No answers were saved for this attempt.</td></tr>`}</tbody></table></div>`);
+  }catch(e){alert("Could not open result details: "+e.message)}
+}
+
+window.staffDashboard=staffDashboard;window.studentDashboard=studentDashboard;window.studentsPage=studentsPage;window.testsPage=testsPage;window.newTestForm=newTestForm;window.syncNewTestDefaults=syncNewTestDefaults;window.createTest=createTest;window.togglePublish=togglePublish;window.deleteTest=deleteTest;window.openBuilder=openBuilder;window.renderBuilder=renderBuilder;window.switchAdminSection=switchAdminSection;window.saveTestHeader=saveTestHeader;window.saveSection=saveSection;window.groupForm=groupForm;window.saveGroup=saveGroup;window.deleteGroup=deleteGroup;window.questionForm=questionForm;window.saveQuestion=saveQuestion;window.deleteQuestion=deleteQuestion;window.writingTaskForm=writingTaskForm;window.saveWritingTask=saveWritingTask;window.deleteWritingTask=deleteWritingTask;window.uploadAudio=uploadAudio;window.removeAudio=removeAudio;window.previewCurrentTest=previewCurrentTest;window.startStudentTest=startStudentTest;window.switchExamSection=switchExamSection;window.switchTask=switchTask;window.setAns=setAns;window.toggleAns=toggleAns;window.setWriting=setWriting;window.submitExam=submitExam;window.exitExam=exitExam;window.resultsPage=resultsPage;window.resultDetails=resultDetails;window.logout=logout;
 document.addEventListener("DOMContentLoaded",init);
