@@ -10,7 +10,7 @@ const esc = v => String(v ?? "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",
 const attr = v => esc(v).replace(/`/g,"&#96;");
 const $ = id => document.getElementById(id);
 const routeKey="ue_ielts_route_v1", examPrefix="ue_ielts_exam_v1_";
-let loginMode="student", currentProfile=null, admin={test:null,sections:[],groups:[],questions:[],audio:null,sectionIndex:0}, exam=null, timerHandle=null;
+let loginMode="student", currentProfile=null, admin={test:null,sections:[],groups:[],questions:[],audio:null,sectionIndex:0}, exam=null, timerHandle=null, answerSaveTimers=new Map();
 
 const L_TYPES = {
  single:"Multiple Choice — Single Answer",multi:"Multiple Choice — Multiple Answers",matching:"Matching",
@@ -25,11 +25,61 @@ const R_TYPES = {
 };
 const COMPLETION_TYPES=["note","form","table","sentence","summary","flow","short"];
 
+// IELTS raw-score to band conversion based on the supplied score table.
+const IELTS_BANDS = {
+  listening: [
+    [[39,40],9],[[37,38],8.5],[[35,36],8],[[32,34],7.5],[[30,31],7],[[26,29],6.5],[[23,25],6],[[18,22],5.5],[[16,17],5],[[13,15],4.5],[[10,12],4]
+  ],
+  academicReading: [
+    [[39,40],9],[[37,38],8.5],[[35,36],8],[[33,34],7.5],[[30,32],7],[[27,29],6.5],[[23,26],6],[[19,22],5.5],[[15,18],5],[[13,14],4.5],[[10,12],4]
+  ],
+  generalReading: [
+    [[40,40],9],[[39,39],8.5],[[37,38],8],[[36,36],7.5],[[34,35],7],[[32,33],6.5],[[30,31],6],[[27,29],5.5],[[23,26],5],[[19,22],4.5],[[15,18],4]
+  ]
+};
+function bandFromRaw(module, score, readingType='academic'){
+  const n=Number(score);
+  if(!Number.isFinite(n)) return null;
+  let table=module==='listening'?IELTS_BANDS.listening:readingType==='general'?IELTS_BANDS.generalReading:IELTS_BANDS.academicReading;
+  for(const [[lo,hi],band] of table){ if(n>=lo && n<=hi) return band; }
+  return null;
+}
+function bandText(module, score, readingType='academic'){
+  const b=bandFromRaw(module,score,readingType);
+  return b==null?'—':String(b);
+}
+
 function setRoute(page,extra={}){localStorage.setItem(routeKey,JSON.stringify({page,...extra}));}
 function getRoute(){try{return JSON.parse(localStorage.getItem(routeKey)||"null")}catch{return null}}
 function clearRoute(){localStorage.removeItem(routeKey)}
 function examKey(id){return examPrefix+id}
-function saveExam(){if(exam&&!exam.preview)localStorage.setItem(examKey(exam.testId),JSON.stringify({testId:exam.testId,resultId:exam.resultId,currentSection:exam.currentSection,currentTask:exam.currentTask,answers:exam.answers,endAt:exam.endAt,startedAt:exam.startedAt}))}
+function saveExam(){
+  if(exam&&!exam.preview)localStorage.setItem(examKey(exam.testId),JSON.stringify({testId:exam.testId,resultId:exam.resultId,currentSection:exam.currentSection,currentTask:exam.currentTask,answers:exam.answers,endAt:exam.endAt,startedAt:exam.startedAt,locked:!!exam.locked}));
+}
+async function persistAnswerToDb(questionId,value){
+  if(!exam||exam.preview||!exam.resultId||!questionId||exam.locked)return;
+  try{
+    const answerText=Array.isArray(value)?value.join(", "):String(value??"");
+    const {data:existing,error:findErr}=await sb.from("answers").select("id").eq("result_id",exam.resultId).eq("question_id",questionId).maybeSingle();
+    if(findErr)throw findErr;
+    const payload={result_id:exam.resultId,question_id:questionId,answer_text:answerText,is_correct:null,marks_obtained:0};
+    if(existing?.id){const {error}=await sb.from("answers").update(payload).eq("id",existing.id);if(error)throw error}
+    else {const {error}=await sb.from("answers").insert(payload);if(error)throw error}
+  }catch(e){console.warn("Answer autosave failed:",e.message)}
+}
+function queueAnswerSave(questionId,value){
+  if(!exam||exam.preview||exam.locked||!questionId)return;
+  const old=answerSaveTimers.get(questionId);if(old)clearTimeout(old);
+  answerSaveTimers.set(questionId,setTimeout(()=>{answerSaveTimers.delete(questionId);persistAnswerToDb(questionId,value)},450));
+}
+async function loadAttemptAnswers(resultId){
+  if(!resultId)return {};
+  const {data,error}=await sb.from("answers").select("question_id,answer_text").eq("result_id",resultId);
+  if(error){console.warn("Could not load saved answers:",error.message);return {}}
+  const out={};
+  (data||[]).forEach(a=>{out[a.question_id]=String(a.answer_text??"").includes(", ")?String(a.answer_text).split(", ").map(x=>x.trim()).filter(Boolean):String(a.answer_text??"")});
+  return out;
+}
 function loadExam(id){try{return JSON.parse(localStorage.getItem(examKey(id))||"null")}catch{return null}}
 function clearExam(id){localStorage.removeItem(examKey(id))}
 
@@ -61,8 +111,8 @@ async function init(){
 function bindLogin(){
   const st=$("studentTab"), sf=$("staffTab"), form=$("loginForm");
   if(!st||!sf||!form)return;
-  st.onclick=()=>{loginMode="student";st.classList.add("active");sf.classList.remove("active")};
-  sf.onclick=()=>{loginMode="staff";sf.classList.add("active");st.classList.remove("active")};
+  st.onclick=()=>{loginMode="student";st.classList.add("active");sf.classList.remove("active");$("loginIdLabel").textContent="Student ID";$("loginId").type="text";$("loginId").placeholder="e.g. STU001"};
+  sf.onclick=()=>{loginMode="staff";sf.classList.add("active");st.classList.remove("active");$("loginIdLabel").textContent="Admin / Tutor Email";$("loginId").type="email";$("loginId").placeholder="admin@example.com"};
   form.onsubmit=login;
 }
 async function getProfile(uid){
@@ -72,13 +122,23 @@ async function getProfile(uid){
 async function login(e){
   e.preventDefault(); const btn=$("loginButton"),msg=$("loginMessage"); btn.disabled=true; msg.textContent="";
   try{
-    const {data,error}=await sb.auth.signInWithPassword({email:$("email").value.trim(),password:$("password").value});
+    const raw=$("loginId").value.trim();
+    if(!raw) throw new Error(loginMode==="student"?"Enter Student ID.":"Enter email address.");
+    const email=loginMode==="student" ? studentAuthEmail(raw) : raw;
+    const {data,error}=await sb.auth.signInWithPassword({email,password:$("password").value});
     if(error) throw error;
     const p=await getProfile(data.user.id); if(!p.active) throw new Error("Account inactive.");
-    if(loginMode==="student"&&p.role!=="student") throw new Error("Use Admin / Tutor login.");
-    if(loginMode==="staff"&&!["admin","tutor"].includes(p.role)) throw new Error("Use Student login.");
+    if(loginMode==="student"&&p.role!=="student") throw new Error("Use Student login.");
+    if(loginMode==="staff"&&!['admin','tutor'].includes(p.role)) throw new Error("Use Admin / Tutor login.");
     currentProfile=p; clearRoute(); p.role==="student"?studentDashboard():staffDashboard();
   }catch(err){msg.textContent=err.message;msg.style.color="#dc2626"}finally{btn.disabled=false}
+}
+function normalizeStudentId(v){return String(v||"").trim().toLowerCase()}
+function studentAuthEmail(v){const id=normalizeStudentId(v); if(!/^[a-z0-9][a-z0-9._-]{2,49}$/.test(id)) throw new Error("Student ID may contain only letters, numbers, dot, underscore or hyphen."); return `${id}@students.universaleducation.local`}
+async function edgeStudentAdmin(payload){
+  const {data:{session}}=await sb.auth.getSession(); if(!session) throw new Error("Admin session expired. Please login again.");
+  const {data,error}=await sb.functions.invoke("student-admin",{body:payload});
+  if(error) throw error; if(!data?.success) throw new Error(data?.error||"Student management request failed."); return data;
 }
 async function logout(){clearRoute();if(exam)clearExam(exam.testId);exam=null;currentProfile=null;await sb.auth.signOut();location.reload()}
 
@@ -97,13 +157,45 @@ function staffDashboard(){
 
 async function studentsPage(){
   setRoute("students");
-  const {data,error}=await sb.from("profiles").select("id,full_name,email,role,active,created_at").eq("role","student").order("created_at",{ascending:false});
+  const {data,error}=await sb.from("profiles").select("id,student_code,full_name,role,active,created_at").eq("role","student").order("created_at",{ascending:false});
   if(error)return alert(error.message);
-  shell(`<div class="actions"><button class="btn secondary" onclick="staffDashboard()">← Dashboard</button></div>
-  <h2>Students</h2><p class="muted">Student login accounts are created through the included secure Edge Function. Existing students are listed below.</p>
-  <div class="card"><div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Created</th></tr></thead>
-  <tbody>${(data||[]).map(s=>`<tr><td>${esc(s.full_name)}</td><td>${esc(s.email)}</td><td>${s.active?"Active":"Inactive"}</td><td>${new Date(s.created_at).toLocaleDateString()}</td></tr>`).join("")||`<tr><td colspan="4">No students.</td></tr>`}</tbody></table></div></div>`);
+  const {data:tests,tError}=await sb.from("tests").select("id,title,module,is_published").order("created_at",{ascending:false});
+  if(tError)return alert(tError.message);
+  const rows=(data||[]).map(s=>`<tr><td><strong>${esc(s.student_code||"—")}</strong></td><td>${esc(s.full_name||"")}</td><td>${s.active?"Active":"Inactive"}</td><td>${new Date(s.created_at).toLocaleDateString()}</td><td><div class="actions"><button class="btn secondary" onclick="manageStudent('${s.id}')">Manage</button><button class="btn ${s.active?'warning':'success'}" onclick="toggleStudent('${s.id}',${!s.active})">${s.active?'Deactivate':'Activate'}</button><button class="btn danger" onclick="deleteStudent('${s.id}','${attr(s.student_code||"")}')">Delete</button></div></td></tr>`).join("")||`<tr><td colspan="5">No students.</td></tr>`;
+  shell(`<div class="actions"><button class="btn secondary" onclick="staffDashboard()">← Dashboard</button><button class="btn primary" onclick="newStudentForm()">+ Create Student</button></div>
+  <h2>Student Management</h2><p class="muted">Students login with Student ID + Password. Email is not required for students.</p>
+  <div class="card"><div class="table-wrap"><table><thead><tr><th>Student ID</th><th>Name</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table></div></div>`);
 }
+function newStudentForm(){
+  shell(`<div class="actions"><button class="btn secondary" onclick="studentsPage()">← Students</button></div><h2>Create Student</h2><div class="card">
+  <label>Student ID</label><input id="stCode" placeholder="e.g. STU001" autocomplete="off">
+  <label>Student Name</label><input id="stName" placeholder="Student full name">
+  <label>Password</label><input id="stPass" type="password" placeholder="Create password" autocomplete="new-password">
+  <label>Confirm Password</label><input id="stPass2" type="password" autocomplete="new-password">
+  <div class="notice">The student will login using only <b>Student ID + Password</b>. No student email is required.</div>
+  <div class="actions"><button class="btn primary" onclick="createStudent()">Create Student</button></div><div id="studentCreateMsg"></div></div>`);
+}
+async function createStudent(){
+  const code=normalizeStudentId($("stCode").value), name=$("stName").value.trim(), pass=$("stPass").value, pass2=$("stPass2").value;
+  if(!/^[a-z0-9][a-z0-9._-]{2,49}$/.test(code))return alert("Student ID must be 3-50 characters: letters, numbers, dot, underscore or hyphen.");
+  if(!name)return alert("Enter student name."); if(pass.length<6)return alert("Password must be at least 6 characters."); if(pass!==pass2)return alert("Passwords do not match.");
+  try{await edgeStudentAdmin({action:"create",student_code:code,full_name:name,password:pass});alert("Student created successfully.");studentsPage()}catch(e){alert(e.message)}
+}
+async function manageStudent(id){
+  const {data:s,error}=await sb.from("profiles").select("id,student_code,full_name,active").eq("id",id).single(); if(error)return alert(error.message);
+  const {data:tests,error:te}=await sb.from("tests").select("id,title,module,is_published").order("created_at",{ascending:false}); if(te)return alert(te.message);
+  const {data:access,error:ae}=await sb.from("student_test_access").select("test_id,allowed").eq("student_id",id); if(ae)return alert(ae.message);
+  const amap=new Map((access||[]).map(x=>[x.test_id,!!x.allowed]));
+  shell(`<div class="actions"><button class="btn secondary" onclick="studentsPage()">← Students</button></div><h2>Manage Student</h2><div class="card">
+    <div class="grid"><div><label>Student ID</label><input id="msCode" value="${attr(s.student_code||"")}" ${s.student_code?'disabled':''} placeholder="e.g. STU001"></div><div><label>Student Name</label><input id="msName" value="${attr(s.full_name||"")}"></div></div>
+    <label>New Password (optional)</label><input id="msPass" type="password" placeholder="Leave blank to keep current password">
+    <div class="actions" style="margin-top:12px"><button class="btn primary" onclick="saveStudent('${s.id}')">Save Student</button><button class="btn ${s.active?'warning':'success'}" onclick="toggleStudent('${s.id}',${!s.active})">${s.active?'Deactivate':'Activate'}</button></div>
+  </div><div class="card"><h3>Assign Tests</h3><p class="muted">Only assigned + published tests can be taken by this student.</p><div class="grid3">${(tests||[]).map(t=>`<label style="display:flex;gap:8px;align-items:center;font-weight:600"><input type="checkbox" style="width:auto" id="access-${t.id}" ${amap.get(t.id)?"checked":""} onchange="setTestAccess('${id}','${t.id}',this.checked)"><span>${esc(t.title)} <small class="muted">(${esc(t.module)})</small></span></label>`).join("")||"No tests created yet."}</div></div>`);
+}
+async function saveStudent(id){const name=$("msName").value.trim(),code=normalizeStudentId($("msCode").value),pass=$("msPass").value;try{await edgeStudentAdmin({action:"update",id,full_name:name,student_code:code});if(pass){if(pass.length<6)throw new Error("Password must be at least 6 characters.");await edgeStudentAdmin({action:"reset_password",id,password:pass})}alert("Student updated.");manageStudent(id)}catch(e){alert(e.message)}}
+async function toggleStudent(id,active){try{await edgeStudentAdmin({action:"update",id,active});studentsPage()}catch(e){alert(e.message)}}
+async function setTestAccess(studentId,testId,allowed){const {error}=await sb.from("student_test_access").upsert({student_id:studentId,test_id:testId,allowed},{onConflict:"student_id,test_id"});if(error)alert(error.message)}
+async function deleteStudent(id,code){if(!confirm(`Delete Student ${code}? This permanently deletes the student account, assigned tests, attempts, answers and results.`))return;try{await edgeStudentAdmin({action:"delete",id});alert("Student and associated data deleted.");studentsPage()}catch(e){alert(e.message)}}
 
 async function testsPage(module="all"){
   setRoute("tests",{module});
@@ -190,7 +282,8 @@ function renderBuilder(){
   <label>Description</label><textarea id="btDesc">${esc(t.description||"")}</textarea><button class="btn primary" onclick="saveTestHeader()">Save Test Details</button></div>
   ${t.module==="listening"?renderAudioAdmin():""}
   <div class="section-tabs">${admin.sections.map((x,i)=>`<button class="btn ${i===admin.sectionIndex?"primary":"secondary"}" onclick="switchAdminSection(${i})">${t.module==="reading"?"Passage":"Part"} ${i+1}</button>`).join("")}</div>
-  ${s?`<div class="card"><h3>${esc(s.title||"Section")}</h3><div class="grid"><div><label>Title</label><input id="bsTitle" value="${attr(s.title||"")}"></div><div><label>Image URL / Path</label><input id="bsImage" value="${attr(s.image_url||s.image_path||"")}"></div></div>
+  ${s?`<div class="card"><h3>${esc(s.title||"Section")}</h3><div class="grid"><div><label>Title</label><input id="bsTitle" value="${attr(s.title||"")}"></div><div><label>Existing Image URL / Path (optional)</label><input id="bsImage" value="${attr(s.image_url||s.image_path||"")}"></div></div>
+  ${t.module==="reading"?`<div class="media-upload-box"><label><strong>Passage Image / Chart / Diagram</strong></label><input id="bsImageFile" type="file" accept="image/*"><div class="inline-help">Upload, replace or remove a passage-level image. This is useful for Reading charts, diagrams, figures and visual material.</div>${s.image_url?`<div class="editor-block" style="margin-top:8px"><strong>Current image:</strong><br><img class="media" style="max-width:420px;max-height:220px;object-fit:contain" src="${attr(s.image_url)}" onerror="this.style.display='none'"><label style="display:inline-flex;gap:6px;align-items:center;margin-top:6px"><input id="bsRemoveImage" type="checkbox"> Remove current image</label></div>`:""}</div>`:""}
   <label>Instructions</label><textarea id="bsInst">${esc(s.instructions||"")}</textarea><label>${t.module==="reading"?"Passage Text":"Content / Notes"}</label><textarea id="bsContent" style="min-height:220px">${esc(s.content||"")}</textarea>
   <div class="actions"><button class="btn primary" onclick="saveSection('${s.id}')">Save ${t.module==="reading"?"Passage":"Part"}</button></div></div>`:""}
   ${t.module==="writing"?renderWritingAdmin(qs):renderQuestionAdmin(gs,qs)}`);
@@ -215,7 +308,24 @@ function renderWritingAdmin(qs){
 }
 function switchAdminSection(i){admin.sectionIndex=i;renderBuilder()}
 async function saveTestHeader(){const {error}=await sb.from("tests").update({title:$("btTitle").value.trim(),description:$("btDesc").value.trim(),duration_minutes:+$("btDur").value,updated_at:new Date().toISOString()}).eq("id",admin.test.id);if(error)alert(error.message);else openBuilder(admin.test.id)}
-async function saveSection(id){const {error}=await sb.from("sections").update({title:$("bsTitle").value.trim(),instructions:$("bsInst").value,content:$("bsContent").value,image_url:$("bsImage").value.trim()||null}).eq("id",id);if(error)alert(error.message);else openBuilder(admin.test.id)}
+async function saveSection(id){
+  try{
+    const s=admin.sections.find(x=>x.id===id), isReading=admin.test.module==="reading";
+    const current=$("bsImage").value.trim()||null, remove=$("bsRemoveImage")?.checked===true, file=$("bsImageFile")?.files?.[0];
+    let imagePath=remove?null:current;
+    if(remove && current && !String(current).startsWith("http")){const rm=await sb.storage.from("question-images").remove([current]);if(rm.error)throw rm.error}
+    if(file){
+      if(current && !String(current).startsWith("http")){await sb.storage.from("question-images").remove([current])}
+      const ext=(file.name.split(".").pop()||"png").toLowerCase().replace(/[^a-z0-9]/g,"")||"png";
+      imagePath=`${admin.test.id}/${id}/passage-${Date.now()}.${ext}`;
+      const up=await sb.storage.from("question-images").upload(imagePath,file,{upsert:true,contentType:file.type||`image/${ext}`});
+      if(up.error)throw up.error;
+    }
+    const payload={title:$("bsTitle").value.trim(),instructions:$("bsInst").value,content:$("bsContent").value,image_url:isReading?(imagePath||null):(current||null)};
+    const {error}=await sb.from("sections").update(payload).eq("id",id);if(error)throw error;
+    openBuilder(admin.test.id)
+  }catch(e){alert(e.message)}
+}
 
 function groupForm(id=null){
   const s=admin.sections[admin.sectionIndex],g=id?admin.groups.find(x=>x.id===id):null;
@@ -310,17 +420,34 @@ async function saveQuestion(id,sid){
   }catch(e){alert(e.message)}
 }
 function writingTaskForm(part=null){
-  const tasks=admin.writingTasks||[],w=part?tasks.find(x=>x.part===part):null,n=part||([1,2].find(x=>!tasks.some(t=>t.part===x))||1);
+  const tasks=admin.writingTasks||[],w=part?tasks.find(x=>x.part===part):null,n=part||([1,2].find(x=>!tasks.some(t=>t.part===x))||1),current=w?.media_url||"";
   shell(`<div class="actions"><button class="btn secondary" onclick="renderBuilder()">← Builder</button></div><h2>${w?"Edit":"Add"} Writing Task ${n}</h2><div class="card">
   <label>Task Number</label><select id="wNo"><option value="1" ${n==1?"selected":""}>Task 1</option><option value="2" ${n==2?"selected":""}>Task 2</option></select>
   <label>Instructions</label><textarea id="wInst">${esc(w?.instructions||"")}</textarea><label>Prompt</label><textarea id="wPrompt" style="min-height:180px">${esc(w?.prompt||"")}</textarea>
   <div class="grid"><div><label>Minimum Words</label><input id="wMin" type="number" value="${w?.minimum??(n==1?150:250)}"></div><div><label>Maximum Words (optional)</label><input id="wMax" type="number" value="${w?.maximum??""}"></div></div>
-  <label>Visual Media URL / Path (Task 1 optional)</label><input id="wMedia" value="${attr(w?.media_url||"")}">
-  <button class="btn primary" onclick="saveWritingTask('${w?.id||""}')">Save Task</button></div>`);
+  <div class="media-upload-box"><label><strong>Task Image / Chart / Graph / Table / Diagram</strong></label><input id="wMediaFile" type="file" accept="image/*"><div class="inline-help">Upload, replace or remove the visual for Task ${n}. This is available for both Writing Task 1 and Task 2.</div>
+  ${current?`<div class="editor-block" style="margin-top:8px"><strong>Current image:</strong><br><img class="media" style="max-width:420px;max-height:240px;object-fit:contain" src="${attr(current)}" onerror="this.style.display='none'"><label style="display:inline-flex;gap:6px;align-items:center;margin-top:6px"><input id="wRemoveImage" type="checkbox"> Remove current image</label></div>`:""}
+  <input id="wMedia" type="hidden" value="${attr(current)}"></div>
+  <div class="actions"><button class="btn primary" onclick="saveWritingTask('${w?.id||""}')">Save Task</button></div></div>`);
 }
 async function saveWritingTask(id){
-  try{const part=+$('wNo').value;const payload={test_id:admin.test.id,part,task_type:part===1?'task1':'task2',instructions:$('wInst').value,prompt:$('wPrompt').value,minimum:+$('wMin').value||null,maximum:+$('wMax').value||null,suggested:part===1?20:40,media_url:$('wMedia').value.trim()||null,evaluation_status:'pending',updated_at:new Date().toISOString()};
-    let error; if(id){({error}=await sb.from('writing_tasks').update(payload).eq('id',id))}else{({error}=await sb.from('writing_tasks').insert(payload))} if(error)throw error;openBuilder(admin.test.id)
+  try{
+    const part=+$('wNo').value, current=$('wMedia').value.trim()||null, remove=$('wRemoveImage')?.checked===true, file=$('wMediaFile')?.files?.[0];
+    const payload={test_id:admin.test.id,part,task_type:part===1?'task1':'task2',instructions:$('wInst').value,prompt:$('wPrompt').value,minimum:+$('wMin').value||null,maximum:+$('wMax').value||null,suggested:part===1?20:40,media_url:remove?null:current,evaluation_status:'pending',updated_at:new Date().toISOString()};
+    let rowId=id;
+    if(id){const {error}=await sb.from('writing_tasks').update(payload).eq('id',id);if(error)throw error}
+    else{const {data,error}=await sb.from('writing_tasks').insert(payload).select().single();if(error)throw error;rowId=data.id}
+    let mediaPath=remove?null:current;
+    if(remove && current && !String(current).startsWith('http')){const rm=await sb.storage.from('question-images').remove([current]);if(rm.error)throw rm.error}
+    if(file){
+      if(current && !String(current).startsWith('http')) await sb.storage.from('question-images').remove([current]);
+      const ext=(file.name.split('.').pop()||'png').toLowerCase().replace(/[^a-z0-9]/g,'')||'png';
+      mediaPath=`${admin.test.id}/writing/task-${part}-${rowId}-${Date.now()}.${ext}`;
+      const up=await sb.storage.from('question-images').upload(mediaPath,file,{upsert:true,contentType:file.type||`image/${ext}`});
+      if(up.error)throw up.error;
+      const {error}=await sb.from('writing_tasks').update({media_url:mediaPath,updated_at:new Date().toISOString()}).eq('id',rowId);if(error)throw error;
+    }
+    openBuilder(admin.test.id)
   }catch(e){alert(e.message)}
 }
 async function deleteWritingTask(id){if(!confirm('Delete this writing task?'))return;const {error}=await sb.from('writing_tasks').delete().eq('id',id);if(error)alert(error.message);else openBuilder(admin.test.id)}
@@ -441,41 +568,81 @@ async function signed(bucket,path){if(!path)return null;const {data,error}=await
 
 async function studentDashboard(){
   setRoute("student-dashboard");
-  const {data,error}=await sb.from("tests").select("id,title,module,description,duration_minutes,total_questions").eq("is_published",true).order("module");if(error)return alert(error.message);
-  shell(`<h2>Student Dashboard</h2><p class="muted">Select a published test to begin.</p><div class="dashboard-grid">${(data||[]).map(t=>`<button class="dashbtn" onclick="startStudentTest('${t.id}',true)"><div style="font-size:32px">${t.module==="listening"?"🎧":t.module==="reading"?"📖":"✍️"}</div><strong>${esc(t.title)}</strong><span class="muted">${t.module.toUpperCase()} • ${t.duration_minutes} min</span></button>`).join("")||`<div class="card">No published tests are available.</div>`}</div>`,"Universal Education IELTS","Student Testing Platform");
+  const user=(await sb.auth.getUser()).data.user;
+  const {data:access,error:accessErr}=await sb.from("student_test_access").select("test_id,allowed").eq("student_id",user.id).eq("allowed",true);
+  if(accessErr)return alert(accessErr.message);
+  const allowedIds=(access||[]).map(x=>x.test_id);
+  let tests=[];
+  if(allowedIds.length){const tq=await sb.from("tests").select("id,title,module,description,duration_minutes,total_questions,settings").eq("is_published",true).in("id",allowedIds).order("module");if(tq.error)return alert(tq.error.message);tests=tq.data||[]}
+  const ids=(tests||[]).map(t=>t.id);
+  let attempts=[];
+  if(ids.length){const a=await sb.from("results").select("id,test_id,status,started_at,submitted_at,listening_score,reading_score,writing_score").eq("student_id",user.id).in("test_id",ids).order("created_at",{ascending:false});if(a.error)return alert(a.error.message);attempts=a.data||[]}
+  const latest=new Map();attempts.forEach(a=>{if(!latest.has(a.test_id))latest.set(a.test_id,a)});
+  shell(`<h2>Student Dashboard</h2><p class="muted">Published tests are shown below. A submitted test can be reviewed but cannot be attempted again.</p><div class="dashboard-grid">${(tests||[]).map(t=>{
+    const a=latest.get(t.id);
+    const icon=t.module==="listening"?"🎧":t.module==="reading"?"📖":"✍️";
+    let action=a?.status==="submitted"?`<button class="btn primary" onclick="studentResultPage('${a.id}')">View Score / My Answers</button>`:a?.status==="in_progress"?`<button class="btn warning" onclick="startStudentTest('${t.id}',true)">Resume Test</button>`:`<button class="btn primary" onclick="startStudentTest('${t.id}',true)">Start Test</button>`;
+    const status=a?.status==="submitted"?`<span class="status published">Completed</span>`:a?.status==="in_progress"?`<span class="status draft">In Progress</span>`:`<span class="status draft">Not Started</span>`;
+    const score=a?.status==="submitted"?(t.module==="listening"?a.listening_score:t.module==="reading"?a.reading_score:"Pending"):"";
+    const band=a?.status==="submitted"&&t.module!=="writing"?bandText(t.module,a.listening_score??a.reading_score,(t.settings||{}).reading_type||"academic"):"";
+    return `<div class="dashbtn"><div style="font-size:32px">${icon}</div><strong>${esc(t.title)}</strong><span class="muted">${t.module.toUpperCase()} • ${t.duration_minutes} min</span><div style="margin-top:10px">${status}</div>${score!==""?`<div style="margin:8px 0"><strong>Score: ${esc(score)}</strong>${band?` • <strong>Band: ${esc(band)}</strong>`:""}</div>`:""}<div class="actions" style="margin-top:10px">${action}</div></div>`;
+  }).join("")||`<div class="card">No published tests are available.</div>`}</div>`);
 }
 async function createAttempt(test){
   const user=(await sb.auth.getUser()).data.user;
   const {data,error}=await sb.from("results").insert({student_id:user.id,test_id:test.id,status:"in_progress",started_at:new Date().toISOString()}).select().single();
   if(error)throw error;return data;
 }
+async function ensureWritingQuestions(d){
+  if(d.test.module!=="writing")return d;
+  const existing=d.questions||[];
+  for(const wt of (d.writingTasks||[])){
+    let q=existing.find(x=>x.question_config?.writingTaskId===wt.id);
+    if(!q){
+      const sec=d.sections[0];
+      const payload={section_id:sec.id,question_number:wt.part,question_type:"writing",question_text:wt.prompt||"",marks:0,correct_answer:null,image_url:wt.media_url||null,question_config:{writingTaskId:wt.id}};
+      const {data,error}=await sb.from("questions").insert(payload).select().single();if(error)throw error; q={...data,config:data.question_config||{},options:[]}; existing.push(q);
+    }
+  }
+  d.questions=existing;return d;
+}
 async function startStudentTest(id,resume=true,preview=false){
   try{
-    const d=await loadTestBundle(id);if(!d.test.is_published&&!preview)throw new Error("This test is not published.");
-    let saved=resume?loadExam(id):null,attempt=null;if(!preview&&!saved?.resultId)attempt=await createAttempt(d.test);
+    let d=await loadTestBundle(id);if(!d.test.is_published&&!preview)throw new Error("This test is not published.");
+    let saved=resume?loadExam(id):null,attempt=null;
+    if(!preview){
+      const user=(await sb.auth.getUser()).data.user;
+      const existing=await sb.from("results").select("*").eq("student_id",user.id).eq("test_id",id).order("created_at",{ascending:false}).limit(1).maybeSingle();
+      if(existing.error)throw existing.error;
+      if(existing.data?.status==="submitted")return studentResultPage(existing.data.id);
+      attempt=existing.data||null;
+      if(!attempt)attempt=await createAttempt(d.test);
+    }
+    d=await ensureWritingQuestions(d);
     let audioUrl=null;if(d.audio?.audio_path)audioUrl=await signed("listening-audio",d.audio.audio_path);
-    if(d.groups?.length){
-      for(const g of d.groups){
-        if(g.image_path){try{g.image_url=await signed("question-images",g.image_path)}catch(e){console.warn("Group image could not be signed",e)}}
-      }
-    }
-    if(d.questions?.length){
-      for(const q of d.questions){
-        if(q.image_url && !String(q.image_url).startsWith("http")){try{q.image_url=await signed("question-images",q.image_url)}catch(e){console.warn("Question image could not be signed",e)}}
-      }
-    }
-    exam={preview,testId:id,resultId:preview?null:(saved?.resultId||attempt?.id),data:d,currentSection:saved?.currentSection||0,currentTask:saved?.currentTask||0,answers:saved?.answers||{},startedAt:saved?.startedAt||new Date().toISOString(),endAt:preview?null:(saved?.endAt>Date.now()?saved.endAt:Date.now()+d.test.duration_minutes*60000),audioUrl};
-    if(!preview){setRoute("exam",{testId:id});saveExam()}renderExam();startTimer();
+    if(d.sections?.length){for(const sec of d.sections){const raw=sec.image_path||sec.image_url;if(raw&&!String(raw).startsWith("http")){try{sec.image_url=await signed("question-images",raw)}catch(e){console.warn("Section image could not be signed",e)}}}}
+    if(d.groups?.length){for(const g of d.groups){if(g.image_path){try{g.image_url=await signed("question-images",g.image_path)}catch(e){console.warn("Group image could not be signed",e)}}}}
+    if(d.questions?.length){for(const q of d.questions){if(q.image_url&&!String(q.image_url).startsWith("http")){try{q.image_url=await signed("question-images",q.image_url)}catch(e){console.warn("Question image could not be signed",e)}}}}
+    if(d.writingTasks?.length){for(const wt of d.writingTasks){if(wt.media_url&&!String(wt.media_url).startsWith("http")){try{wt.media_url=await signed("question-images",wt.media_url)}catch(e){console.warn("Writing task image could not be signed",e)}}}}
+    let dbAnswers={};if(!preview&&attempt?.id)dbAnswers=await loadAttemptAnswers(attempt.id);
+    const mergedAnswers={...(saved?.answers||{}),...dbAnswers};
+    const endAt=preview?null:(attempt?.started_at?new Date(attempt.started_at).getTime()+d.test.duration_minutes*60000:(saved?.endAt||Date.now()+d.test.duration_minutes*60000));
+    exam={preview,testId:id,resultId:preview?null:(attempt?.id||saved?.resultId),data:d,currentSection:preview?0:(saved?.currentSection||0),currentTask:saved?.currentTask||0,answers:mergedAnswers,startedAt:attempt?.started_at||saved?.startedAt||new Date().toISOString(),endAt, audioUrl,locked:!!saved?.locked};
+    if(!preview){setRoute("exam",{testId:id});saveExam();}
+    renderExam();
+    if(!preview&&endAt<=Date.now())return submitExam(true);
+    startTimer();
   }catch(e){alert(e.message)}
 }
 function previewCurrentTest(){startStudentTest(admin.test.id,false,true)}
-function headerExam(){return `<div class="topbar"><div><div class="brand">${esc(exam.data.test.title)}</div><div class="subbrand">${exam.preview?"Student Preview":exam.data.test.module.toUpperCase()+" Test"}</div></div><div class="userbox"><span id="timer" class="timer">${exam.preview?"PREVIEW":fmtTime(exam.endAt-Date.now())}</span><button class="btn secondary" onclick="exitExam()">${exam.preview?"Close Preview":"Exit"}</button></div></div>`}
+function headerExam(){return `<div class="topbar"><div><div class="brand">${esc(exam.data.test.title)}</div><div class="subbrand">${exam.preview?"Student Preview":exam.data.test.module.toUpperCase()+" Test"}</div></div><div class="userbox"><span id="timer" class="timer">${exam.preview?"PREVIEW":fmtTime(Math.max(0,exam.endAt-Date.now()))}</span><button class="btn secondary" onclick="exitExam()">${exam.preview?"Close Preview":"Exit"}</button></div></div>`}
+{return `<div class="topbar"><div><div class="brand">${esc(exam.data.test.title)}</div><div class="subbrand">${exam.preview?"Student Preview":exam.data.test.module.toUpperCase()+" Test"}</div></div><div class="userbox"><span id="timer" class="timer">${exam.preview?"PREVIEW":fmtTime(exam.endAt-Date.now())}</span><button class="btn secondary" onclick="exitExam()">${exam.preview?"Close Preview":"Exit"}</button></div></div>`}
 function fmtTime(ms){const x=Math.max(0,Math.ceil(ms/1000)),h=Math.floor(x/3600),m=Math.floor(x%3600/60),s=x%60;return `${h?String(h).padStart(2,"0")+":":""}${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`}
-function startTimer(){if(timerHandle)clearInterval(timerHandle);if(exam?.preview)return;timerHandle=setInterval(()=>{if(!exam)return clearInterval(timerHandle);const ms=exam.endAt-Date.now(),el=$("timer");if(el)el.textContent=fmtTime(ms);if(ms<=0){clearInterval(timerHandle);submitExam(true)}},1000)}
-function setAns(k,v){exam.answers[k]=v;saveExam()}
-function toggleAns(k,v,on){let a=Array.isArray(exam.answers[k])?[...exam.answers[k]]:[];if(on&&!a.includes(v))a.push(v);if(!on)a=a.filter(x=>x!==v);exam.answers[k]=a;saveExam()}
-function switchExamSection(i){exam.currentSection=Math.max(0,Math.min(i,exam.data.sections.length-1));saveExam();renderExam();startTimer()}
-function switchTask(i){exam.currentTask=Math.max(0,Math.min(i,1));saveExam();renderExam();startTimer()}
+function startTimer(){if(timerHandle)clearInterval(timerHandle);if(exam?.preview||exam?.locked)return;timerHandle=setInterval(()=>{if(!exam)return clearInterval(timerHandle);const ms=exam.endAt-Date.now(),el=$("timer");if(el)el.textContent=fmtTime(ms);if(ms<=0){clearInterval(timerHandle);submitExam(true)}},1000)}
+function setAns(k,v){if(!exam||exam.locked)return;exam.answers[k]=v;saveExam();queueAnswerSave(k,v)}
+function toggleAns(k,v,on){if(!exam||exam.locked)return;let a=Array.isArray(exam.answers[k])?[...exam.answers[k]]:[];if(on&&!a.includes(v))a.push(v);if(!on)a=a.filter(x=>x!==v);exam.answers[k]=a;saveExam();queueAnswerSave(k,a)}
+function switchExamSection(i){if(exam?.locked)return;exam.currentSection=Math.max(0,Math.min(i,exam.data.sections.length-1));saveExam();renderExam();window.scrollTo({top:0,behavior:"instant"});startTimer()}
+function switchTask(i){if(exam?.locked)return;exam.currentTask=Math.max(0,Math.min(i,1));saveExam();renderExam();window.scrollTo({top:0,behavior:"instant"});startTimer()}
 function tabs(label){return `<div class="section-tabs">${exam.data.sections.map((s,i)=>`<button class="btn ${i===exam.currentSection?"primary":"secondary"}" onclick="switchExamSection(${i})">${label} ${i+1}</button>`).join("")}</div>`}
 function qnav(qs){return `<div class="qnav">${qs.map(q=>`<button class="${hasAns(q.id)?"done":""}" onclick="document.getElementById('q-${q.id}')?.scrollIntoView({behavior:'smooth'})">${q.question_number}</button>`).join("")}</div>`}
 function hasAns(id){const v=exam.answers[id];return Array.isArray(v)?v.length>0:String(v??"").trim()!==""}
@@ -491,7 +658,7 @@ function renderExam(){
   }
 }
 function renderGroupsOrQuestions(gs,qs){return gs.length?gs.map(g=>renderGroup(g,qs)).join(""):qs.map(q=>renderQuestion(q)).join("")}
-function renderInline(txt,qs){return esc(txt).replace(/\[BLANK\s*(\d+)\]/gi,(_,n)=>{const q=qs.find(x=>+x.question_number===+n),k=q?.id||`blank_${n}`;return `<input style="display:inline-block;width:130px;margin:0 4px" value="${attr(exam.answers[k]||"")}" oninput="setAns('${k}',this.value)">`})}
+function renderInline(txt,qs){return esc(txt).replace(/\[BLANK\s*(\d+)\]/gi,(_,n)=>{const q=qs.find(x=>+x.question_number===+n),k=q?.id||`blank_${n}`;return `<input style="display:inline-block;width:130px;margin:0 4px" value="${attr(exam.answers[k]||"")}" oninput="setAns('${k}',this.value)" ${exam.locked?"disabled":""}>`})}
 function renderGroup(g,qs){
   const sub=qs.filter(q=>q.question_number>=g.start_question&&q.question_number<=g.end_question),inline=COMPLETION_TYPES.includes(normalizeType(g.question_type))&&/\[BLANK\s*\d+\]/i.test(g.content||"");
   return `<div class="group"><strong>Questions ${g.start_question}–${g.end_question}</strong>${g.instructions?`<div class="instructions">${esc(g.instructions)}</div>`:""}${g.image_url?`<img class="media" src="${attr(g.image_url)}">`:""}${g.content?`<div style="white-space:pre-wrap;line-height:1.8">${renderInline(g.content,sub)}</div>`:""}
@@ -499,18 +666,18 @@ function renderGroup(g,qs){
 }
 function renderQuestion(q,shared=[]){
   const opts=(q.options||[]).length?q.options:shared,s=exam.answers[q.id]??"",t=normalizeType(q.question_type);let c="";
-  if(t==="single"||["tfng","yng","title"].includes(t)){c=opts.map(o=>`<label style="font-weight:400"><input style="width:auto" type="radio" name="r-${q.id}" value="${attr(o.option_key)}" ${s===o.option_key?"checked":""} onchange="setAns('${q.id}',this.value)"> <strong>${esc(o.option_key)}.</strong> ${esc(o.option_text)}</label>`).join("")}
-  else if(t==="multi"||t==="list"){const a=Array.isArray(s)?s:[];c=opts.map(o=>`<label style="font-weight:400"><input style="width:auto" type="checkbox" value="${attr(o.option_key)}" ${a.includes(o.option_key)?"checked":""} onchange="toggleAns('${q.id}',this.value,this.checked)"> ${esc(o.option_key)}. ${esc(o.option_text)}</label>`).join("")}
-  else if(["matching","map","headings","information","features","endings"].includes(t)&&opts.length){c=`<select onchange="setAns('${q.id}',this.value)"><option value="">Select answer</option>${opts.map(o=>`<option value="${attr(o.option_key)}" ${s===o.option_key?"selected":""}>${esc(o.option_key)} — ${esc(o.option_text)}</option>`).join("")}</select>`}
-  else c=`<input value="${attr(Array.isArray(s)?s.join(", "):s)}" oninput="setAns('${q.id}',this.value)" placeholder="Type your answer">`;
+  if(t==="single"||["tfng","yng","title"].includes(t)){c=opts.map(o=>`<label style="font-weight:400"><input style="width:auto" type="radio" name="r-${q.id}" value="${attr(o.option_key)}" ${s===o.option_key?"checked":""} onchange="setAns('${q.id}',this.value)" ${exam.locked?"disabled":""}> <strong>${esc(o.option_key)}.</strong> ${esc(o.option_text)}</label>`).join("")}
+  else if(t==="multi"||t==="list"){const a=Array.isArray(s)?s:[];c=opts.map(o=>`<label style="font-weight:400"><input style="width:auto" type="checkbox" value="${attr(o.option_key)}" ${a.includes(o.option_key)?"checked":""} onchange="toggleAns('${q.id}',this.value,this.checked)" ${exam.locked?"disabled":""}> ${esc(o.option_key)}. ${esc(o.option_text)}</label>`).join("")}
+  else if(["matching","map","headings","information","features","endings"].includes(t)&&opts.length){c=`<select onchange="setAns('${q.id}',this.value)" ${exam.locked?"disabled":""}><option value="">Select answer</option>${opts.map(o=>`<option value="${attr(o.option_key)}" ${s===o.option_key?"selected":""}>${esc(o.option_key)} — ${esc(o.option_text)}</option>`).join("")}</select>`}
+  else c=`<input value="${attr(Array.isArray(s)?s.join(", "):s)}" oninput="setAns('${q.id}',this.value)" placeholder="Type your answer" ${exam.locked?"disabled":""}>`;
   return `<div id="q-${q.id}" class="question"><strong>${q.question_number}. ${esc(q.question_text||"")}</strong>${q.image_url?`<img class="media" src="${attr(q.image_url)}">`:""}<div style="margin-top:8px">${c}</div></div>`;
 }
-function examNav(){return `<div class="actions" style="justify-content:space-between;margin-top:14px"><button class="btn secondary" ${exam.currentSection===0?"disabled":""} onclick="switchExamSection(${exam.currentSection-1})">← Previous</button>${exam.currentSection<exam.data.sections.length-1?`<button class="btn primary" onclick="switchExamSection(${exam.currentSection+1})">Next →</button>`:`<button class="btn success" onclick="${exam.preview?"exitExam()":"submitExam(false)"}">${exam.preview?"Close Preview":"Submit Test"}</button>`}</div>`}
+function examNav(){return `<div class="actions" style="justify-content:space-between;margin-top:14px"><button class="btn secondary" ${exam.currentSection===0||exam.locked?"disabled":""} onclick="switchExamSection(${exam.currentSection-1})">← Previous</button>${exam.locked?`<span class="status warning">Test locked — submission completed</span>`:exam.currentSection<exam.data.sections.length-1?`<button class="btn primary" onclick="switchExamSection(${exam.currentSection+1})">Next →</button>`:`<button class="btn success" onclick="${exam.preview?"exitExam()":"submitExam(false)"}">${exam.preview?"Close Preview":"Submit Test"}</button>`}</div>`}
 function renderWritingExam(){
   const tasks=(exam.data.writingTasks||[]).slice().sort((a,b)=>a.part-b.part),q=tasks[Math.min(exam.currentTask,tasks.length-1)];
   app().innerHTML=headerExam()+`<div class="shell"><div class="section-tabs">${tasks.map((x,i)=>`<button class="btn ${i===exam.currentTask?"primary":"secondary"}" onclick="switchTask(${i})">Task ${i+1}</button>`).join("")}</div>
   ${q?`<div class="writing-grid"><div class="pane"><h2>Writing Task ${q.part}</h2>${q.instructions?`<div class="instructions">${esc(q.instructions)}</div>`:""}${q.media_url?`<img class="media" src="${attr(q.media_url)}">`:""}<div style="white-space:pre-wrap;line-height:1.8">${esc(q.prompt||"")}</div></div>
-  <div class="pane"><div class="actions" style="justify-content:space-between"><h3>Your Answer</h3><strong id="wc">0 words</strong></div><textarea class="writing-answer" id="wa" oninput="setWriting('task_${q.id}',this.value)">${esc(exam.answers['task_'+q.id]||"")}</textarea><p class="muted">Minimum: ${q.minimum|| (q.part===1?150:250)} words${q.maximum?` • Maximum: ${q.maximum}`:""}</p></div></div>`:`<div class="card">Writing tasks not configured.</div>`}
+  <div class="pane"><div class="actions" style="justify-content:space-between"><h3>Your Answer</h3><strong id="wc">0 words</strong></div><textarea class="writing-answer" id="wa" oninput="setWriting('task_${q.id}',this.value)" ${exam.locked?"disabled":""}>${esc(exam.answers['task_'+q.id]||"")}</textarea><p class="muted">Minimum: ${q.minimum|| (q.part===1?150:250)} words${q.maximum?` • Maximum: ${q.maximum}`:""}</p></div></div>`:`<div class="card">Writing tasks not configured.</div>`}
   <div class="actions" style="justify-content:space-between;margin-top:14px"><button class="btn secondary" ${exam.currentTask===0?"disabled":""} onclick="switchTask(${exam.currentTask-1})">← Previous Task</button>${exam.currentTask<tasks.length-1?`<button class="btn primary" onclick="switchTask(${exam.currentTask+1})">Next Task →</button>`:`<button class="btn success" onclick="${exam.preview?"exitExam()":"submitExam(false)"}">${exam.preview?"Close Preview":"Submit Writing Test"}</button>`}</div></div>`;
   updateWC();
 }
@@ -528,31 +695,67 @@ function evalQ(q,a){
 }
 async function submitExam(auto=false){
   if(exam.preview)return exitExam();
+  if(exam.locked)return;
   if(!auto&&!confirm("Submit test? Answers will be locked."))return;
   try{
-    if(timerHandle)clearInterval(timerHandle);
+    exam.locked=true;saveExam();if(timerHandle)clearInterval(timerHandle);for(const t of answerSaveTimers.values())clearTimeout(t);answerSaveTimers.clear();
     const mod=exam.data.test.module;
-    const qs=mod==="writing"?(exam.data.questions.length?exam.data.questions.slice().sort((a,b)=>a.question_number-b.question_number).slice(0,2):(exam.data.writingTasks||[]).map(w=>({id:null,question_number:w.part,marks:0,correct_answer:null,writingTaskId:w.id}))):exam.data.questions;
-    if(mod==="writing"){
-      for(const q of qs){
-        if(!q.id){const wt=(exam.data.writingTasks||[]).find(w=>w.part===q.question_number);const sec=exam.data.sections[0];const ins={section_id:sec.id,question_number:q.question_number,question_type:'writing',question_text:wt?.prompt||'',marks:0,correct_answer:null,image_url:wt?.media_url||null,question_config:{writingTaskId:wt?.id}};const {data,error}=await sb.from('questions').insert(ins).select().single();if(error)throw error;q.id=data.id;}
-      }
+    const qs=mod==="writing"?(exam.data.questions||[]).filter(q=>q.question_type==="writing").sort((a,b)=>a.question_number-b.question_number):(exam.data.questions||[]);
+    for(const q of qs){
+      const key=mod==="writing"?`task_${q.question_config?.writingTaskId||q.id}`:q.id;
+      const value=exam.answers[key]??"";
+      const answerText=Array.isArray(value)?value.join(", "):String(value??"");
+      const correct=mod==="writing"?null:evalQ(q,value);
+      const marks=mod==="writing"?0:(correct?Number(q.marks||1):0);
+      const {data:existing,error:findErr}=await sb.from("answers").select("id").eq("result_id",exam.resultId).eq("question_id",q.id).maybeSingle();if(findErr)throw findErr;
+      const payload={result_id:exam.resultId,question_id:q.id,answer_text:answerText,is_correct:correct,marks_obtained:marks};
+      if(existing?.id){const {error}=await sb.from("answers").update(payload).eq("id",existing.id);if(error)throw error}
+      else {const {error}=await sb.from("answers").insert(payload);if(error)throw error}
     }
-    const rows=qs.map(q=>({result_id:exam.resultId,question_id:q.id,answer_text:Array.isArray(exam.answers[mod==="writing"?"task_"+((exam.data.writingTasks||[]).find(w=>w.part===q.question_number)?.id||q.id):q.id])?exam.answers[mod==="writing"?"task_"+((exam.data.writingTasks||[]).find(w=>w.part===q.question_number)?.id||q.id):q.id].join(", "):String(exam.answers[mod==="writing"?"task_"+((exam.data.writingTasks||[]).find(w=>w.part===q.question_number)?.id||q.id):q.id]??""),is_correct:mod==="writing"?null:evalQ(q,exam.answers[q.id]),marks_obtained:mod==="writing"?0:(evalQ(q,exam.answers[q.id])?Number(q.marks||1):0)}));
-    if(rows.length){const {error}=await sb.from("answers").insert(rows);if(error)throw error}
-    if(mod==="writing"){
-      // Writing responses are stored in the common answers table; writing_tasks remains the task definition/evaluation source.
-    }
-    const total=mod==="writing"?0:qs.reduce((s,q)=>s+Number(q.marks||1),0),score=mod==="writing"?null:qs.reduce((s,q)=>s+(evalQ(q,exam.answers[q.id])?Number(q.marks||1):0),0);
-    const upd={status:"submitted",submitted_at:new Date().toISOString()};if(mod==="listening")upd.listening_score=score;if(mod==="reading")upd.reading_score=score;if(mod==="writing")upd.writing_score=null;
-    const {error}=await sb.from("results").update(upd).eq("id",exam.resultId);if(error)throw error;
-    const id=exam.testId;clearExam(id);clearRoute();exam=null;
-    shell(`<div class="card" style="max-width:700px;margin:30px auto;text-align:center"><div style="font-size:52px">✅</div><h2>${auto?"Time ended — Test submitted":"Test submitted successfully"}</h2>
-    ${mod==="writing"?`<p>Writing response saved. <strong>Evaluation Pending</strong>.</p>`:`<p>Your score: <strong>${score} / ${total}</strong></p>`}<button class="btn primary" onclick="studentDashboard()">Back to Student Dashboard</button></div>`,"Universal Education IELTS","Result");
-  }catch(e){alert("Submission failed: "+e.message)}
+    const total=mod==="writing"?0:qs.reduce((n,q)=>n+Number(q.marks||1),0);
+    const score=mod==="writing"?null:qs.reduce((n,q)=>n+(evalQ(q,exam.answers[q.id])?Number(q.marks||1):0),0);
+    const upd={status:"submitted",submitted_at:new Date().toISOString()};
+    if(mod==="listening")upd.listening_score=score;if(mod==="reading")upd.reading_score=score;if(mod==="writing")upd.writing_score=null;
+    const {error}=await sb.from("results").update(upd).eq("id",exam.resultId).eq("status","in_progress");if(error)throw error;
+    const resultId=exam.resultId;clearExam(exam.testId);clearRoute();exam=null;
+    await studentResultPage(resultId,true);
+  }catch(e){
+    console.error(e);
+    if(exam){exam.locked=true;saveExam();renderExam();}
+    alert("Submission failed: "+e.message+"\nYour answers are locked locally. Please contact the administrator.");
+  }
 }
 function exitExam(){if(timerHandle)clearInterval(timerHandle);if(exam?.preview){exam=null;return openBuilder(admin.test.id)}saveExam();exam=null;clearRoute();studentDashboard()}
 
+async function studentResultPage(resultId,justSubmitted=false){
+  try{
+    const {data:r,error:re}=await sb.from("results").select("*,tests(title,module,total_questions,settings)").eq("id",resultId).single();if(re)throw re;
+    const mod=r.tests?.module||"";const raw=mod==="listening"?r.listening_score:mod==="reading"?r.reading_score:null;const readingType=(r.tests?.settings||{}).reading_type||"academic";const band=mod==="listening"?bandText("listening",raw):mod==="reading"?bandText("reading",raw,readingType):null;
+    shell(`<div class="actions"><button class="btn secondary" onclick="studentDashboard()">← Dashboard</button></div><div class="card" style="max-width:760px;margin:20px auto;text-align:center">
+      <div style="font-size:52px">✅</div><h2>${justSubmitted?"Test Submitted":"Test Result"}</h2><h3>${esc(r.tests?.title||"")}</h3>
+      ${mod==="writing"?`<p style="font-size:20px"><strong>Writing Evaluation Pending</strong></p>`:`<div class="dashboard-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:18px"><div class="card"><strong>Score</strong><div style="font-size:34px;margin-top:6px">${esc(raw??"-")} / ${esc(r.tests?.total_questions||40)}</div></div><div class="card"><strong>Band Score</strong><div style="font-size:34px;margin-top:6px">${esc(band??"—")}</div></div></div>`}
+      <div class="actions" style="justify-content:center;margin-top:20px"><button class="btn secondary" onclick="studentReviewAnswers('${r.id}')">View My Saved Answers</button><button class="btn primary" onclick="studentDashboard()">Back to Dashboard</button></div>
+    </div>`);
+  }catch(e){alert("Could not load result: "+e.message)}
+}
+async function studentReviewAnswers(resultId){
+  try{
+    const {data:r,error:re}=await sb.from("results").select("*,tests(title,module)").eq("id",resultId).single();if(re)throw re;
+    const {data:ans,error:ae}=await sb.from("answers").select("*").eq("result_id",resultId).order("created_at");if(ae)throw ae;
+    const qids=(ans||[]).map(a=>a.question_id).filter(Boolean);let questions=[];if(qids.length){const q=await sb.from("questions").select("id,question_number,question_text").in("id",qids).order("question_number");if(q.error)throw q.error;questions=q.data||[]}
+    const qm=new Map(questions.map(q=>[q.id,q]));
+    const rows=(ans||[]).map(a=>{const q=qm.get(a.question_id)||{};return `<tr><td><strong>Q${esc(q.question_number??"-")}</strong></td><td>${esc(q.question_text||"")}</td><td><strong>${esc(a.answer_text||"—")}</strong></td></tr>`}).join("");
+    shell(`<div class="actions"><button class="btn secondary" onclick="studentResultPage('${r.id}')">← Score</button></div><h2>My Saved Answers</h2><p class="muted">${esc(r.tests?.title||"")} • This attempt is submitted and read-only.</p><div class="card table-wrap"><table><thead><tr><th>Question</th><th>Question</th><th>My Answer</th></tr></thead><tbody>${rows||`<tr><td colspan="3">No saved answers.</td></tr>`}</tbody></table></div>`);
+  }catch(e){alert("Could not load saved answers: "+e.message)}
+}
+async function deleteResult(resultId){
+  if(!confirm("Delete this student result and all saved answers? This cannot be undone."))return;
+  try{
+    const {error:ae}=await sb.from("answers").delete().eq("result_id",resultId);if(ae)throw ae;
+    const {error:re}=await sb.from("results").delete().eq("id",resultId);if(re)throw re;
+    alert("Result deleted successfully.");resultsPage();
+  }catch(e){alert("Could not delete result: "+e.message)}
+}
 async function resultsPage(){
   setRoute("results");
   const {data,error}=await sb.from("results").select("*,tests(title,module,total_questions)").order("created_at",{ascending:false});
@@ -571,8 +774,9 @@ async function resultsPage(){
   ${(data||[]).map(r=>{
     const mod=r.tests?.module,p=pm.get(r.student_id);
     const score=mod==="listening"?r.listening_score??"-":mod==="reading"?r.reading_score??"-":r.writing_score??"Pending";
+    const band=mod==="listening"?bandText("listening",r.listening_score):mod==="reading"?bandText("reading",r.reading_score):"Pending";
     const name=p?.full_name||r.student_id||"Unknown Student";
-    return `<tr><td><strong>${esc(name)}</strong></td><td>${esc(r.tests?.title||"")}</td><td>${esc((mod||"").toUpperCase())}</td><td>${esc(r.status||"")}</td><td><strong>${esc(score)}</strong></td><td>${r.submitted_at?new Date(r.submitted_at).toLocaleString():"-"}</td><td><button class="btn primary" onclick="resultDetails('${r.id}')">View Answers</button></td></tr>`
+    return `<tr><td><strong>${esc(name)}</strong></td><td>${esc(r.tests?.title||"")}</td><td>${esc((mod||"").toUpperCase())}</td><td>${esc(r.status||"")}</td><td><strong>${esc(score)}</strong>${mod!=="writing"?`<br><small>Band: <strong>${esc(band)}</strong></small>`:""}</td><td>${r.submitted_at?new Date(r.submitted_at).toLocaleString():"-"}</td><td><div class="actions"><button class="btn primary" onclick="resultDetails('${r.id}')">View Answers</button><button class="btn danger" onclick="deleteResult('${r.id}')">Delete</button></div></td></tr>`
   }).join("")||`<tr><td colspan="7">No results.</td></tr>`}</tbody></table></div>`);
 }
 
@@ -611,11 +815,13 @@ async function resultDetails(resultId){
     const total=(questions||[]).reduce((n,q)=>n+Number(q.marks||1),0);
     const mod=r.tests?.module||"";
     const scoreField=mod==="listening"?r.listening_score:mod==="reading"?r.reading_score:r.writing_score;
-    shell(`<div class="actions"><button class="btn secondary" onclick="resultsPage()">← Results</button></div>
+    const band=mod==="listening"?bandText("listening",r.listening_score):mod==="reading"?bandText("reading",r.reading_score):null;
+    shell(`<div class="actions"><button class="btn secondary" onclick="resultsPage()">← Results</button><button class="btn danger" onclick="deleteResult('${r.id}')">Delete Result</button></div>
       <h2>${esc(p.full_name||"Student")}</h2>
       <p class="muted"><strong>${esc(r.tests?.title||"")}</strong> • ${esc(mod.toUpperCase())} • ${r.submitted_at?`Submitted ${new Date(r.submitted_at).toLocaleString()}`:"Not submitted"}</p>
-      <div class="dashboard-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));margin:14px 0">
-        <div class="card"><strong>Score</strong><div style="font-size:26px;margin-top:6px">${esc(scoreField??score)}${mod==="writing"?"":" / "+total}</div></div>
+      <div class="dashboard-grid" style="grid-template-columns:repeat(5,minmax(0,1fr));margin:14px 0">
+        <div class="card"><strong>Raw Score</strong><div style="font-size:26px;margin-top:6px">${esc(scoreField??score)}${mod==="writing"?"":" / "+total}</div></div>
+        <div class="card"><strong>Band</strong><div style="font-size:26px;margin-top:6px">${mod==="writing"?"Pending":esc(band??"—")}</div></div>
         <div class="card"><strong>Correct</strong><div style="font-size:26px;margin-top:6px">${correctCount}</div></div>
         <div class="card"><strong>Wrong</strong><div style="font-size:26px;margin-top:6px">${wrongCount}</div></div>
         <div class="card"><strong>Not Answered</strong><div style="font-size:26px;margin-top:6px">${unansweredCount}</div></div>
@@ -624,5 +830,5 @@ async function resultDetails(resultId){
   }catch(e){alert("Could not open result details: "+e.message)}
 }
 
-window.staffDashboard=staffDashboard;window.studentDashboard=studentDashboard;window.studentsPage=studentsPage;window.testsPage=testsPage;window.newTestForm=newTestForm;window.syncNewTestDefaults=syncNewTestDefaults;window.createTest=createTest;window.togglePublish=togglePublish;window.deleteTest=deleteTest;window.openBuilder=openBuilder;window.renderBuilder=renderBuilder;window.switchAdminSection=switchAdminSection;window.saveTestHeader=saveTestHeader;window.saveSection=saveSection;window.groupForm=groupForm;window.saveGroup=saveGroup;window.deleteGroup=deleteGroup;window.questionForm=questionForm;window.saveQuestion=saveQuestion;window.deleteQuestion=deleteQuestion;window.writingTaskForm=writingTaskForm;window.saveWritingTask=saveWritingTask;window.deleteWritingTask=deleteWritingTask;window.uploadAudio=uploadAudio;window.removeAudio=removeAudio;window.previewCurrentTest=previewCurrentTest;window.startStudentTest=startStudentTest;window.switchExamSection=switchExamSection;window.switchTask=switchTask;window.setAns=setAns;window.toggleAns=toggleAns;window.setWriting=setWriting;window.submitExam=submitExam;window.exitExam=exitExam;window.resultsPage=resultsPage;window.resultDetails=resultDetails;window.logout=logout;
+window.staffDashboard=staffDashboard;window.studentDashboard=studentDashboard;window.studentsPage=studentsPage;window.newStudentForm=newStudentForm;window.createStudent=createStudent;window.manageStudent=manageStudent;window.saveStudent=saveStudent;window.toggleStudent=toggleStudent;window.setTestAccess=setTestAccess;window.deleteStudent=deleteStudent;window.testsPage=testsPage;window.newTestForm=newTestForm;window.syncNewTestDefaults=syncNewTestDefaults;window.createTest=createTest;window.togglePublish=togglePublish;window.deleteTest=deleteTest;window.openBuilder=openBuilder;window.renderBuilder=renderBuilder;window.switchAdminSection=switchAdminSection;window.saveTestHeader=saveTestHeader;window.saveSection=saveSection;window.groupForm=groupForm;window.saveGroup=saveGroup;window.deleteGroup=deleteGroup;window.questionForm=questionForm;window.saveQuestion=saveQuestion;window.deleteQuestion=deleteQuestion;window.writingTaskForm=writingTaskForm;window.saveWritingTask=saveWritingTask;window.deleteWritingTask=deleteWritingTask;window.uploadAudio=uploadAudio;window.removeAudio=removeAudio;window.previewCurrentTest=previewCurrentTest;window.startStudentTest=startStudentTest;window.switchExamSection=switchExamSection;window.switchTask=switchTask;window.setAns=setAns;window.toggleAns=toggleAns;window.setWriting=setWriting;window.submitExam=submitExam;window.exitExam=exitExam;window.resultsPage=resultsPage;window.resultDetails=resultDetails;window.studentResultPage=studentResultPage;window.studentReviewAnswers=studentReviewAnswers;window.deleteResult=deleteResult;window.logout=logout;
 document.addEventListener("DOMContentLoaded",init);
