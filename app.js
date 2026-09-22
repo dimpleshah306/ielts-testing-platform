@@ -97,24 +97,12 @@ function staffDashboard(){
 
 async function studentsPage(){
   setRoute("students");
-  const {data,error}=await sb.from("profiles")
-    .select("id,full_name,role,active,created_at")
-    .eq("role","student")
-    .order("created_at",{ascending:false});
-  if(error)return alert("Students load failed: "+error.message);
-
+  const {data,error}=await sb.from("profiles").select("id,full_name,email,role,active,created_at").eq("role","student").order("created_at",{ascending:false});
+  if(error)return alert(error.message);
   shell(`<div class="actions"><button class="btn secondary" onclick="staffDashboard()">← Dashboard</button></div>
-  <h2>Students</h2>
-  <p class="muted">Student accounts from the profiles table.</p>
-  <div class="card"><div class="table-wrap"><table>
-    <thead><tr><th>Name</th><th>Student ID</th><th>Status</th><th>Created</th></tr></thead>
-    <tbody>${(data||[]).map(s=>`<tr>
-      <td>${esc(s.full_name||"")}</td>
-      <td><small>${esc(s.id||"")}</small></td>
-      <td>${s.active?"Active":"Inactive"}</td>
-      <td>${s.created_at?new Date(s.created_at).toLocaleDateString():"-"}</td>
-    </tr>`).join("")||`<tr><td colspan="4">No students.</td></tr>`}</tbody>
-  </table></div></div>`);
+  <h2>Students</h2><p class="muted">Student login accounts are created through the included secure Edge Function. Existing students are listed below.</p>
+  <div class="card"><div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Created</th></tr></thead>
+  <tbody>${(data||[]).map(s=>`<tr><td>${esc(s.full_name)}</td><td>${esc(s.email)}</td><td>${s.active?"Active":"Inactive"}</td><td>${new Date(s.created_at).toLocaleDateString()}</td></tr>`).join("")||`<tr><td colspan="4">No students.</td></tr>`}</tbody></table></div></div>`);
 }
 
 async function testsPage(module="all"){
@@ -246,7 +234,7 @@ function groupForm(id=null){
     <input id="gImage" type="hidden" value="${attr(current)}">
   </div>
   <label>Shared Option Bank (one per line: A|Option text)</label><textarea id="gOptions">${esc((g?.options||[]).map(o=>`${o.option_key}|${o.option_text}`).join("\n"))}</textarea>
-  <button class="btn primary" onclick="saveGroup('${id||""}','${s.id}')">Save Group</button></div>`);
+  <div class="actions" style="margin-top:12px"><button class="btn primary" onclick="saveGroup('${id||""}','${s.id}')">Save Group</button>${g?`<button class="btn secondary" onclick="duplicateGroup('${g.id}')">Duplicate Group</button>`:""}</div></div>`);
 }
 async function saveGroup(id,sid){
   try{
@@ -294,7 +282,7 @@ function questionForm(id=null){
     ${q?.image_url?`<div class="editor-block" style="margin-top:8px"><strong>Current image:</strong> ${esc(q.image_url)}<br><img class="media" style="max-width:420px;max-height:220px;object-fit:contain" src="${attr(q.image_url)}" onerror="this.style.display='none'"><label style="display:inline-flex;gap:6px;align-items:center;margin-top:6px"><input id="qRemoveImage" type="checkbox"> Remove current image</label></div>`:""}
     <input id="qImage" type="hidden" value="${attr(q?.image_url||"")}">
   </div>
-  <button class="btn primary" onclick="saveQuestion('${id||""}','${s.id}')">Save Question</button></div>`);
+  <div class="actions" style="margin-top:12px"><button class="btn primary" onclick="saveQuestion('${id||""}','${s.id}')">Save Question</button>${q?`<button class="btn secondary" onclick="duplicateQuestion('${q.id}')">Duplicate Question</button>`:""}</div></div>`);
 }
 async function saveQuestion(id,sid){
   try{
@@ -336,6 +324,106 @@ async function saveWritingTask(id){
   }catch(e){alert(e.message)}
 }
 async function deleteWritingTask(id){if(!confirm('Delete this writing task?'))return;const {error}=await sb.from('writing_tasks').delete().eq('id',id);if(error)alert(error.message);else openBuilder(admin.test.id)}
+async function duplicateQuestion(id){
+  try{
+    const q=admin.questions.find(x=>x.id===id);
+    if(!q) return alert("Question not found.");
+    const sid=q.section_id;
+    const sectionQuestions=(admin.questions||[]).filter(x=>x.section_id===sid);
+    const used=new Set(sectionQuestions.map(x=>+x.question_number));
+    let newNo=+q.question_number+1;
+    while(used.has(newNo)) newNo++;
+    const payload={
+      section_id:sid,
+      question_number:newNo,
+      question_type:q.question_type,
+      question_text:q.question_text||"",
+      marks:q.marks||1,
+      correct_answer:"",
+      explanation:q.explanation||null,
+      image_url:q.image_url||null,
+      question_config:JSON.parse(JSON.stringify(q.question_config||{}))
+    };
+    if(payload.question_config) delete payload.question_config.duplicatedFrom;
+    const {data:newQ,error}=await sb.from("questions").insert(payload).select().single();
+    if(error) throw error;
+    const opts=(q.options||[]).map((o,i)=>({
+      question_id:newQ.id,
+      option_key:o.option_key,
+      option_text:o.option_text,
+      is_correct:false,
+      sort_order:o.sort_order??i,
+      metadata:o.metadata||null
+    }));
+    if(opts.length){const {error:oe}=await sb.from("options").insert(opts);if(oe)throw oe}
+    alert(`Question ${newNo} duplicated. Question type, options, image and formatting were copied. Correct answer was cleared.`);
+    openBuilder(admin.test.id);
+  }catch(e){alert(e.message)}
+}
+
+async function duplicateGroup(id){
+  try{
+    const g=admin.groups.find(x=>x.id===id);
+    if(!g) return alert("Question group not found.");
+    const sid=g.section_id;
+    const groups=(admin.groups||[]).filter(x=>x.section_id===sid).sort((a,b)=>(a.group_order||0)-(b.group_order||0));
+    const used=new Set();
+    for(const x of groups){for(let n=+x.start_question;n<=+x.end_question;n++)used.add(n)}
+    const oldStart=+g.start_question||1, oldEnd=+g.end_question||oldStart;
+    const span=Math.max(1,oldEnd-oldStart+1);
+    let start=oldEnd+1;
+    while(used.has(start) || used.has(start+span-1)) start++;
+    const end=start+span-1;
+    const delta=start-oldStart;
+    const shiftBlanks=(text)=>String(text||"").replace(/\[BLANK\s+(\d+)\]/gi,(m,n)=>{
+      const num=+n; return num>=oldStart&&num<=oldEnd?`[BLANK ${num+delta}]`:m;
+    });
+    const payload={
+      section_id:sid,
+      start_question:start,
+      end_question:end,
+      question_type:g.question_type,
+      instructions:g.instructions||"",
+      content:shiftBlanks(g.content||""),
+      image_url:g.image_url||null,
+      group_order:start,
+      group_title:g.group_title||null,
+      image_path:g.image_path||null,
+      audio_start:g.audio_start??null,
+      audio_end:g.audio_end??null,
+      configuration:JSON.parse(JSON.stringify(g.configuration||{}))
+    };
+    const {data:newG,error}=await sb.from("question_groups").insert(payload).select().single();
+    if(error) throw error;
+
+    const opts=(g.options||[]).map((o,i)=>({group_id:newG.id,option_key:o.option_key,option_text:o.option_text,sort_order:o.sort_order??i}));
+    if(opts.length){const {error:oe}=await sb.from("question_group_options").insert(opts);if(oe)throw oe}
+
+    const sourceQuestions=(admin.questions||[]).filter(q=>q.section_id===sid && +q.question_number>=oldStart && +q.question_number<=oldEnd).sort((a,b)=>+a.question_number-+b.question_number);
+    for(const q of sourceQuestions){
+      const newNumber=+q.question_number+delta;
+      const config=JSON.parse(JSON.stringify(q.question_config||{}));
+      const newPayload={
+        section_id:sid,
+        question_number:newNumber,
+        question_type:q.question_type,
+        question_text:shiftBlanks(q.question_text||""),
+        marks:q.marks||1,
+        correct_answer:"",
+        explanation:q.explanation||null,
+        image_url:q.image_url||null,
+        question_config:config
+      };
+      const {data:newQ,error:qe}=await sb.from("questions").insert(newPayload).select().single();
+      if(qe)throw qe;
+      const qOpts=(q.options||[]).map((o,i)=>({question_id:newQ.id,option_key:o.option_key,option_text:o.option_text,is_correct:false,sort_order:o.sort_order??i,metadata:o.metadata||null}));
+      if(qOpts.length){const {error:oe}=await sb.from("options").insert(qOpts);if(oe)throw oe}
+    }
+    alert(`Group duplicated as Questions ${start}-${end}. Questions, options, instructions, formatting and images were copied. Correct answers were cleared.`);
+    openBuilder(admin.test.id);
+  }catch(e){alert(e.message)}
+}
+
 async function deleteQuestion(id){if(!confirm("Delete this question?"))return;const {error}=await sb.from("questions").delete().eq("id",id);if(error)alert(error.message);else openBuilder(admin.test.id)}
 
 async function deleteQuestion(id){if(!confirm("Delete this question?"))return;const {error}=await sb.from("questions").delete().eq("id",id);if(error)alert(error.message);else openBuilder(admin.test.id)}
@@ -358,32 +446,8 @@ async function studentDashboard(){
 }
 async function createAttempt(test){
   const user=(await sb.auth.getUser()).data.user;
-  if(!user?.id)throw new Error("Student session not found. Please login again.");
-
-  // The application uses profiles.id as the student identity.
-  const {data:profile,error:pe}=await sb.from("profiles")
-    .select("id,role,active")
-    .eq("id",user.id)
-    .single();
-
-  if(pe)throw new Error("Student profile could not be found: "+pe.message);
-  if(profile.role!=="student")throw new Error("This account is not a student account.");
-  if(profile.active===false)throw new Error("Student account is inactive.");
-
-  const {data,error}=await sb.from("results").insert({
-    student_id:profile.id,
-    test_id:test.id,
-    status:"in_progress",
-    started_at:new Date().toISOString()
-  }).select().single();
-
-  if(error){
-    if(error.code==="23503"){
-      throw new Error("Result could not be created because results.student_id is not linked to profiles.id. Run FIX_RESULTS_PROFILES.sql in Supabase SQL Editor once.");
-    }
-    throw error;
-  }
-  return data;
+  const {data,error}=await sb.from("results").insert({student_id:user.id,test_id:test.id,status:"in_progress",started_at:new Date().toISOString()}).select().single();
+  if(error)throw error;return data;
 }
 async function startStudentTest(id,resume=true,preview=false){
   try{
@@ -434,69 +498,12 @@ function renderGroup(g,qs){
   ${(g.options||[]).length?`<div class="notice">${g.options.map(o=>`<div><strong>${esc(o.option_key)}.</strong> ${esc(o.option_text)}</div>`).join("")}</div>`:""}${inline?"":sub.map(q=>renderQuestion(q,g.options||[])).join("")}</div>`;
 }
 function renderQuestion(q,shared=[]){
-  const opts=(q.options||[]).length?q.options:shared,
-        s=exam.answers[q.id]??"",
-        t=normalizeType(q.question_type);
-
-  let c="";
-
-  // Multiple choice: show both the option letter and its text.
-  if(t==="single"||["tfng","yng","title"].includes(t)){
-    c=opts.map(o=>`<label style="font-weight:400">
-      <input style="width:auto" type="radio" name="r-${q.id}"
-        value="${attr(o.option_key)}"
-        ${s===o.option_key?"checked":""}
-        onchange="setAns('${q.id}',this.value)">
-      <strong>${esc(o.option_key)}.</strong> ${esc(o.option_text)}
-    </label>`).join("");
-  }
-
-  // Multiple selection: show both the option letter and its text.
-  else if(t==="multi"||t==="list"){
-    const a=Array.isArray(s)?s:[];
-    c=opts.map(o=>`<label style="font-weight:400">
-      <input style="width:auto" type="checkbox"
-        value="${attr(o.option_key)}"
-        ${a.includes(o.option_key)?"checked":""}
-        onchange="toggleAns('${q.id}',this.value,this.checked)">
-      ${esc(o.option_key)}. ${esc(o.option_text)}
-    </label>`).join("");
-  }
-
-  // Map / Plan / Diagram Labelling:
-  // IELTS-style answer is normally the LETTER only (A, B, C...).
-  else if(t==="map"&&opts.length){
-    c=`<select onchange="setAns('${q.id}',this.value)">
-      <option value="">Select answer</option>
-      ${opts.map(o=>`<option value="${attr(o.option_key)}" ${s===o.option_key?"selected":""}>
-        ${esc(o.option_key)}
-      </option>`).join("")}
-    </select>`;
-  }
-
-  // Matching and similar formats: show the letter/key together with the
-  // actual option text so the student can understand what each choice means.
-  else if(["matching","headings","information","features","endings"].includes(t)&&opts.length){
-    c=`<select onchange="setAns('${q.id}',this.value)">
-      <option value="">Select answer</option>
-      ${opts.map(o=>`<option value="${attr(o.option_key)}" ${s===o.option_key?"selected":""}>
-        ${esc(o.option_key)} — ${esc(o.option_text)}
-      </option>`).join("")}
-    </select>`;
-  }
-
-  // Completion / short-answer types.
-  else {
-    c=`<input value="${attr(Array.isArray(s)?s.join(", "):s)}"
-      oninput="setAns('${q.id}',this.value)"
-      placeholder="Type your answer">`;
-  }
-
-  return `<div id="q-${q.id}" class="question">
-    <strong>${q.question_number}. ${esc(q.question_text||"")}</strong>
-    ${q.image_url?`<img class="media" src="${attr(q.image_url)}">`:""}
-    <div style="margin-top:8px">${c}</div>
-  </div>`;
+  const opts=(q.options||[]).length?q.options:shared,s=exam.answers[q.id]??"",t=normalizeType(q.question_type);let c="";
+  if(t==="single"||["tfng","yng","title"].includes(t)){c=opts.map(o=>`<label style="font-weight:400"><input style="width:auto" type="radio" name="r-${q.id}" value="${attr(o.option_key)}" ${s===o.option_key?"checked":""} onchange="setAns('${q.id}',this.value)"> <strong>${esc(o.option_key)}.</strong> ${esc(o.option_text)}</label>`).join("")}
+  else if(t==="multi"||t==="list"){const a=Array.isArray(s)?s:[];c=opts.map(o=>`<label style="font-weight:400"><input style="width:auto" type="checkbox" value="${attr(o.option_key)}" ${a.includes(o.option_key)?"checked":""} onchange="toggleAns('${q.id}',this.value,this.checked)"> ${esc(o.option_key)}. ${esc(o.option_text)}</label>`).join("")}
+  else if(["matching","map","headings","information","features","endings"].includes(t)&&opts.length){c=`<select onchange="setAns('${q.id}',this.value)"><option value="">Select answer</option>${opts.map(o=>`<option value="${attr(o.option_key)}" ${s===o.option_key?"selected":""}>${esc(o.option_key)} — ${esc(o.option_text)}</option>`).join("")}</select>`}
+  else c=`<input value="${attr(Array.isArray(s)?s.join(", "):s)}" oninput="setAns('${q.id}',this.value)" placeholder="Type your answer">`;
+  return `<div id="q-${q.id}" class="question"><strong>${q.question_number}. ${esc(q.question_text||"")}</strong>${q.image_url?`<img class="media" src="${attr(q.image_url)}">`:""}<div style="margin-top:8px">${c}</div></div>`;
 }
 function examNav(){return `<div class="actions" style="justify-content:space-between;margin-top:14px"><button class="btn secondary" ${exam.currentSection===0?"disabled":""} onclick="switchExamSection(${exam.currentSection-1})">← Previous</button>${exam.currentSection<exam.data.sections.length-1?`<button class="btn primary" onclick="switchExamSection(${exam.currentSection+1})">Next →</button>`:`<button class="btn success" onclick="${exam.preview?"exitExam()":"submitExam(false)"}">${exam.preview?"Close Preview":"Submit Test"}</button>`}</div>`}
 function renderWritingExam(){
@@ -532,23 +539,13 @@ async function submitExam(auto=false){
       }
     }
     const rows=qs.map(q=>({result_id:exam.resultId,question_id:q.id,answer_text:Array.isArray(exam.answers[mod==="writing"?"task_"+((exam.data.writingTasks||[]).find(w=>w.part===q.question_number)?.id||q.id):q.id])?exam.answers[mod==="writing"?"task_"+((exam.data.writingTasks||[]).find(w=>w.part===q.question_number)?.id||q.id):q.id].join(", "):String(exam.answers[mod==="writing"?"task_"+((exam.data.writingTasks||[]).find(w=>w.part===q.question_number)?.id||q.id):q.id]??""),is_correct:mod==="writing"?null:evalQ(q,exam.answers[q.id]),marks_obtained:mod==="writing"?0:(evalQ(q,exam.answers[q.id])?Number(q.marks||1):0)}));
-    if(rows.length){
-      const {error}=await sb.from("answers").insert(rows);
-      if(error){
-        if(error.code==="23505") throw new Error("Answers for this attempt already exist. The test may have been submitted already.");
-        throw error;
-      }
-    }
+    if(rows.length){const {error}=await sb.from("answers").insert(rows);if(error)throw error}
     if(mod==="writing"){
       // Writing responses are stored in the common answers table; writing_tasks remains the task definition/evaluation source.
     }
     const total=mod==="writing"?0:qs.reduce((s,q)=>s+Number(q.marks||1),0),score=mod==="writing"?null:qs.reduce((s,q)=>s+(evalQ(q,exam.answers[q.id])?Number(q.marks||1):0),0);
     const upd={status:"submitted",submitted_at:new Date().toISOString()};if(mod==="listening")upd.listening_score=score;if(mod==="reading")upd.reading_score=score;if(mod==="writing")upd.writing_score=null;
-    const {error}=await sb.from("results").update(upd).eq("id",exam.resultId);
-    if(error){
-      if(error.code==="23503") throw new Error("Result update failed because the result/student foreign-key is not aligned. Run FIX_RESULTS_PROFILES.sql in Supabase SQL Editor.");
-      throw error;
-    }
+    const {error}=await sb.from("results").update(upd).eq("id",exam.resultId);if(error)throw error;
     const id=exam.testId;clearExam(id);clearRoute();exam=null;
     shell(`<div class="card" style="max-width:700px;margin:30px auto;text-align:center"><div style="font-size:52px">✅</div><h2>${auto?"Time ended — Test submitted":"Test submitted successfully"}</h2>
     ${mod==="writing"?`<p>Writing response saved. <strong>Evaluation Pending</strong>.</p>`:`<p>Your score: <strong>${score} / ${total}</strong></p>`}<button class="btn primary" onclick="studentDashboard()">Back to Student Dashboard</button></div>`,"Universal Education IELTS","Result");
@@ -558,40 +555,10 @@ function exitExam(){if(timerHandle)clearInterval(timerHandle);if(exam?.preview){
 
 async function resultsPage(){
   setRoute("results");
-  const {data,error}=await sb.from("results")
-    .select("*,tests(title,module)")
-    .order("created_at",{ascending:false});
-  if(error)return alert("Results load failed: "+error.message);
-
-  const ids=[...new Set((data||[]).map(r=>r.student_id).filter(Boolean))];
-  let profiles=[];
-  if(ids.length){
-    const p=await sb.from("profiles")
-      .select("id,full_name,role,active")
-      .in("id",ids);
-    if(!p.error)profiles=p.data||[];
-  }
-  const pm=new Map(profiles.map(x=>[x.id,x]));
-
-  shell(`<div class="actions"><button class="btn secondary" onclick="staffDashboard()">← Dashboard</button></div>
-  <h2>Results</h2>
-  <div class="card table-wrap"><table>
-    <thead><tr><th>Student</th><th>Student ID</th><th>Test</th><th>Status</th><th>Score</th><th>Submitted</th></tr></thead>
-    <tbody>
-    ${(data||[]).map(r=>{
-      const mod=r.tests?.module,p=pm.get(r.student_id);
-      const score=mod==="listening"?r.listening_score??"-":mod==="reading"?r.reading_score??"-":r.writing_score??"Pending";
-      return `<tr>
-        <td>${esc(p?.full_name||"Unknown Student")}</td>
-        <td><small>${esc(r.student_id||"")}</small></td>
-        <td>${esc(r.tests?.title||"")}<br><small>${esc(mod||"")}</small></td>
-        <td>${esc(r.status||"")}</td>
-        <td>${score}</td>
-        <td>${r.submitted_at?new Date(r.submitted_at).toLocaleString():"-"}</td>
-      </tr>`;
-    }).join("")||`<tr><td colspan="6">No results.</td></tr>`}
-    </tbody>
-  </table></div>`);
+  const {data,error}=await sb.from("results").select("*,tests(title,module)").order("created_at",{ascending:false});if(error)return alert(error.message);
+  const ids=[...new Set((data||[]).map(r=>r.student_id).filter(Boolean))];let profiles=[];if(ids.length){const p=await sb.from("profiles").select("id,full_name,email").in("id",ids);if(!p.error)profiles=p.data||[]}const pm=new Map(profiles.map(x=>[x.id,x]));
+  shell(`<div class="actions"><button class="btn secondary" onclick="staffDashboard()">← Dashboard</button></div><h2>Results</h2><div class="card table-wrap"><table><thead><tr><th>Student</th><th>Test</th><th>Status</th><th>Score</th><th>Submitted</th></tr></thead><tbody>
+  ${(data||[]).map(r=>{const mod=r.tests?.module,p=pm.get(r.student_id);const score=mod==="listening"?r.listening_score??"-":mod==="reading"?r.reading_score??"-":r.writing_score??"Pending";return `<tr><td>${esc(p?.full_name||p?.email||r.student_id||"")}</td><td>${esc(r.tests?.title||"")}<br><small>${esc(mod||"")}</small></td><td>${esc(r.status||"")}</td><td>${score}</td><td>${r.submitted_at?new Date(r.submitted_at).toLocaleString():"-"}</td></tr>`}).join("")||`<tr><td colspan="5">No results.</td></tr>`}</tbody></table></div>`);
 }
 
 window.staffDashboard=staffDashboard;window.studentDashboard=studentDashboard;window.studentsPage=studentsPage;window.testsPage=testsPage;window.newTestForm=newTestForm;window.syncNewTestDefaults=syncNewTestDefaults;window.createTest=createTest;window.togglePublish=togglePublish;window.deleteTest=deleteTest;window.openBuilder=openBuilder;window.renderBuilder=renderBuilder;window.switchAdminSection=switchAdminSection;window.saveTestHeader=saveTestHeader;window.saveSection=saveSection;window.groupForm=groupForm;window.saveGroup=saveGroup;window.deleteGroup=deleteGroup;window.questionForm=questionForm;window.saveQuestion=saveQuestion;window.deleteQuestion=deleteQuestion;window.writingTaskForm=writingTaskForm;window.saveWritingTask=saveWritingTask;window.deleteWritingTask=deleteWritingTask;window.uploadAudio=uploadAudio;window.removeAudio=removeAudio;window.previewCurrentTest=previewCurrentTest;window.startStudentTest=startStudentTest;window.switchExamSection=switchExamSection;window.switchTask=switchTask;window.setAns=setAns;window.toggleAns=toggleAns;window.setWriting=setWriting;window.submitExam=submitExam;window.exitExam=exitExam;window.resultsPage=resultsPage;window.logout=logout;
