@@ -4,26 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Universal Education IELTS Testing Platform</title>
-  <script>
-    (function(){
-      function load(src, done, fail){
-        var sc=document.createElement('script'); sc.src=src; sc.onload=done; sc.onerror=fail; document.head.appendChild(sc);
-      }
-      load('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2', function(){
-        load('app.js', function(){}, function(){
-          var m=document.getElementById('app'); if(m) m.innerHTML='<div class="login-wrap"><div class="card login-card"><h2>Application could not load</h2><p>Please refresh the page. If the problem continues, check the GitHub Pages deployment.</p></div></div>';
-        });
-      }, function(){
-        load('https://unpkg.com/@supabase/supabase-js@2', function(){
-          load('app.js', function(){}, function(){
-            var m=document.getElementById('app'); if(m) m.innerHTML='<div class="login-wrap"><div class="card login-card"><h2>Application could not load</h2><p>Please refresh the page and try again.</p></div></div>';
-          });
-        }, function(){
-          var m=document.getElementById('app'); if(m) m.innerHTML='<div class="login-wrap"><div class="card login-card"><h2>Supabase library could not load</h2><p>Please check your internet connection and refresh.</p></div></div>';
-        });
-      });
-    })();
-  </script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root{--navy:#0f172a;--blue:#2563eb;--bg:#f1f5f9;--card:#fff;--line:#e2e8f0;--muted:#64748b;--green:#15803d;--red:#dc2626;--amber:#b45309}
     *{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:var(--bg);color:#0f172a}
@@ -57,8 +38,8 @@
           <button id="staffTab" class="tab" type="button">Admin / Tutor</button>
         </div>
         <form id="loginForm">
-          <label id="loginIdLabel">Student ID</label>
-          <input id="loginId" type="text" autocomplete="username" required placeholder="e.g. STU001">
+          <label>Email</label>
+          <input id="email" type="email" autocomplete="username" required>
           <label>Password</label>
           <input id="password" type="password" autocomplete="current-password" required>
           <button id="loginButton" class="btn primary" style="width:100%;margin-top:16px" type="submit">Login</button>
@@ -67,6 +48,6 @@
       </div>
     </div>
   </div>
-
+  <script src="app.js"></script>
 </body>
 </html>
