@@ -32,10 +32,10 @@ const IELTS_BANDS = {
     [[39,40],9],[[37,38],8.5],[[35,36],8],[[32,34],7.5],[[30,31],7],[[26,29],6.5],[[23,25],6],[[18,22],5.5],[[16,17],5],[[13,15],4.5],[[10,12],4],[[8,9],3.5],[[6,7],3],[[4,5],2.5],[[2,3],2],[[0,1],1]
   ],
   academicReading: [
-    [[39,40],9],[[37,38],8.5],[[35,36],8],[[33,34],7.5],[[30,32],7],[[27,29],6.5],[[23,26],6],[[19,22],5.5],[[15,18],5],[[13,14],4.5],[[10,12],4]
+    [[39,40],9],[[37,38],8.5],[[35,36],8],[[33,34],7.5],[[30,32],7],[[27,29],6.5],[[23,26],6],[[19,22],5.5],[[15,18],5],[[13,14],4.5],[[10,12],4],[[8,9],3.5],[[6,7],3],[[4,5],2.5],[[3,3],2],[[2,2],1.5],[[1,1],1],[[0,0],0]
   ],
   generalReading: [
-    [[40,40],9],[[39,39],8.5],[[37,38],8],[[36,36],7.5],[[34,35],7],[[32,33],6.5],[[30,31],6],[[27,29],5.5],[[23,26],5],[[19,22],4.5],[[15,18],4]
+    [[40,40],9],[[39,39],8.5],[[37,38],8],[[36,36],7.5],[[34,35],7],[[32,33],6.5],[[30,31],6],[[27,29],5.5],[[23,26],5],[[19,22],4.5],[[15,18],4],[[13,14],3.5],[[10,12],3],[[8,9],2.5],[[6,7],2],[[4,5],1.5],[[2,3],1],[[0,1],0]
   ]
 };
 function bandFromRaw(module, score, readingType='academic'){
@@ -79,13 +79,21 @@ function validModuleQuestions(d){
 function listeningQuestions40(d){
   return validModuleQuestions(d).filter(q=>Number(q.question_number)>=1&&Number(q.question_number)<=40).slice(0,40);
 }
+function readingQuestions40(d){
+  return validModuleQuestions(d).filter(q=>Number(q.question_number)>=1&&Number(q.question_number)<=40).slice(0,40);
+}
 
 function setRoute(page,extra={}){localStorage.setItem(routeKey,JSON.stringify({page,...extra}));}
 function getRoute(){try{return JSON.parse(localStorage.getItem(routeKey)||"null")}catch{return null}}
 function clearRoute(){localStorage.removeItem(routeKey)}
-function examKey(id){return examPrefix+id}
+function examKey(id,studentId=null,resultId=null){
+  const sid=studentId||exam?.studentId||currentProfile?.id||"anon";
+  const rid=resultId||exam?.resultId||"new";
+  return `${examPrefix}${sid}_${id}_${rid}`;
+}
+function legacyExamKey(id){return examPrefix+id}
 function saveExam(){
-  if(exam&&!exam.preview)localStorage.setItem(examKey(exam.testId),JSON.stringify({testId:exam.testId,resultId:exam.resultId,currentSection:exam.currentSection,currentTask:exam.currentTask,answers:exam.answers,endAt:exam.endAt,startedAt:exam.startedAt,locked:!!exam.locked}));
+  if(exam&&!exam.preview)localStorage.setItem(examKey(exam.testId,exam.studentId,exam.resultId),JSON.stringify({testId:exam.testId,resultId:exam.resultId,studentId:exam.studentId,currentSection:exam.currentSection,currentTask:exam.currentTask,answers:exam.answers,endAt:exam.endAt,startedAt:exam.startedAt,locked:!!exam.locked}));
 }
 async function persistAnswerToDb(questionId,value){
   if(!exam||exam.preview||!exam.resultId||!questionId||exam.locked)return;
@@ -111,8 +119,8 @@ async function loadAttemptAnswers(resultId){
   (data||[]).forEach(a=>{out[a.question_id]=String(a.answer_text??"").includes(", ")?String(a.answer_text).split(", ").map(x=>x.trim()).filter(Boolean):String(a.answer_text??"")});
   return out;
 }
-function loadExam(id){try{return JSON.parse(localStorage.getItem(examKey(id))||"null")}catch{return null}}
-function clearExam(id){localStorage.removeItem(examKey(id))}
+function loadExam(id,studentId=null,resultId=null){try{return JSON.parse(localStorage.getItem(examKey(id,studentId,resultId))||"null")}catch{return null}}
+function clearExam(id,studentId=null,resultId=null){localStorage.removeItem(examKey(id,studentId,resultId));localStorage.removeItem(legacyExamKey(id))}
 
 function shell(body, title="Universal Education IELTS", sub="Testing Platform"){
   app().innerHTML=`<div class="topbar"><div><div class="brand">${esc(title)}</div><div class="subbrand">${esc(sub)}</div></div>
@@ -171,7 +179,7 @@ async function edgeStudentAdmin(payload){
   const {data,error}=await sb.functions.invoke("student-admin",{body:payload});
   if(error) throw error; if(!data?.success) throw new Error(data?.error||"Student management request failed."); return data;
 }
-async function logout(){stopStudentListeningAudio();clearRoute();if(exam)clearExam(exam.testId);exam=null;currentProfile=null;await sb.auth.signOut();location.reload()}
+async function logout(){stopStudentListeningAudio();clearRoute();if(exam)clearExam(exam.testId,exam.studentId,exam.resultId);exam=null;currentProfile=null;await sb.auth.signOut();location.reload()}
 
 function staffDashboard(){
   setRoute("dashboard");
@@ -639,14 +647,19 @@ async function ensureWritingQuestions(d){
 async function startStudentTest(id,resume=true,preview=false){
   try{
     let d=await loadTestBundle(id);if(!d.test.is_published&&!preview)throw new Error("This test is not published.");
-    let saved=resume?loadExam(id):null,attempt=null;
+    let saved=null,attempt=null,user=null;
     if(!preview){
-      const user=(await sb.auth.getUser()).data.user;
+      user=(await sb.auth.getUser()).data.user;
+      if(!user)throw new Error("Please login again.");
       const existing=await sb.from("results").select("*").eq("student_id",user.id).eq("test_id",id).order("created_at",{ascending:false}).limit(1).maybeSingle();
       if(existing.error)throw existing.error;
       if(existing.data?.status==="submitted")return studentResultPage(existing.data.id);
       attempt=existing.data||null;
       if(!attempt)attempt=await createAttempt(d.test);
+      // Exam state is isolated by student + test + attempt. Never reuse another student's cache.
+      saved=resume?loadExam(id,user.id,attempt.id):null;
+      // Remove any legacy shared exam cache left by V11.4 or earlier.
+      localStorage.removeItem(legacyExamKey(id));
     }
     d=await ensureWritingQuestions(d);
     let audioUrl=null;if(d.audio?.audio_path)audioUrl=await signed("listening-audio",d.audio.audio_path);
@@ -657,7 +670,7 @@ async function startStudentTest(id,resume=true,preview=false){
     let dbAnswers={};if(!preview&&attempt?.id)dbAnswers=await loadAttemptAnswers(attempt.id);
     const mergedAnswers={...(saved?.answers||{}),...dbAnswers};
     const endAt=preview?null:(attempt?.started_at?new Date(attempt.started_at).getTime()+d.test.duration_minutes*60000:(saved?.endAt||Date.now()+d.test.duration_minutes*60000));
-    exam={preview,testId:id,resultId:preview?null:(attempt?.id||saved?.resultId),data:d,currentSection:preview?0:(saved?.currentSection||0),currentTask:saved?.currentTask||0,answers:mergedAnswers,startedAt:attempt?.started_at||saved?.startedAt||new Date().toISOString(),endAt, audioUrl,locked:!!saved?.locked};
+    exam={preview,testId:id,studentId:preview?null:(user?.id||saved?.studentId),resultId:preview?null:(attempt?.id||saved?.resultId),data:d,currentSection:preview?0:(saved?.currentSection||0),currentTask:saved?.currentTask||0,answers:mergedAnswers,startedAt:attempt?.started_at||saved?.startedAt||new Date().toISOString(),endAt, audioUrl,locked:!!saved?.locked};
     if(!preview){setRoute("exam",{testId:id});saveExam();}
     renderExam();
     if(!preview&&endAt<=Date.now())return submitExam(true);
@@ -759,24 +772,26 @@ async function submitExam(auto=false){
   try{
     exam.locked=true;saveExam();if(timerHandle)clearInterval(timerHandle);for(const t of answerSaveTimers.values())clearTimeout(t);answerSaveTimers.clear();
     const mod=exam.data.test.module;
-    const qs=mod==="writing"?validModuleQuestions(exam.data):(mod==="listening"?listeningQuestions40(exam.data):validModuleQuestions(exam.data));
+    const qs=mod==="writing"?validModuleQuestions(exam.data):(mod==="listening"?listeningQuestions40(exam.data):readingQuestions40(exam.data));
     for(const q of qs){
       const key=mod==="writing"?`task_${q.question_config?.writingTaskId||q.id}`:q.id;
       const value=exam.answers[key]??"";
       const answerText=Array.isArray(value)?value.join(", "):String(value??"");
       const correct=mod==="writing"?null:evalQ(q,value);
-      const marks=mod==="writing"?0:(correct?Number(q.marks||1):0);
+      // IELTS Listening and Reading award exactly 1 mark per correct question.
+      const marks=mod==="writing"?0:(correct?1:0);
       const {data:existing,error:findErr}=await sb.from("answers").select("id").eq("result_id",exam.resultId).eq("question_id",q.id).maybeSingle();if(findErr)throw findErr;
       const payload={result_id:exam.resultId,question_id:q.id,answer_text:answerText,is_correct:correct,marks_obtained:marks};
       if(existing?.id){const {error}=await sb.from("answers").update(payload).eq("id",existing.id);if(error)throw error}
       else {const {error}=await sb.from("answers").insert(payload);if(error)throw error}
     }
-    const total=mod==="writing"?0:qs.reduce((n,q)=>n+Number(q.marks||1),0);
-    const score=mod==="writing"?null:qs.reduce((n,q)=>n+(evalQ(q,exam.answers[q.id])?Number(q.marks||1):0),0);
+    const total=mod==="writing"?0:qs.length;
+    // IELTS Reading/Listening raw score is the number of correct answers out of 40.
+    const score=mod==="writing"?null:qs.reduce((n,q)=>n+(evalQ(q,exam.answers[q.id])?1:0),0);
     const upd={status:"submitted",submitted_at:new Date().toISOString()};
     if(mod==="listening")upd.listening_score=score;if(mod==="reading")upd.reading_score=score;if(mod==="writing")upd.writing_score=null;
     const {error}=await sb.from("results").update(upd).eq("id",exam.resultId).eq("status","in_progress");if(error)throw error;
-    const resultId=exam.resultId;clearExam(exam.testId);clearRoute();exam=null;
+    const resultId=exam.resultId;clearExam(exam.testId,exam.studentId,exam.resultId);clearRoute();exam=null;
     await studentResultPage(resultId,true);
   }catch(e){
     console.error(e);
@@ -792,7 +807,7 @@ async function studentResultPage(resultId,justSubmitted=false){
     const mod=r.tests?.module||"";const raw=mod==="listening"?r.listening_score:mod==="reading"?r.reading_score:null;const readingType=(r.tests?.settings||{}).reading_type||"academic";const band=mod==="listening"?bandText("listening",raw):mod==="reading"?bandText("reading",raw,readingType):null;
     shell(`<div class="actions"><button class="btn secondary" onclick="studentDashboard()">← Dashboard</button></div><div class="card" style="max-width:760px;margin:20px auto;text-align:center">
       <div style="font-size:52px">✅</div><h2>${justSubmitted?"Test Submitted":"Test Result"}</h2><h3>${esc(r.tests?.title||"")}</h3>
-      ${mod==="writing"?`<p style="font-size:20px"><strong>Writing Evaluation Pending</strong></p>`:`<div class="dashboard-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:18px"><div class="card"><strong>Score</strong><div style="font-size:34px;margin-top:6px">${esc(raw??"-")} / ${esc(r.tests?.total_questions||40)}</div></div><div class="card"><strong>Band Score</strong><div style="font-size:34px;margin-top:6px">${esc(band??"—")}</div></div></div>`}
+      ${mod==="writing"?`<p style="font-size:20px"><strong>Writing Evaluation Pending</strong></p>`:`<div class="dashboard-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:18px"><div class="card"><strong>Score</strong><div style="font-size:34px;margin-top:6px">${esc(raw??"-")} / 40</div></div><div class="card"><strong>Band Score</strong><div style="font-size:34px;margin-top:6px">${esc(band??"—")}</div></div></div>`}
       <div class="actions" style="justify-content:center;margin-top:20px"><button class="btn secondary" onclick="studentReviewAnswers('${r.id}')">View My Saved Answers</button><button class="btn primary" onclick="studentDashboard()">Back to Dashboard</button></div>
     </div>`);
   }catch(e){alert("Could not load result: "+e.message)}
@@ -801,7 +816,7 @@ async function studentReviewAnswers(resultId){
   try{
     const {data:r,error:re}=await sb.from("results").select("*,tests(title,module,id)").eq("id",resultId).single();if(re)throw re;
     const d=await loadTestBundle(r.test_id);
-    const qs=r.tests?.module==="listening"?listeningQuestions40(d):validModuleQuestions(d);
+    const qs=r.tests?.module==="listening"?listeningQuestions40(d):r.tests?.module==="reading"?readingQuestions40(d):validModuleQuestions(d);
     const qids=qs.map(q=>q.id);
     let ans=[];
     if(qids.length){const a=await sb.from("answers").select("*").eq("result_id",resultId).in("question_id",qids);if(a.error)throw a.error;ans=a.data||[]}
@@ -872,14 +887,14 @@ async function resultDetails(resultId){
     const wrongCount=questions.filter(q=>{const a=am.get(q.id);return a?.is_correct===false&&String(a?.answer_text??"").trim()!==""}).length;
     const unansweredCount=questions.filter(q=>!String(am.get(q.id)?.answer_text??"").trim()).length;
     const score=questions.reduce((n,q)=>n+Number(am.get(q.id)?.marks_obtained||0),0);
-    const total=questions.reduce((n,q)=>n+Number(q.marks||1),0);
+    const total=mod==="listening"||mod==="reading"?40:questions.reduce((n,q)=>n+Number(q.marks||1),0);
     const scoreField=mod==="listening"?r.listening_score:mod==="reading"?r.reading_score:r.writing_score;
     const band=mod==="listening"?bandText("listening",r.listening_score):mod==="reading"?bandText("reading",r.reading_score,(r.tests?.settings||{}).reading_type||"academic"):null;
     shell(`<div class="actions"><button class="btn secondary" onclick="resultsPage()">← Results</button><button class="btn danger" onclick="deleteResult('${r.id}')">Delete Result</button></div>
       <h2>${esc(p.full_name||"Student")}</h2>
       <p class="muted"><strong>${esc(r.tests?.title||"")}</strong> • ${esc(mod.toUpperCase())} • ${r.submitted_at?`Submitted ${new Date(r.submitted_at).toLocaleString()}`:"Not submitted"}</p>
       <div class="dashboard-grid" style="grid-template-columns:repeat(5,minmax(0,1fr));margin:14px 0">
-        <div class="card"><strong>Raw Score</strong><div style="font-size:26px;margin-top:6px">${esc(scoreField??score)}${mod==="writing"?"":" / "+questions.length}</div></div>
+        <div class="card"><strong>Raw Score</strong><div style="font-size:26px;margin-top:6px">${esc(scoreField??score)}${mod==="writing"?"":" / 40"}</div></div>
         <div class="card"><strong>Band</strong><div style="font-size:26px;margin-top:6px">${mod==="writing"?"Pending":esc(band??"—")}</div></div>
         <div class="card"><strong>Correct</strong><div style="font-size:26px;margin-top:6px">${correctCount}</div></div>
         <div class="card"><strong>Wrong</strong><div style="font-size:26px;margin-top:6px">${wrongCount}</div></div>
