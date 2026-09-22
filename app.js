@@ -82,6 +82,28 @@ function listeningQuestions40(d){
 function readingQuestions40(d){
   return validModuleQuestions(d).filter(q=>Number(q.question_number)>=1&&Number(q.question_number)<=40).slice(0,40);
 }
+function normalizeModule(module){ return String(module||"").trim().toLowerCase(); }
+function getReadingType(test){ return String((test?.settings||{}).reading_type||"academic").trim().toLowerCase()==='general'?'general':'academic'; }
+function scoreBand(module, raw, readingType='academic'){
+  const m=normalizeModule(module);
+  if(m==='listening') return bandFromRaw('listening', raw);
+  if(m==='reading') return bandFromRaw('reading', raw, readingType);
+  return null;
+}
+async function recalculateStoredScore(r){
+  const mod=normalizeModule(r.tests?.module);
+  if(mod!=='listening'&&mod!=='reading') return null;
+  const d=await loadTestBundle(r.test_id);
+  const questions=mod==='listening'?listeningQuestions40(d):readingQuestions40(d);
+  const qids=questions.map(q=>q.id);
+  let rows=[];
+  if(qids.length){const a=await sb.from("answers").select("question_id,answer_text").eq("result_id",r.id).in("question_id",qids);if(a.error)throw a.error;rows=a.data||[]}
+  const am=new Map(rows.map(a=>[a.question_id,a]));
+  const score=questions.reduce((n,q)=>n+(evalQ(q,am.get(q.id)?.answer_text||"")?1:0),0);
+  const field=mod==='listening'?'listening_score':'reading_score';
+  if(Number(r[field])!==score){const u=await sb.from("results").update({[field]:score}).eq("id",r.id);if(u.error)throw u.error;r[field]=score;}
+  return score;
+}
 
 function setRoute(page,extra={}){localStorage.setItem(routeKey,JSON.stringify({page,...extra}));}
 function getRoute(){try{return JSON.parse(localStorage.getItem(routeKey)||"null")}catch{return null}}
@@ -804,10 +826,10 @@ function exitExam(){if(timerHandle)clearInterval(timerHandle);stopStudentListeni
 async function studentResultPage(resultId,justSubmitted=false){
   try{
     const {data:r,error:re}=await sb.from("results").select("*,tests(title,module,total_questions,settings)").eq("id",resultId).single();if(re)throw re;
-    const mod=r.tests?.module||"";const raw=mod==="listening"?r.listening_score:mod==="reading"?r.reading_score:null;const readingType=(r.tests?.settings||{}).reading_type||"academic";const band=mod==="listening"?bandText("listening",raw):mod==="reading"?bandText("reading",raw,readingType):null;
+    const mod=normalizeModule(r.tests?.module);let raw=mod==="listening"?r.listening_score:mod==="reading"?r.reading_score:null;if(r.status==="submitted"&&(mod==="listening"||mod==="reading")) raw=await recalculateStoredScore(r);const readingType=getReadingType(r.tests);const band=scoreBand(mod,raw,readingType);
     shell(`<div class="actions"><button class="btn secondary" onclick="studentDashboard()">← Dashboard</button></div><div class="card" style="max-width:760px;margin:20px auto;text-align:center">
       <div style="font-size:52px">✅</div><h2>${justSubmitted?"Test Submitted":"Test Result"}</h2><h3>${esc(r.tests?.title||"")}</h3>
-      ${mod==="writing"?`<p style="font-size:20px"><strong>Writing Evaluation Pending</strong></p>`:`<div class="dashboard-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:18px"><div class="card"><strong>Score</strong><div style="font-size:34px;margin-top:6px">${esc(raw??"-")} / 40</div></div><div class="card"><strong>Band Score</strong><div style="font-size:34px;margin-top:6px">${esc(band??"—")}</div></div></div>`}
+      ${mod==="writing"?`<p style="font-size:20px"><strong>Writing Evaluation Pending</strong></p>`:`<div class="dashboard-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:18px"><div class="card"><strong>Score</strong><div style="font-size:34px;margin-top:6px">${esc(raw??"-")} / 40</div></div><div class="card"><strong>Band Score</strong><div style="font-size:34px;margin-top:6px">${esc(band==null?"—":Number(band).toFixed(1))}</div></div></div>`}
       <div class="actions" style="justify-content:center;margin-top:20px"><button class="btn secondary" onclick="studentReviewAnswers('${r.id}')">View My Saved Answers</button><button class="btn primary" onclick="studentDashboard()">Back to Dashboard</button></div>
     </div>`);
   }catch(e){alert("Could not load result: "+e.message)}
@@ -865,31 +887,31 @@ async function resultDetails(resultId){
     const {data:p,error:pe}=await sb.from("profiles").select("id,full_name,role,active").eq("id",r.student_id).single();
     if(pe)throw pe;
     const d=await loadTestBundle(r.test_id);
-    const mod=r.tests?.module||d.test?.module||"";
+    const mod=normalizeModule(r.tests?.module||d.test?.module||"");
     const questions=mod==="listening"?listeningQuestions40(d):validModuleQuestions(d);
     const qids=questions.map(q=>q.id);
     let ans=[];
     if(qids.length){const a=await sb.from("answers").select("*").eq("result_id",resultId).in("question_id",qids);if(a.error)throw a.error;ans=a.data||[]}
     const am=new Map(ans.map(a=>[a.question_id,a]));
+    let correctCount=0,wrongCount=0,unansweredCount=0;
     const rows=questions.map(q=>{
       const a=am.get(q.id);
       const given=String(a?.answer_text??"").trim();
-      const correct=a?.is_correct===true;
-      const unanswered=!given;
-      const status=unanswered?"Not Answered":correct?"Correct":"Wrong";
-      const cls=unanswered?"warning":correct?"success":"danger";
+      const correct=!!given&&evalQ(q,given);
+      if(!given) unansweredCount++; else if(correct) correctCount++; else wrongCount++;
+      const status=!given?"Not Answered":correct?"Correct":"Wrong";
+      const cls=!given?"warning":correct?"success":"danger";
       const cfg=q.question_config||{};
       const accepted=Array.isArray(cfg.acceptedAnswers)?cfg.acceptedAnswers:[];
       const acceptedText=accepted.length?accepted.join(" / "):"";
-      return `<tr><td><strong>Q${esc(q.question_number)}</strong></td><td>${esc(q.question_text||"")}</td><td>${esc(given||"—")}</td><td>${esc(q.correct_answer||"—")}</td><td>${esc(acceptedText||"—")}</td><td><span class="status ${cls}">${status}</span></td><td>${Number(a?.marks_obtained||0)}</td></tr>`;
+      return `<tr><td><strong>Q${esc(q.question_number)}</strong></td><td>${esc(q.question_text||"")}</td><td>${esc(given||"—")}</td><td>${esc(q.correct_answer||"—")}</td><td>${esc(acceptedText||"—")}</td><td><span class="status ${cls}">${status}</span></td><td>${correct?1:0}</td></tr>`;
     }).join("");
-    const correctCount=questions.filter(q=>am.get(q.id)?.is_correct===true).length;
-    const wrongCount=questions.filter(q=>{const a=am.get(q.id);return a?.is_correct===false&&String(a?.answer_text??"").trim()!==""}).length;
-    const unansweredCount=questions.filter(q=>!String(am.get(q.id)?.answer_text??"").trim()).length;
-    const score=questions.reduce((n,q)=>n+Number(am.get(q.id)?.marks_obtained||0),0);
+    const score=(mod==="listening"||mod==="reading")?correctCount:questions.reduce((n,q)=>n+Number(am.get(q.id)?.marks_obtained||0),0);
     const total=mod==="listening"||mod==="reading"?40:questions.reduce((n,q)=>n+Number(q.marks||1),0);
     const scoreField=mod==="listening"?r.listening_score:mod==="reading"?r.reading_score:r.writing_score;
-    const band=mod==="listening"?bandText("listening",r.listening_score):mod==="reading"?bandText("reading",r.reading_score,(r.tests?.settings||{}).reading_type||"academic"):null;
+    if(r.status==="submitted"&&(mod==="listening"||mod==="reading")&&Number(scoreField)!==score){const field=mod==="listening"?"listening_score":"reading_score";const u=await sb.from("results").update({[field]:score}).eq("id",resultId);if(u.error)throw u.error;r[field]=score;}
+    const finalScore=mod==="listening"?r.listening_score:mod==="reading"?r.reading_score:r.writing_score;
+    const band=scoreBand(mod,finalScore,getReadingType(r.tests));
     shell(`<div class="actions"><button class="btn secondary" onclick="resultsPage()">← Results</button><button class="btn danger" onclick="deleteResult('${r.id}')">Delete Result</button></div>
       <h2>${esc(p.full_name||"Student")}</h2>
       <p class="muted"><strong>${esc(r.tests?.title||"")}</strong> • ${esc(mod.toUpperCase())} • ${r.submitted_at?`Submitted ${new Date(r.submitted_at).toLocaleString()}`:"Not submitted"}</p>
