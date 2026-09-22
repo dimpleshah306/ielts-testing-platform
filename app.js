@@ -11,6 +11,7 @@ const attr = v => esc(v).replace(/`/g,"&#96;");
 const $ = id => document.getElementById(id);
 const routeKey="ue_ielts_route_v1", examPrefix="ue_ielts_exam_v1_";
 let loginMode="student", currentProfile=null, admin={test:null,sections:[],groups:[],questions:[],audio:null,sectionIndex:0}, exam=null, timerHandle=null, answerSaveTimers=new Map();
+let examAudio=null, examAudioTestId=null, examAudioEnded=false, examAudioStopping=false;
 
 const L_TYPES = {
  single:"Multiple Choice — Single Answer",multi:"Multiple Choice — Multiple Answers",matching:"Matching",
@@ -140,7 +141,7 @@ async function edgeStudentAdmin(payload){
   const {data,error}=await sb.functions.invoke("student-admin",{body:payload});
   if(error) throw error; if(!data?.success) throw new Error(data?.error||"Student management request failed."); return data;
 }
-async function logout(){clearRoute();if(exam)clearExam(exam.testId);exam=null;currentProfile=null;await sb.auth.signOut();location.reload()}
+async function logout(){stopStudentListeningAudio();clearRoute();if(exam)clearExam(exam.testId);exam=null;currentProfile=null;await sb.auth.signOut();location.reload()}
 
 function staffDashboard(){
   setRoute("dashboard");
@@ -631,15 +632,40 @@ async function startStudentTest(id,resume=true,preview=false){
     renderExam();
     if(!preview&&endAt<=Date.now())return submitExam(true);
     startTimer();
+    if(mListening(exam))initStudentListeningAudio(!preview);
   }catch(e){alert(e.message)}
 }
 function previewCurrentTest(){startStudentTest(admin.test.id,false,true)}
 function headerExam(){return `<div class="topbar"><div><div class="brand">${esc(exam.data.test.title)}</div><div class="subbrand">${exam.preview?"Student Preview":exam.data.test.module.toUpperCase()+" Test"}</div></div><div class="userbox"><span id="timer" class="timer">${exam.preview?"PREVIEW":fmtTime(Math.max(0,exam.endAt-Date.now()))}</span><button class="btn secondary" onclick="exitExam()">${exam.preview?"Close Preview":"Exit"}</button></div></div>`}
 function fmtTime(ms){const x=Math.max(0,Math.ceil(ms/1000)),h=Math.floor(x/3600),m=Math.floor(x%3600/60),s=x%60;return `${h?String(h).padStart(2,"0")+":":""}${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`}
-function startTimer(){if(timerHandle)clearInterval(timerHandle);if(exam?.preview||exam?.locked)return;timerHandle=setInterval(()=>{if(!exam)return clearInterval(timerHandle);const ms=exam.endAt-Date.now(),el=$("timer");if(el)el.textContent=fmtTime(ms);if(ms<=0){clearInterval(timerHandle);submitExam(true)}},1000)}
+function startTimer(){if(timerHandle)clearInterval(timerHandle);if(exam?.preview||exam?.locked)return;timerHandle=setInterval(()=>{if(!exam)return clearInterval(timerHandle);const ms=exam.endAt-Date.now(),el=$("timer");if(el)el.textContent=fmtTime(ms);if(ms<=0){clearInterval(timerHandle);stopStudentListeningAudio();submitExam(true)}},1000)}
+function mListening(x){return !!x&&x.data?.test?.module==="listening"}
+function stopStudentListeningAudio(){
+  examAudioStopping=true;
+  if(examAudio){try{examAudio.pause();examAudio.currentTime=0}catch(e){}}
+  examAudio=null;examAudioTestId=null;examAudioEnded=false;
+}
+function initStudentListeningAudio(autoplay){
+  if(!mListening(exam)||!exam.audioUrl)return;
+  examAudioStopping=false;
+  const isNew=examAudioTestId!==exam.testId||!examAudio;
+  if(isNew){
+    if(examAudio){try{examAudio.pause()}catch(e){}}
+    examAudio=new Audio(exam.audioUrl);
+    examAudio.preload="auto";
+    examAudioTestId=exam.testId;
+    examAudioEnded=false;
+    examAudio.addEventListener("ended",()=>{examAudioEnded=true;renderExam();});
+    examAudio.addEventListener("pause",()=>{
+      if(examAudioStopping||!exam||exam.locked||exam.preview||examAudioEnded)return;
+      setTimeout(()=>{if(exam&&!exam.locked&&!exam.preview&&!examAudioEnded&&examAudio?.paused)examAudio.play().catch(()=>{});},50);
+    });
+  }
+  if(autoplay&&!examAudioEnded&&examAudio.paused)examAudio.play().catch(()=>{});
+}
 function setAns(k,v){if(!exam||exam.locked)return;exam.answers[k]=v;saveExam();queueAnswerSave(k,v)}
 function toggleAns(k,v,on){if(!exam||exam.locked)return;let a=Array.isArray(exam.answers[k])?[...exam.answers[k]]:[];if(on&&!a.includes(v))a.push(v);if(!on)a=a.filter(x=>x!==v);exam.answers[k]=a;saveExam();queueAnswerSave(k,a)}
-function switchExamSection(i){if(exam?.locked)return;exam.currentSection=Math.max(0,Math.min(i,exam.data.sections.length-1));saveExam();renderExam();window.scrollTo({top:0,behavior:"instant"});startTimer()}
+function switchExamSection(i){if(exam?.locked)return;exam.currentSection=Math.max(0,Math.min(i,exam.data.sections.length-1));saveExam();renderExam();window.scrollTo({top:0,behavior:"instant"});startTimer();if(mListening(exam))initStudentListeningAudio(!exam.preview)}
 function switchTask(i){if(exam?.locked)return;exam.currentTask=Math.max(0,Math.min(i,1));saveExam();renderExam();window.scrollTo({top:0,behavior:"instant"});startTimer()}
 function tabs(label){return `<div class="section-tabs">${exam.data.sections.map((s,i)=>`<button class="btn ${i===exam.currentSection?"primary":"secondary"}" onclick="switchExamSection(${i})">${label} ${i+1}</button>`).join("")}</div>`}
 function qnav(qs){return `<div class="qnav">${qs.map(q=>`<button class="${hasAns(q.id)?"done":""}" onclick="document.getElementById('q-${q.id}')?.scrollIntoView({behavior:'smooth'})">${q.question_number}</button>`).join("")}</div>`}
@@ -651,7 +677,8 @@ function renderExam(){
     app().innerHTML=headerExam()+`<div class="shell">${tabs("Passage")}<div class="exam-split"><div class="pane"><h2>${esc(s.title)}</h2>${s.instructions?`<div class="instructions">${esc(s.instructions)}</div>`:""}${s.image_url?`<img class="media" src="${attr(s.image_url)}">`:""}<div style="white-space:pre-wrap;line-height:1.8">${esc(s.content||"")}</div></div>
     <div class="pane"><h3>Questions</h3>${gs.length?"":qnav(qs)}${renderGroupsOrQuestions(gs,qs)}</div></div>${examNav()}</div>`;
   }else{
-    app().innerHTML=headerExam()+`<div class="shell">${tabs("Part")}${exam.audioUrl?`<div class="audio-box"><strong>Listening Audio</strong><audio controls src="${attr(exam.audioUrl)}"></audio></div>`:""}
+    const audioStatus=exam.audioUrl?(examAudioEnded?"Audio finished — it cannot be replayed.":"Audio plays continuously for the whole Listening test. Pause, stop, seek and replay are disabled."):"Audio not configured.";
+    app().innerHTML=headerExam()+`<div class="shell">${tabs("Part")}${exam.audioUrl?`<div class="audio-box"><strong>Listening Audio</strong><div class="muted" style="margin-top:6px">${audioStatus}</div></div>`:""}
     <div class="card"><h2>${esc(s.title)}</h2>${s.instructions?`<div class="instructions">${esc(s.instructions)}</div>`:""}${s.image_url?`<img class="media" src="${attr(s.image_url)}">`:""}${s.content?`<div style="white-space:pre-wrap;line-height:1.8">${renderInline(s.content,qs)}</div>`:""}${gs.length?"":qnav(qs)}${renderGroupsOrQuestions(gs,qs)}</div>${examNav()}</div>`;
   }
 }
@@ -695,6 +722,7 @@ async function submitExam(auto=false){
   if(exam.preview)return exitExam();
   if(exam.locked)return;
   if(!auto&&!confirm("Submit test? Answers will be locked."))return;
+  stopStudentListeningAudio();
   try{
     exam.locked=true;saveExam();if(timerHandle)clearInterval(timerHandle);for(const t of answerSaveTimers.values())clearTimeout(t);answerSaveTimers.clear();
     const mod=exam.data.test.module;
@@ -723,7 +751,7 @@ async function submitExam(auto=false){
     alert("Submission failed: "+e.message+"\nYour answers are locked locally. Please contact the administrator.");
   }
 }
-function exitExam(){if(timerHandle)clearInterval(timerHandle);if(exam?.preview){exam=null;return openBuilder(admin.test.id)}saveExam();exam=null;clearRoute();studentDashboard()}
+function exitExam(){if(timerHandle)clearInterval(timerHandle);stopStudentListeningAudio();if(exam?.preview){exam=null;return openBuilder(admin.test.id)}saveExam();exam=null;clearRoute();studentDashboard()}
 
 async function studentResultPage(resultId,justSubmitted=false){
   try{
