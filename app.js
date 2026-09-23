@@ -270,7 +270,7 @@ async function testsPage(module="all"){
   shell(`<div class="actions"><button class="btn secondary" onclick="staffDashboard()">← Dashboard</button><button class="btn primary" onclick="newTestForm('${module}')">+ Create Test</button></div>
   <h2>${module==="all"?"All Tests":module[0].toUpperCase()+module.slice(1)+" Tests"}</h2>
   <div class="card table-wrap"><table><thead><tr><th>Title</th><th>Module</th><th>Duration</th><th>Status</th><th>Actions</th></tr></thead><tbody>
-  ${(data||[]).map(t=>`<tr><td><strong>${esc(t.title)}</strong><br><small>${esc(t.description||"")}</small></td><td>${esc(t.module)}</td><td>${t.duration_minutes} min</td>
+  ${(data||[]).map(t=>`<tr><td><strong>${esc(t.title)}</strong><br><small>${esc(t.description||"")}</small></td><td>${esc(t.module)}${t.module==="reading"?`<br><small>${getReadingType(t)==="general"?"General Training":"Academic"}</small>`:""}</td><td>${t.duration_minutes} min</td>
   <td><span class="status ${t.is_published?"published":"draft"}">${t.is_published?"Published":"Draft"}</span></td><td><div class="actions">
   <button class="btn secondary" onclick="openBuilder('${t.id}')">Edit</button><button class="btn primary" onclick="answerKeyPage('${t.id}')">Answer Key</button><button class="btn ${t.is_published?"warning":"success"}" onclick="togglePublish('${t.id}',${!t.is_published})">${t.is_published?"Unpublish":"Publish"}</button>
   <button class="btn danger" onclick="deleteTest('${t.id}')">Delete</button></div></td></tr>`).join("")||`<tr><td colspan="5">No tests.</td></tr>`}</tbody></table></div>`);
@@ -338,13 +338,15 @@ function newTestForm(module="all"){
   <div class="grid"><div><label>Title</label><input id="ntTitle" value="${m[0].toUpperCase()+m.slice(1)} Test"></div><div><label>Module</label><select id="ntModule" onchange="syncNewTestDefaults()">
   <option value="listening" ${m==="listening"?"selected":""}>Listening</option><option value="reading" ${m==="reading"?"selected":""}>Reading</option><option value="writing" ${m==="writing"?"selected":""}>Writing</option></select></div></div>
   <label>Description</label><textarea id="ntDesc"></textarea><div class="grid"><div><label>Duration</label><input id="ntDur" type="number" value="${m==="listening"?40:60}"></div><div><label>Total Questions</label><input id="ntTotal" type="number" value="${m==="writing"?2:40}"></div></div>
+  ${m==="reading"?`<div style="margin-top:12px"><label>Reading Test Type</label><select id="ntReadingType"><option value="academic" selected>IELTS Academic Reading</option><option value="general">IELTS General Training Reading</option></select><div class="inline-help">This setting controls the Reading raw-score → band conversion for every student attempt of this test.</div></div>`:""}
   <div class="actions" style="margin-top:14px"><button class="btn primary" onclick="createTest()">Create & Open Builder</button></div></div>`);
 }
 function syncNewTestDefaults(){const m=$("ntModule").value;$("ntDur").value=m==="listening"?40:60;$("ntTotal").value=m==="writing"?2:40}
 async function createTest(){
   try{
     const uid=(await sb.auth.getUser()).data.user.id,m=$("ntModule").value;
-    const {data:t,error}=await sb.from("tests").insert({title:$("ntTitle").value.trim(),module:m,description:$("ntDesc").value.trim(),duration_minutes:+$("ntDur").value,total_questions:+$("ntTotal").value,is_published:false,created_by:uid}).select().single();if(error)throw error;
+    const settings=m==="reading"?{reading_type:$("ntReadingType")?.value||"academic"}:{};
+    const {data:t,error}=await sb.from("tests").insert({title:$("ntTitle").value.trim(),module:m,description:$("ntDesc").value.trim(),duration_minutes:+$("ntDur").value,total_questions:+$("ntTotal").value,is_published:false,created_by:uid,settings}).select().single();if(error)throw error;
     const count=m==="listening"?4:m==="reading"?3:1;
     const rows=Array.from({length:count},(_,i)=>({test_id:t.id,section_number:i+1,title:m==="listening"?`Part ${i+1}`:m==="reading"?`Passage ${i+1}`:"Writing Tasks",instructions:"",content:""}));
     const {error:e2}=await sb.from("sections").insert(rows);if(e2)throw e2;openBuilder(t.id);
@@ -410,7 +412,9 @@ function renderBuilder(){
   const t=admin.test,s=admin.sections[admin.sectionIndex],qs=admin.questions.filter(q=>q.section_id===s?.id),gs=admin.groups.filter(g=>g.section_id===s?.id);
   shell(`<div class="actions"><button class="btn secondary" onclick="testsPage('${t.module}')">← Tests</button><button class="btn primary" onclick="answerKeyPage('${t.id}')">🔑 Answer Key</button><button class="btn primary" onclick="previewCurrentTest()">👁 Preview</button></div>
   <h2>Edit: ${esc(t.title)}</h2><div class="card"><h3>Test Details</h3><div class="grid"><div><label>Title</label><input id="btTitle" value="${attr(t.title)}"></div><div><label>Duration</label><input id="btDur" type="number" value="${t.duration_minutes}"></div></div>
-  <label>Description</label><textarea id="btDesc">${esc(t.description||"")}</textarea><button class="btn primary" onclick="saveTestHeader()">Save Test Details</button></div>
+  <label>Description</label><textarea id="btDesc">${esc(t.description||"")}</textarea>
+  ${t.module==="reading"?`<div style="margin-top:12px"><label>Reading Test Type</label><select id="btReadingType"><option value="academic" ${getReadingType(t)==="academic"?"selected":""}>IELTS Academic Reading</option><option value="general" ${getReadingType(t)==="general"?"selected":""}>IELTS General Training Reading</option></select><div class="inline-help">The selected type controls the Reading raw-score → band conversion for this test.</div></div>`:""}
+  <button class="btn primary" onclick="saveTestHeader()">Save Test Details</button></div>
   ${t.module==="listening"?renderAudioAdmin():""}
   <div class="section-tabs">${admin.sections.map((x,i)=>`<button class="btn ${i===admin.sectionIndex?"primary":"secondary"}" onclick="switchAdminSection(${i})">${t.module==="reading"?"Passage":"Part"} ${i+1}</button>`).join("")}</div>
   ${s?`<div class="card"><h3>${esc(s.title||"Section")}</h3><div class="grid"><div><label>Title</label><input id="bsTitle" value="${attr(s.title||"")}"></div><div><label>Existing Image URL / Path (optional)</label><input id="bsImage" value="${attr(s.image_url||s.image_path||"")}"></div></div>
@@ -438,7 +442,7 @@ function renderWritingAdmin(qs){
   ${tasks.map(q=>`<div class="editor-block"><strong>Task ${q.part} • ${esc(q.task_type||'task')}</strong><div>${esc(q.prompt||'')}</div><div class="muted">Minimum: ${q.minimum||'-'} • Maximum: ${q.maximum||'-'} • Evaluation: ${esc(q.evaluation_status||'pending')}</div><div class="actions"><button class="btn secondary" onclick="writingTaskForm(${q.part})">Edit</button><button class="btn danger" onclick="deleteWritingTask('${q.id}')">Delete</button></div></div>`).join("")||`<p class="muted">No writing tasks yet.</p>`}</div>`;
 }
 function switchAdminSection(i){admin.sectionIndex=i;renderBuilder()}
-async function saveTestHeader(){const {error}=await sb.from("tests").update({title:$("btTitle").value.trim(),description:$("btDesc").value.trim(),duration_minutes:+$("btDur").value,updated_at:new Date().toISOString()}).eq("id",admin.test.id);if(error)alert(error.message);else openBuilder(admin.test.id)}
+async function saveTestHeader(){const current=admin.test.settings||{};const settings=admin.test.module==="reading"?{...current,reading_type:$("btReadingType")?.value||getReadingType(admin.test)}:current;const {error}=await sb.from("tests").update({title:$("btTitle").value.trim(),description:$("btDesc").value.trim(),duration_minutes:+$("btDur").value,settings,updated_at:new Date().toISOString()}).eq("id",admin.test.id);if(error)alert(error.message);else openBuilder(admin.test.id)}
 async function saveSection(id){
   try{
     const s=admin.sections.find(x=>x.id===id), isReading=admin.test.module==="reading";
@@ -1029,7 +1033,7 @@ async function resultDetails(resultId){
     const band=scoreBand(mod,finalScore,getReadingType(r.tests));
     shell(`<div class="actions"><button class="btn secondary" onclick="resultsPage()">← Results</button><button class="btn danger" onclick="deleteResult('${r.id}')">Delete Result</button></div>
       <h2>${esc(p.full_name||"Student")}</h2>
-      <p class="muted"><strong>${esc(r.tests?.title||"")}</strong> • ${esc(mod.toUpperCase())} • ${r.submitted_at?`Submitted ${new Date(r.submitted_at).toLocaleString()}`:"Not submitted"}</p>
+      <p class="muted"><strong>${esc(r.tests?.title||"")}</strong> • ${esc(mod.toUpperCase())}${mod==="reading"?` • ${getReadingType(r.tests)==="general"?"General Training":"Academic"}`:""} • ${r.submitted_at?`Submitted ${new Date(r.submitted_at).toLocaleString()}`:"Not submitted"}</p>
       <div class="dashboard-grid" style="grid-template-columns:repeat(5,minmax(0,1fr));margin:14px 0">
         <div class="card"><strong>Raw Score</strong><div style="font-size:26px;margin-top:6px">${esc(scoreField??score)}${mod==="writing"?"":" / 40"}</div></div>
         <div class="card"><strong>Band</strong><div style="font-size:26px;margin-top:6px">${mod==="writing"?"Pending":esc(band??"—")}</div></div>
