@@ -461,6 +461,31 @@ async function loadTestBundle(id){
 async function openBuilder(id){
   setRoute("builder",{testId:id});admin=await loadTestBundle(id);admin.sectionIndex=Math.min(admin.sectionIndex,Math.max(0,admin.sections.length-1));renderBuilder();
 }
+
+function parseOptionLines(raw){
+  const lines=String(raw||"").split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  const letters="ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+  return lines.map((line,i)=>{
+    const pipe=line.indexOf("|");
+    if(pipe>0){
+      const key=line.slice(0,pipe).trim();
+      const text=line.slice(pipe+1).trim();
+      return key&&text?{option_key:key,option_text:text,sort_order:i}:null;
+    }
+    return {option_key:letters[i]||String(i+1),option_text:line,sort_order:i};
+  }).filter(Boolean);
+}
+function normalizeCorrectForOptions(raw,opts){
+  const vals=String(raw||"").split("||").map(x=>x.trim()).filter(Boolean);
+  if(!opts.length)return vals.join("||");
+  return vals.map(v=>{
+    const byKey=opts.find(o=>o.option_key.toLowerCase()===v.toLowerCase());
+    if(byKey)return byKey.option_key;
+    const byText=opts.find(o=>o.option_text.toLowerCase()===v.toLowerCase());
+    return byText?byText.option_key:v;
+  }).join("||");
+}
+
 function normalizeType(t){let x=String(t||"").toLowerCase();x=x.replace(/^listening_/,'').replace(/^reading_/,'');const m={multiple_choice:'single',multiple_choice_single:'single',multiple_choice_multiple:'multi',short_answer:'short',note_completion:'note',form_completion:'form',table_completion:'table',sentence_completion:'sentence',summary_completion:'summary',flowchart_completion:'flow',flow_chart_completion:'flow',diagram_label:'map',diagram_label_completion:'map',plan_map:'map',true_false_not_given:'tfng',yes_no_not_given:'yng'};return m[x]||x}
 function typeMap(){return admin.test.module==="reading"?R_TYPES:L_TYPES}
 function renderBuilder(){
@@ -533,7 +558,7 @@ function groupForm(id=null){
     ${current ? `<div class="editor-block" style="margin-top:8px"><strong>Current image:</strong> ${esc(current)}<br><img class="media" style="max-width:420px;max-height:220px;object-fit:contain" src="${attr(current)}" onerror="this.style.display='none'"><label style="display:inline-flex;gap:6px;align-items:center;margin-top:6px"><input id="gRemoveImage" type="checkbox"> Remove current image</label></div>` : ""}
     <input id="gImage" type="hidden" value="${attr(current)}">
   </div>
-  <label>Shared Option Bank (one per line: A|Option text)</label><textarea id="gOptions">${esc((g?.options||[]).map(o=>`${o.option_key}|${o.option_text}`).join("\n"))}</textarea>
+  <label>Shared Option Bank <span class="muted">(one option per line — you can simply type the option text, or use A|Option text)</span></label><textarea id="gOptions">${esc((g?.options||[]).map(o=>`${o.option_key}|${o.option_text}`).join("\n"))}</textarea>
   <div class="actions" style="margin-top:12px"><button class="btn primary" onclick="saveGroup('${id||""}','${s.id}')">Save Group</button>${g?`<button class="btn secondary" onclick="duplicateGroup('${g.id}')">Duplicate Group</button>`:""}</div></div>`);
 }
 async function saveGroup(id,sid){
@@ -561,7 +586,7 @@ async function saveGroup(id,sid){
     }
 
     await sb.from("question_group_options").delete().eq("group_id",gid);
-    const rows=$("gOptions").value.split("\n").map((x,i)=>{const [k,...rest]=x.split("|");return k&&rest.length?{group_id:gid,option_key:k.trim(),option_text:rest.join("|").trim(),sort_order:i}:null}).filter(Boolean);
+    const rows=parseOptionLines($("gOptions").value).map(o=>({group_id:gid,option_key:o.option_key,option_text:o.option_text,sort_order:o.sort_order}));
     if(rows.length){const {error}=await sb.from("question_group_options").insert(rows);if(error)throw error}
     openBuilder(admin.test.id);
   }catch(e){alert(e.message)}
@@ -574,7 +599,7 @@ function questionForm(id=null){
   <div class="grid3"><div><label>Question No.</label><input id="qNo" type="number" value="${q?.question_number||1}"></div><div><label>Question Type</label><select id="qType">${Object.entries(typeMap()).map(([k,v])=>`<option value="${k}" ${normalizeType(q?.question_type)===k?"selected":""}>${esc(v)}</option>`).join("")}</select></div><div><label>Marks</label><input id="qMarks" type="number" value="${q?.marks||1}"></div></div>
   <label>Question Text</label>${richEditor("qTextEditor",q?.question_text||"",140)}<label>Correct Answer</label><input id="qCorrect" value="${attr(q?.correct_answer||"")}"><p class="inline-help">For multiple accepted answers, separate with ||, e.g. centre||center</p>
   <label>Alternative Accepted Answers (optional)</label><input id="qAccepted" value="${attr((q?.config?.acceptedAnswers||[]).join("||"))}"><div class="grid"><div><label>Word Limit</label><input id="qLimit" type="number" value="${q?.config?.wordLimit||""}"></div><div><label>Case Sensitive</label><select id="qCase"><option value="false" ${q?.config?.caseSensitive?"":"selected"}>No</option><option value="true" ${q?.config?.caseSensitive?"selected":""}>Yes</option></select></div></div>
-  <label>Options (one per line: A|Option text)</label><textarea id="qOptions">${esc((q?.options||[]).map(o=>`${o.option_key}|${o.option_text}`).join("\n"))}</textarea>
+  <label>Options <span class="muted">(one option per line — simply type TRUE, FALSE, NOT GIVEN, etc.; A|Option text is also supported)</span></label><textarea id="qOptions">${esc((q?.options||[]).map(o=>`${o.option_key}|${o.option_text}`).join("\n"))}</textarea>
   <div class="media-upload-box">
     <label><strong>Question Image</strong></label>
     <input id="qImageFile" type="file" accept="image/*">
@@ -587,10 +612,13 @@ function questionForm(id=null){
 async function saveQuestion(id,sid){
   try{
     const accepted=$("qAccepted").value.split("||").map(x=>x.trim()).filter(Boolean);
-    const config={...(id?((admin.questions.find(x=>x.id===id)||{}).question_config||{}):{}),acceptedAnswers:accepted,wordLimit:+$("qLimit").value||null,caseSensitive:$("qCase").value==="true"};
+    const parsedOptions=parseOptionLines($("qOptions").value);
+    const normalizedCorrect=normalizeCorrectForOptions($("qCorrect").value.trim(),parsedOptions);
+    const normalizedAccepted=accepted.map(a=>normalizeCorrectForOptions(a,parsedOptions)).join("||").split("||").map(x=>x.trim()).filter(Boolean);
+    const config={...(id?((admin.questions.find(x=>x.id===id)||{}).question_config||{}):{}),acceptedAnswers:normalizedAccepted,wordLimit:+$("qLimit").value||null,caseSensitive:$("qCase").value==="true"};
     const existingImage=$("qImage").value.trim()||null;
     const remove=$("qRemoveImage")?.checked===true;
-    const payload={section_id:sid,question_number:+$("qNo").value,question_type:$("qType").value,question_text:richValue("qTextEditor"),marks:+$("qMarks").value||1,correct_answer:$("qCorrect").value.trim(),image_url:remove?null:existingImage,question_config:config};
+    const payload={section_id:sid,question_number:+$("qNo").value,question_type:$("qType").value,question_text:richValue("qTextEditor"),marks:+$("qMarks").value||1,correct_answer:normalizedCorrect,image_url:remove?null:existingImage,question_config:config};
     let qid=id;if(id){const {error}=await sb.from("questions").update(payload).eq("id",id);if(error)throw error}else{const {data,error}=await sb.from("questions").insert(payload).select().single();if(error)throw error;qid=data.id}
     const file=$("qImageFile")?.files?.[0];
     let imagePath=remove?null:existingImage;
@@ -604,7 +632,7 @@ async function saveQuestion(id,sid){
       const {error}=await sb.from("questions").update({image_url:imagePath}).eq("id",qid);if(error)throw error;
     }
     await sb.from("options").delete().eq("question_id",qid);
-    const rows=$("qOptions").value.split("\n").map((x,i)=>{const [k,...rest]=x.split("|");return k&&rest.length?{question_id:qid,option_key:k.trim(),option_text:rest.join("|").trim(),sort_order:i,is_correct:false}:null}).filter(Boolean);
+    const rows=parseOptionLines($("qOptions").value).map(o=>({question_id:qid,option_key:o.option_key,option_text:o.option_text,sort_order:o.sort_order,is_correct:false}));
     if(rows.length){const {error}=await sb.from("options").insert(rows);if(error)throw error}
     openBuilder(admin.test.id);
   }catch(e){alert(e.message)}
