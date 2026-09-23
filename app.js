@@ -9,6 +9,61 @@ const app = () => document.getElementById("app");
 const esc = v => String(v ?? "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
 const attr = v => esc(v).replace(/`/g,"&#96;");
 const $ = id => document.getElementById(id);
+
+/* =========================================================
+   V12.2 RICH TEXT + STUDENT HIGHLIGHT
+   Cumulative feature: does not replace scoring/auth/test logic.
+   ========================================================= */
+function richTextSanitize(html=""){
+  const raw=String(html||"");
+  if(raw && !/<[a-z][\s\S]*>/i.test(raw)) return esc(raw).replace(/\r?\n/g,"<br>");
+  const box=document.createElement("div");
+  box.innerHTML=raw;
+  const allowed=new Set(["P","BR","STRONG","B","EM","I","U","UL","OL","LI","DIV","SPAN","MARK","H1","H2","H3","H4","BLOCKQUOTE"]);
+  box.querySelectorAll("*").forEach(el=>{
+    if(!allowed.has(el.tagName)){el.replaceWith(document.createTextNode(el.textContent||""));return;}
+    [...el.attributes].forEach(a=>{if(a.name!=="style")el.removeAttribute(a.name)});
+    if(el.hasAttribute("style")){
+      const st=el.style, keep=[];
+      if(st.fontWeight)keep.push(`font-weight:${st.fontWeight}`);
+      if(st.fontStyle)keep.push(`font-style:${st.fontStyle}`);
+      if(st.textDecoration)keep.push(`text-decoration:${st.textDecoration}`);
+      if(st.textAlign)keep.push(`text-align:${st.textAlign}`);
+      if(st.backgroundColor)keep.push(`background-color:${st.backgroundColor}`);
+      el.setAttribute("style",keep.join(";"));
+    }
+  });
+  return box.innerHTML;
+}
+function richEditor(id,value="",height=220){
+  return `<div class="rich-toolbar" data-rich-toolbar="${id}">
+    <button type="button" onclick="richExec('${id}','bold')"><b>B</b></button>
+    <button type="button" onclick="richExec('${id}','italic')"><i>I</i></button>
+    <button type="button" onclick="richExec('${id}','underline')"><u>U</u></button>
+    <span class="rich-sep"></span>
+    <button type="button" onclick="richAlign('${id}','left')">Left</button>
+    <button type="button" onclick="richAlign('${id}','center')">Center</button>
+    <button type="button" onclick="richAlign('${id}','right')">Right</button>
+    <button type="button" onclick="richAlign('${id}','justify')">Justify</button>
+    <span class="rich-sep"></span>
+    <button type="button" onclick="richExec('${id}','insertUnorderedList')">• List</button>
+    <button type="button" onclick="richExec('${id}','insertOrderedList')">1. List</button>
+  </div><div id="${id}" class="rich-editor" contenteditable="true" spellcheck="true" style="min-height:${height}px">${richTextSanitize(value)}</div>`;
+}
+function richExec(id,cmd){const e=$(id);if(!e)return;e.focus();document.execCommand(cmd,false,null)}
+function richAlign(id,a){const e=$(id);if(!e)return;e.focus();const m={left:"justifyLeft",center:"justifyCenter",right:"justifyRight",justify:"justifyFull"}[a];document.execCommand(m,false,null)}
+function richValue(id){return richTextSanitize($(id)?.innerHTML||"")}
+function initRichStyles(){if($("ueRichStyles"))return;const st=document.createElement("style");st.id="ueRichStyles";st.textContent=`
+.rich-toolbar{display:flex;flex-wrap:wrap;gap:5px;padding:7px;border:1px solid #d5dce5;border-bottom:0;border-radius:8px 8px 0 0;background:#f5f7fa;margin-top:5px}.rich-toolbar button{border:1px solid #cbd5e1;background:#fff;padding:5px 9px;border-radius:5px;cursor:pointer;font-size:13px}.rich-toolbar button:hover{background:#e8eef7}.rich-sep{width:1px;background:#cbd5e1;margin:2px 4px}.rich-editor{padding:12px;border:1px solid #d5dce5;border-radius:0 0 8px 8px;background:#fff;line-height:1.7;outline:none;overflow:auto}.rich-editor:focus{border-color:#2563eb}.rich-editor p{margin:0 0 10px}.student-rich{line-height:1.8;user-select:text}.student-rich p{margin:0 0 12px}.student-highlight{background:#fff59d!important;border-radius:2px;padding:0 1px}.student-highlight-menu{position:absolute;z-index:99999;display:none;background:#111827;padding:5px;border-radius:7px;box-shadow:0 5px 18px rgba(0,0,0,.25)}.student-highlight-menu button{color:#fff;background:#111827;border:0;padding:7px 11px;border-radius:5px;cursor:pointer}.student-highlight-menu button:hover{background:#374151}`;document.head.appendChild(st)}
+function highlightKey(kind,id){return `ue_highlight_v1_${exam?.studentId||currentProfile?.id||"anon"}_${exam?.testId||"test"}_${exam?.resultId||"attempt"}_${kind}_${id}`}
+function showHighlightMenu(key){let m=$("studentHighlightMenu");if(!m){m=document.createElement("div");m.id="studentHighlightMenu";m.className="student-highlight-menu";m.innerHTML=`<button type="button" onclick="applyStudentHighlight(window.__ueHighlightKey)">🖍 Highlight</button>`;document.body.appendChild(m)}window.__ueHighlightKey=key;const sel=window.getSelection();if(sel&&sel.rangeCount&&!sel.isCollapsed){const r=sel.getRangeAt(0).getBoundingClientRect();m.style.left=(window.scrollX+r.left)+"px";m.style.top=(window.scrollY+r.bottom+6)+"px";m.style.display="block"}}
+function bindHighlightable(root){if(!root)return;root.querySelectorAll(".student-rich").forEach(el=>{el.addEventListener("mouseup",()=>{const sel=window.getSelection();if(sel&&!sel.isCollapsed&&sel.toString().trim())showHighlightMenu(el.dataset.highlightKey)})})}
+function applyStudentHighlight(key){const sel=window.getSelection();if(!sel||sel.rangeCount===0||sel.isCollapsed)return;try{document.execCommand("hiliteColor",false,"#fff59d")}catch(_){try{const r=sel.getRangeAt(0),sp=document.createElement("span");sp.className="student-highlight";r.surroundContents(sp)}catch(__){}};saveStudentHighlight(key);if($("studentHighlightMenu"))$("studentHighlightMenu").style.display="none";sel.removeAllRanges()}
+function saveStudentHighlight(key){if(!key)return;const el=document.querySelector(`[data-highlight-key="${CSS.escape(key)}"]`);if(el)localStorage.setItem(key,richTextSanitize(el.innerHTML))}
+function restoreStudentHighlight(key){const el=document.querySelector(`[data-highlight-key="${CSS.escape(key)}"]`);if(!el)return;const v=localStorage.getItem(key);if(v)el.innerHTML=richTextSanitize(v)}
+function restoreAndBindHighlights(){document.querySelectorAll(".student-rich").forEach(el=>{if(el.dataset.highlightKey)restoreStudentHighlight(el.dataset.highlightKey)});if(!exam?.review)bindHighlightable(document)}
+document.addEventListener("mousedown",e=>{const m=$("studentHighlightMenu");if(m&&!m.contains(e.target))m.style.display="none"});
+initRichStyles();
 const routeKey="ue_ielts_route_v1", examPrefix="ue_ielts_exam_v1_";
 let loginMode="student", currentProfile=null, admin={test:null,sections:[],groups:[],questions:[],audio:null,sectionIndex:0}, exam=null, timerHandle=null, answerSaveTimers=new Map();
 let examAudio=null, examAudioTestId=null, examAudioEnded=false, examAudioStopping=false;
@@ -419,7 +474,7 @@ function renderBuilder(){
   <div class="section-tabs">${admin.sections.map((x,i)=>`<button class="btn ${i===admin.sectionIndex?"primary":"secondary"}" onclick="switchAdminSection(${i})">${t.module==="reading"?"Passage":"Part"} ${i+1}</button>`).join("")}</div>
   ${s?`<div class="card"><h3>${esc(s.title||"Section")}</h3><div class="grid"><div><label>Title</label><input id="bsTitle" value="${attr(s.title||"")}"></div><div><label>Existing Image URL / Path (optional)</label><input id="bsImage" value="${attr(s.image_url||s.image_path||"")}"></div></div>
   ${t.module==="reading"?`<div class="media-upload-box"><label><strong>Passage Image / Chart / Diagram</strong></label><input id="bsImageFile" type="file" accept="image/*"><div class="inline-help">Upload, replace or remove a passage-level image. This is useful for Reading charts, diagrams, figures and visual material.</div>${s.image_url?`<div class="editor-block" style="margin-top:8px"><strong>Current image:</strong><br><img class="media" style="max-width:420px;max-height:220px;object-fit:contain" src="${attr(s.image_url)}" onerror="this.style.display='none'"><label style="display:inline-flex;gap:6px;align-items:center;margin-top:6px"><input id="bsRemoveImage" type="checkbox"> Remove current image</label></div>`:""}</div>`:""}
-  <label>Instructions</label><textarea id="bsInst">${esc(s.instructions||"")}</textarea><label>${t.module==="reading"?"Passage Text":"Content / Notes"}</label><textarea id="bsContent" style="min-height:220px">${esc(s.content||"")}</textarea>
+  <label>Instructions</label>${richEditor("bsInstEditor",s.instructions||"",140)}<label>${t.module==="reading"?"Passage Text":"Content / Notes"}</label>${richEditor("bsContentEditor",s.content||"",260)}
   <div class="actions"><button class="btn primary" onclick="saveSection('${s.id}')">Save ${t.module==="reading"?"Passage":"Part"}</button></div></div>`:""}
   ${t.module==="writing"?renderWritingAdmin(qs):renderQuestionAdmin(gs,qs)}`);
 }
@@ -456,7 +511,7 @@ async function saveSection(id){
       const up=await sb.storage.from("question-images").upload(imagePath,file,{upsert:true,contentType:file.type||`image/${ext}`});
       if(up.error)throw up.error;
     }
-    const payload={title:$("bsTitle").value.trim(),instructions:$("bsInst").value,content:$("bsContent").value,image_url:isReading?(imagePath||null):(current||null)};
+    const payload={title:$("bsTitle").value.trim(),instructions:richValue("bsInstEditor"),content:richValue("bsContentEditor"),image_url:isReading?(imagePath||null):(current||null)};
     const {error}=await sb.from("sections").update(payload).eq("id",id);if(error)throw error;
     openBuilder(admin.test.id)
   }catch(e){alert(e.message)}
@@ -469,7 +524,7 @@ function groupForm(id=null){
   <div class="grid3"><div><label>Start Question</label><input id="gStart" type="number" value="${g?.start_question||1}"></div><div><label>End Question</label><input id="gEnd" type="number" value="${g?.end_question||1}"></div>
   <div><label>Question Type</label><select id="gType">${Object.entries(typeMap()).map(([k,v])=>`<option value="${k}" ${normalizeType(g?.question_type)===k?"selected":""}>${esc(v)}</option>`).join("")}</select></div></div>
   <label>Group Title / Heading</label><input id="gTitle" value="${attr(g?.group_title||"")}">
-  <label>Instructions</label><textarea id="gInst">${esc(g?.instructions||"")}</textarea><label>Group Content / Heading / Notes</label><textarea id="gContent" style="min-height:220px">${esc(g?.content||"")}</textarea>
+  <label>Instructions</label>${richEditor("gInstEditor",g?.instructions||"",140)}<label>Group Content / Heading / Notes</label>${richEditor("gContentEditor",g?.content||"",260)}
   <p class="inline-help">For completion types use tokens such as: Cheapest properties: £ [BLANK 1] per week</p>
   <div class="media-upload-box">
     <label><strong>Group Image / Map / Plan / Diagram</strong></label>
@@ -483,7 +538,7 @@ function groupForm(id=null){
 }
 async function saveGroup(id,sid){
   try{
-    const payload={section_id:sid,start_question:+$("gStart").value,end_question:+$("gEnd").value,question_type:$("gType").value,instructions:$("gInst").value,content:$("gContent").value,image_url:null,group_order:+$("gStart").value,group_title:$("gTitle").value.trim()||null};
+    const payload={section_id:sid,start_question:+$("gStart").value,end_question:+$("gEnd").value,question_type:$("gType").value,instructions:richValue("gInstEditor"),content:richValue("gContentEditor"),image_url:null,group_order:+$("gStart").value,group_title:$("gTitle").value.trim()||null};
     let gid=id;
     if(id){const {error}=await sb.from("question_groups").update(payload).eq("id",id);if(error)throw error}
     else{const {data,error}=await sb.from("question_groups").insert(payload).select().single();if(error)throw error;gid=data.id}
@@ -517,7 +572,7 @@ function questionForm(id=null){
   const s=admin.sections[admin.sectionIndex],q=id?admin.questions.find(x=>x.id===id):null;
   shell(`<div class="actions"><button class="btn secondary" onclick="renderBuilder()">← Builder</button></div><h2>${q?"Edit":"Add"} Question</h2><div class="card">
   <div class="grid3"><div><label>Question No.</label><input id="qNo" type="number" value="${q?.question_number||1}"></div><div><label>Question Type</label><select id="qType">${Object.entries(typeMap()).map(([k,v])=>`<option value="${k}" ${normalizeType(q?.question_type)===k?"selected":""}>${esc(v)}</option>`).join("")}</select></div><div><label>Marks</label><input id="qMarks" type="number" value="${q?.marks||1}"></div></div>
-  <label>Question Text</label><textarea id="qText">${esc(q?.question_text||"")}</textarea><label>Correct Answer</label><input id="qCorrect" value="${attr(q?.correct_answer||"")}"><p class="inline-help">For multiple accepted answers, separate with ||, e.g. centre||center</p>
+  <label>Question Text</label>${richEditor("qTextEditor",q?.question_text||"",140)}<label>Correct Answer</label><input id="qCorrect" value="${attr(q?.correct_answer||"")}"><p class="inline-help">For multiple accepted answers, separate with ||, e.g. centre||center</p>
   <label>Alternative Accepted Answers (optional)</label><input id="qAccepted" value="${attr((q?.config?.acceptedAnswers||[]).join("||"))}"><div class="grid"><div><label>Word Limit</label><input id="qLimit" type="number" value="${q?.config?.wordLimit||""}"></div><div><label>Case Sensitive</label><select id="qCase"><option value="false" ${q?.config?.caseSensitive?"":"selected"}>No</option><option value="true" ${q?.config?.caseSensitive?"selected":""}>Yes</option></select></div></div>
   <label>Options (one per line: A|Option text)</label><textarea id="qOptions">${esc((q?.options||[]).map(o=>`${o.option_key}|${o.option_text}`).join("\n"))}</textarea>
   <div class="media-upload-box">
@@ -535,7 +590,7 @@ async function saveQuestion(id,sid){
     const config={...(id?((admin.questions.find(x=>x.id===id)||{}).question_config||{}):{}),acceptedAnswers:accepted,wordLimit:+$("qLimit").value||null,caseSensitive:$("qCase").value==="true"};
     const existingImage=$("qImage").value.trim()||null;
     const remove=$("qRemoveImage")?.checked===true;
-    const payload={section_id:sid,question_number:+$("qNo").value,question_type:$("qType").value,question_text:$("qText").value,marks:+$("qMarks").value||1,correct_answer:$("qCorrect").value.trim(),image_url:remove?null:existingImage,question_config:config};
+    const payload={section_id:sid,question_number:+$("qNo").value,question_type:$("qType").value,question_text:richValue("qTextEditor"),marks:+$("qMarks").value||1,correct_answer:$("qCorrect").value.trim(),image_url:remove?null:existingImage,question_config:config};
     let qid=id;if(id){const {error}=await sb.from("questions").update(payload).eq("id",id);if(error)throw error}else{const {data,error}=await sb.from("questions").insert(payload).select().single();if(error)throw error;qid=data.id}
     const file=$("qImageFile")?.files?.[0];
     let imagePath=remove?null:existingImage;
@@ -558,7 +613,7 @@ function writingTaskForm(part=null){
   const tasks=admin.writingTasks||[],w=part?tasks.find(x=>x.part===part):null,n=part||([1,2].find(x=>!tasks.some(t=>t.part===x))||1),current=w?.media_url||"";
   shell(`<div class="actions"><button class="btn secondary" onclick="renderBuilder()">← Builder</button></div><h2>${w?"Edit":"Add"} Writing Task ${n}</h2><div class="card">
   <label>Task Number</label><select id="wNo"><option value="1" ${n==1?"selected":""}>Task 1</option><option value="2" ${n==2?"selected":""}>Task 2</option></select>
-  <label>Instructions</label><textarea id="wInst">${esc(w?.instructions||"")}</textarea><label>Prompt</label><textarea id="wPrompt" style="min-height:180px">${esc(w?.prompt||"")}</textarea>
+  <label>Instructions</label>${richEditor("wInstEditor",w?.instructions||"",140)}<label>Prompt</label>${richEditor("wPromptEditor",w?.prompt||"",220)}
   <div class="grid"><div><label>Minimum Words</label><input id="wMin" type="number" value="${w?.minimum??(n==1?150:250)}"></div><div><label>Maximum Words (optional)</label><input id="wMax" type="number" value="${w?.maximum??""}"></div></div>
   <div class="media-upload-box"><label><strong>Task Image / Chart / Graph / Table / Diagram</strong></label><input id="wMediaFile" type="file" accept="image/*"><div class="inline-help">Upload, replace or remove the visual for Task ${n}. This is available for both Writing Task 1 and Task 2.</div>
   ${current?`<div class="editor-block" style="margin-top:8px"><strong>Current image:</strong><br><img class="media" style="max-width:420px;max-height:240px;object-fit:contain" src="${attr(current)}" onerror="this.style.display='none'"><label style="display:inline-flex;gap:6px;align-items:center;margin-top:6px"><input id="wRemoveImage" type="checkbox"> Remove current image</label></div>`:""}
@@ -823,19 +878,21 @@ function renderExam(){
   const qs=exam.data.questions.filter(q=>q.section_id===s.id&&Number(q.question_number)>=rangeLo&&Number(q.question_number)<=rangeHi).sort((a,b)=>a.question_number-b.question_number);
   const gs=exam.data.groups.filter(g=>g.section_id===s.id&&Number(g.start_question)>=rangeLo&&Number(g.end_question)<=rangeHi).sort((a,b)=>a.group_order-b.group_order);
   if(m==="reading"){
-    app().innerHTML=headerExam()+`<div class="shell">${tabs("Passage")}<div class="exam-split"><div class="pane"><h2>${esc(s.title)}</h2>${s.instructions?`<div class="instructions">${esc(s.instructions)}</div>`:""}${s.image_url?`<img class="media" src="${attr(s.image_url)}">`:""}<div style="white-space:pre-wrap;line-height:1.8">${esc(s.content||"")}</div></div>
+    app().innerHTML=headerExam()+`<div class="shell">${tabs("Passage")}<div class="exam-split"><div class="pane"><h2>${esc(s.title)}</h2>${s.instructions?`<div class="instructions student-rich" data-highlight-key="${attr(highlightKey("reading-instructions",s.id))}">${richTextSanitize(s.instructions)}</div>`:""}${s.image_url?`<img class="media" src="${attr(s.image_url)}">`:""}<div class="student-rich" data-highlight-key="${attr(highlightKey("reading-content",s.id))}">${richTextSanitize(s.content||"")}</div></div>
     <div class="pane"><h3>Questions</h3>${gs.length?"":qnav(qs)}${renderGroupsOrQuestions(gs,qs)}</div></div>${examNav()}</div>`;
+    setTimeout(restoreAndBindHighlights,0);
   }else{
     const audioStatus=exam.audioUrl?(exam.review?"Submitted review — audio is not replayed.":examAudioEnded?"Audio finished — it cannot be replayed.":"Audio plays continuously for the whole Listening test. Pause, stop, seek and replay are disabled."):"Audio not configured.";
     app().innerHTML=headerExam()+`<div class="shell">${tabs("Part")}${exam.audioUrl?`<div class="audio-box"><strong>Listening Audio</strong><div class="muted" style="margin-top:6px">${audioStatus}</div></div>`:""}
-    <div class="card"><h2>${esc(s.title)}</h2>${s.instructions?`<div class="instructions">${esc(s.instructions)}</div>`:""}${s.image_url?`<img class="media" src="${attr(s.image_url)}">`:""}${s.content?`<div style="white-space:pre-wrap;line-height:1.8">${renderInline(s.content,qs)}</div>`:""}${gs.length?"":qnav(qs)}${renderGroupsOrQuestions(gs,qs)}</div>${examNav()}</div>`;
+    <div class="card"><h2>${esc(s.title)}</h2>${s.instructions?`<div class="instructions student-rich" data-highlight-key="${attr(highlightKey("listening-instructions",s.id))}">${richTextSanitize(s.instructions)}</div>`:""}${s.image_url?`<img class="media" src="${attr(s.image_url)}">`:""}${s.content?`<div class="student-rich" data-highlight-key="${attr(highlightKey("listening-content",s.id))}">${renderInlineRich(s.content,qs)}</div>`:""}${gs.length?"":qnav(qs)}${renderGroupsOrQuestions(gs,qs)}</div>${examNav()}</div>`;
+    setTimeout(restoreAndBindHighlights,0);
   }
 }
 function renderGroupsOrQuestions(gs,qs){return gs.length?gs.map(g=>renderGroup(g,qs)).join(""):qs.map(q=>renderQuestion(q)).join("")}
-function renderInline(txt,qs){return esc(txt).replace(/\[BLANK\s*(\d+)\]/gi,(_,n)=>{const q=qs.find(x=>+x.question_number===+n),k=q?.id||`blank_${n}`;return `<input style="display:inline-block;width:130px;margin:0 4px" value="${attr(exam.answers[k]||"")}" oninput="setAns('${k}',this.value)" ${exam.locked?"disabled":""}>`})}
+function renderInlineRich(txt,qs){const tokenMap=[];let html=String(txt||"").replace(/\[BLANK\s*(\d+)\]/gi,(_,n)=>{const q=qs.find(x=>+x.question_number===+n),k=q?.id||`blank_${n}`;const token=`__UEBLANK_${tokenMap.length}__`;tokenMap.push(`<input style="display:inline-block;width:130px;margin:0 4px" value="${attr(exam.answers[k]||"")}" oninput="setAns('${k}',this.value)" ${exam.locked?"disabled":""}>`);return token});html=richTextSanitize(html);tokenMap.forEach((v,i)=>{html=html.replace(`__UEBLANK_${i}__`,v)});return html}
 function renderGroup(g,qs){
   const sub=qs.filter(q=>q.question_number>=g.start_question&&q.question_number<=g.end_question),inline=COMPLETION_TYPES.includes(normalizeType(g.question_type))&&/\[BLANK\s*\d+\]/i.test(g.content||"");
-  return `<div class="group"><strong>Questions ${g.start_question}–${g.end_question}</strong>${g.instructions?`<div class="instructions">${esc(g.instructions)}</div>`:""}${g.image_url?`<img class="media" src="${attr(g.image_url)}">`:""}${g.content?`<div style="white-space:pre-wrap;line-height:1.8">${renderInline(g.content,sub)}</div>`:""}
+  return `<div class="group"><strong>Questions ${g.start_question}–${g.end_question}</strong>${g.instructions?`<div class="instructions student-rich" data-highlight-key="${attr(highlightKey("group-instructions",g.id))}">${richTextSanitize(g.instructions)}</div>`:""}${g.image_url?`<img class="media" src="${attr(g.image_url)}">`:""}${g.content?`<div class="student-rich" data-highlight-key="${attr(highlightKey("group-content",g.id))}">${renderInlineRich(g.content,sub)}</div>`:""}
   ${(g.options||[]).length?`<div class="notice">${g.options.map(o=>`<div><strong>${esc(o.option_key)}.</strong> ${esc(o.option_text)}</div>`).join("")}</div>`:""}${inline?"":sub.map(q=>renderQuestion(q,g.options||[])).join("")}</div>`;
 }
 function renderQuestion(q,shared=[]){
@@ -844,15 +901,16 @@ function renderQuestion(q,shared=[]){
   else if(t==="multi"||t==="list"){const a=Array.isArray(s)?s:[];c=opts.map(o=>`<label style="font-weight:400"><input style="width:auto" type="checkbox" value="${attr(o.option_key)}" ${a.includes(o.option_key)?"checked":""} onchange="toggleAns('${q.id}',this.value,this.checked)" ${exam.locked?"disabled":""}> ${esc(o.option_key)}. ${esc(o.option_text)}</label>`).join("")}
   else if(["matching","map","headings","information","features","endings"].includes(t)&&opts.length){c=`<select onchange="setAns('${q.id}',this.value)" ${exam.locked?"disabled":""}><option value="">Select answer</option>${opts.map(o=>`<option value="${attr(o.option_key)}" ${s===o.option_key?"selected":""}>${esc(o.option_key)} — ${esc(o.option_text)}</option>`).join("")}</select>`}
   else c=`<input value="${attr(Array.isArray(s)?s.join(", "):s)}" oninput="setAns('${q.id}',this.value)" placeholder="Type your answer" ${exam.locked?"disabled":""}>`;
-  return `<div id="q-${q.id}" class="question"><strong>${q.question_number}. ${esc(q.question_text||"")}</strong>${q.image_url?`<img class="media" src="${attr(q.image_url)}">`:""}<div style="margin-top:8px">${c}</div></div>`;
+  return `<div id="q-${q.id}" class="question"><div class="student-rich" data-highlight-key="${attr(highlightKey("question",q.id))}"><strong>${q.question_number}. </strong>${richTextSanitize(q.question_text||"")}</div>${q.image_url?`<img class="media" src="${attr(q.image_url)}">`:""}<div style="margin-top:8px">${c}</div></div>`;
 }
 function examNav(){return `<div class="actions" style="justify-content:space-between;margin-top:14px"><button class="btn secondary" ${exam.currentSection===0?"disabled":""} onclick="switchExamSection(${exam.currentSection-1})">← Previous</button>${exam.review?`<span class="status published">Submitted — Read Only Review</span>`:exam.locked?`<span class="status warning">Submission completed</span>`:exam.currentSection<exam.data.sections.length-1?`<button class="btn primary" onclick="switchExamSection(${exam.currentSection+1})">Next →</button>`:`<button class="btn success" onclick="${exam.preview?"exitExam()":"submitExam(false)"}">${exam.preview?"Close Preview":"Submit Test"}</button>`}</div>`}
 function renderWritingExam(){
   const tasks=(exam.data.writingTasks||[]).slice().sort((a,b)=>a.part-b.part),q=tasks[Math.min(exam.currentTask,tasks.length-1)];
   app().innerHTML=headerExam()+`<div class="shell"><div class="section-tabs">${tasks.map((x,i)=>`<button class="btn ${i===exam.currentTask?"primary":"secondary"}" onclick="switchTask(${i})">Task ${i+1}</button>`).join("")}</div>
-  ${q?`<div class="writing-grid"><div class="pane"><h2>Writing Task ${q.part}</h2>${q.instructions?`<div class="instructions">${esc(q.instructions)}</div>`:""}${q.media_url?`<img class="media" src="${attr(q.media_url)}">`:""}<div style="white-space:pre-wrap;line-height:1.8">${esc(q.prompt||"")}</div></div>
+  ${q?`<div class="writing-grid"><div class="pane"><h2>Writing Task ${q.part}</h2>${q.instructions?`<div class="instructions student-rich" data-highlight-key="${attr(highlightKey("writing-instructions",q.id))}">${richTextSanitize(q.instructions)}</div>`:""}${q.media_url?`<img class="media" src="${attr(q.media_url)}">`:""}<div class="student-rich" data-highlight-key="${attr(highlightKey("writing-prompt",q.id))}">${richTextSanitize(q.prompt||"")}</div></div>
   <div class="pane"><div class="actions" style="justify-content:space-between"><h3>Your Answer</h3><strong id="wc">0 words</strong></div><textarea class="writing-answer" id="wa" oninput="setWriting('task_${q.id}',this.value)" ${exam.locked?"disabled":""}>${esc(exam.answers['task_'+q.id]||"")}</textarea><p class="muted">Minimum: ${q.minimum|| (q.part===1?150:250)} words${q.maximum?` • Maximum: ${q.maximum}`:""}</p></div></div>`:`<div class="card">Writing tasks not configured.</div>`}
   <div class="actions" style="justify-content:space-between;margin-top:14px"><button class="btn secondary" ${exam.currentTask===0?"disabled":""} onclick="switchTask(${exam.currentTask-1})">← Previous Task</button>${exam.currentTask<tasks.length-1?`<button class="btn primary" onclick="switchTask(${exam.currentTask+1})">Next Task →</button>`:`<button class="btn success" onclick="${exam.preview?"exitExam()":"submitExam(false)"}">${exam.preview?"Close Preview":"Submit Writing Test"}</button>`}</div></div>`;
+  setTimeout(restoreAndBindHighlights,0);
   updateWC();
 }
 function setWriting(id,v){setAns(id,v);updateWC()}function updateWC(){const v=$("wa")?.value||"",n=v.trim()?v.trim().split(/\s+/).length:0;if($("wc"))$("wc").textContent=n+" words"}
