@@ -510,6 +510,9 @@ function normalizeCorrectForOptions(raw,opts){
 function normalizeType(t){
   let x=String(t||"").toLowerCase().trim();
   x=x.replace(/^listening_/,'').replace(/^reading_/,'');
+  // Admin may store either registry keys (matching_features) or human labels (Matching Features).
+  // Normalize separators so both forms render identically on the student side.
+  x=x.replace(/[\s-]+/g,'_');
   const m={
     multiple_choice:'single',multiple_choice_single:'single',multiple_choice_multiple:'multi',
     short_answer:'short',note_completion:'note',form_completion:'form',table_completion:'table',
