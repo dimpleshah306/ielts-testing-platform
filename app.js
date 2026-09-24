@@ -738,7 +738,7 @@ function writingTaskForm(part=null){
 async function saveWritingTask(id){
   try{
     const part=+$('wNo').value, current=$('wMedia').value.trim()||null, remove=$('wRemoveImage')?.checked===true, file=$('wMediaFile')?.files?.[0];
-    const payload={test_id:admin.test.id,part,task_type:part===1?'task1':'task2',instructions:$('wInst').value,prompt:$('wPrompt').value,minimum:+$('wMin').value||null,maximum:+$('wMax').value||null,suggested:part===1?20:40,media_url:remove?null:current,evaluation_status:'pending',updated_at:new Date().toISOString()};
+    const payload={test_id:admin.test.id,part,task_type:part===1?'task1':'task2',instructions:richValue('wInstEditor'),prompt:richValue('wPromptEditor'),minimum:+$('wMin').value||null,maximum:+$('wMax').value||null,suggested:part===1?20:40,media_url:remove?null:current,evaluation_status:'pending',updated_at:new Date().toISOString()};
     let rowId=id;
     if(id){const {error}=await sb.from('writing_tasks').update(payload).eq('id',id);if(error)throw error}
     else{const {data,error}=await sb.from('writing_tasks').insert(payload).select().single();if(error)throw error;rowId=data.id}
