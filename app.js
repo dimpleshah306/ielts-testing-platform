@@ -474,8 +474,13 @@ async function loadTestBundle(id){
   let audio=null;if(test.module==="listening"){const a=await sb.from("test_audio").select("*").eq("test_id",id).maybeSingle();if(!a.error)audio=a.data}
   return {test,sections:sections||[],groups,questions,audio,writingTasks};
 }
-async function openBuilder(id){
-  setRoute("builder",{testId:id});admin=await loadTestBundle(id);admin.sectionIndex=Math.min(admin.sectionIndex,Math.max(0,admin.sections.length-1));renderBuilder();
+async function openBuilder(id,sectionIndex=0,scrollTop=0){
+  setRoute("builder",{testId:id});
+  admin=await loadTestBundle(id);
+  const requested=Number.isFinite(Number(sectionIndex))?Number(sectionIndex):0;
+  admin.sectionIndex=Math.min(Math.max(0,requested),Math.max(0,admin.sections.length-1));
+  renderBuilder();
+  setTimeout(()=>window.scrollTo({top:Math.max(0,Number(scrollTop)||0),behavior:"instant"}),0);
 }
 
 function parseOptionLines(raw){
@@ -567,7 +572,9 @@ async function saveSection(id){
     }
     const payload={title:$("bsTitle").value.trim(),instructions:richValue("bsInstEditor"),content:richValue("bsContentEditor"),image_url:isReading?(imagePath||null):(current||null)};
     const {error}=await sb.from("sections").update(payload).eq("id",id);if(error)throw error;
-    openBuilder(admin.test.id)
+    const currentSection=admin.sectionIndex;
+    const currentScroll=window.scrollY||document.documentElement.scrollTop||0;
+    openBuilder(admin.test.id,currentSection,currentScroll)
   }catch(e){alert(e.message)}
 }
 
@@ -587,7 +594,8 @@ function groupForm(id=null){
     ${current ? `<div class="editor-block" style="margin-top:8px"><strong>Current image:</strong> ${esc(current)}<br><img class="media" style="max-width:420px;max-height:220px;object-fit:contain" src="${attr(current)}" onerror="this.style.display='none'"><label style="display:inline-flex;gap:6px;align-items:center;margin-top:6px"><input id="gRemoveImage" type="checkbox"> Remove current image</label></div>` : ""}
     <input id="gImage" type="hidden" value="${attr(current)}">
   </div>
-  <label>Shared Option Bank <span class="muted">(one option per line — you can simply type the option text, or use A|Option text)</span></label><textarea id="gOptions">${esc((g?.options||[]).map(o=>`${o.option_key}|${o.option_text}`).join("\n"))}</textarea>
+  <label>Shared Option Bank <span class="muted">(one option per line — simply type the option text, or use A|Option text)</span></label><textarea id="gOptions">${esc((g?.options||[]).map(o=>`${o.option_key}|${o.option_text}`).join("\n"))}</textarea>
+  <div class="inline-help"><strong>Matching Features / Matching Information / Matching Headings / Matching Sentence Endings:</strong> the same option may be used more than once automatically. No extra setting is required.</div>
   <div class="actions" style="margin-top:12px"><button class="btn primary" onclick="saveGroup('${id||""}','${s.id}')">Save Group</button>${g?`<button class="btn secondary" onclick="duplicateGroup('${g.id}')">Duplicate Group</button>`:""}</div></div>`);
 }
 async function saveGroup(id,sid){
@@ -617,7 +625,9 @@ async function saveGroup(id,sid){
     await sb.from("question_group_options").delete().eq("group_id",gid);
     const rows=parseOptionLines($("gOptions").value).map(o=>({group_id:gid,option_key:o.option_key,option_text:o.option_text,sort_order:o.sort_order}));
     if(rows.length){const {error}=await sb.from("question_group_options").insert(rows);if(error)throw error}
-    openBuilder(admin.test.id);
+    const currentSection=admin.sectionIndex;
+    const currentScroll=window.scrollY||document.documentElement.scrollTop||0;
+    openBuilder(admin.test.id,currentSection,currentScroll);
   }catch(e){alert(e.message)}
 }
 async function deleteGroup(id){if(!confirm("Delete this group?"))return;const {error}=await sb.from("question_groups").delete().eq("id",id);if(error)alert(error.message);else openBuilder(admin.test.id)}
@@ -663,7 +673,9 @@ async function saveQuestion(id,sid){
     await sb.from("options").delete().eq("question_id",qid);
     const rows=parseOptionLines($("qOptions").value).map(o=>({question_id:qid,option_key:o.option_key,option_text:o.option_text,sort_order:o.sort_order,is_correct:false}));
     if(rows.length){const {error}=await sb.from("options").insert(rows);if(error)throw error}
-    openBuilder(admin.test.id);
+    const currentSection=admin.sectionIndex;
+    const currentScroll=window.scrollY||document.documentElement.scrollTop||0;
+    openBuilder(admin.test.id,currentSection,currentScroll);
   }catch(e){alert(e.message)}
 }
 function writingTaskForm(part=null){
