@@ -106,10 +106,26 @@ function bandText(module, score, readingType='academic'){
 }
 
 // Keep scoring/review strictly aligned to the official question ranges.
-function sectionQuestionRange(module, sectionNumber){
+function sectionQuestionRange(module, sectionNumber, data=null){
   const n=Number(sectionNumber||1);
   if(module==='listening') return [((n-1)*10)+1, n*10];
   if(module==='reading'){
+    // Reading passage ranges are configurable. Prefer the actual question/group
+    // numbers stored in this passage; fall back to the standard 13/13/14 split
+    // only when the passage has not been configured yet.
+    const sec=(data?.sections||[]).find(x=>Number(x.section_number)===n);
+    if(sec){
+      const nums=(data?.questions||[])
+        .filter(q=>q.section_id===sec.id)
+        .map(q=>Number(q.question_number))
+        .filter(Number.isFinite);
+      const gs=(data?.groups||[])
+        .filter(g=>g.section_id===sec.id)
+        .flatMap(g=>[Number(g.start_question),Number(g.end_question)])
+        .filter(Number.isFinite);
+      const all=[...nums,...gs];
+      if(all.length) return [Math.min(...all),Math.max(...all)];
+    }
     if(n===1) return [1,13];
     if(n===2) return [14,26];
     if(n===3) return [27,40];
@@ -122,7 +138,7 @@ function validModuleQuestions(d){
   const sections=(d.sections||[]).slice().sort((a,b)=>Number(a.section_number)-Number(b.section_number));
   const byNumber=new Map();
   for(const s of sections){
-    const [lo,hi]=sectionQuestionRange(mod,s.section_number);
+    const [lo,hi]=sectionQuestionRange(mod,s.section_number,d);
     const qs=(d.questions||[]).filter(q=>q.section_id===s.id && Number(q.question_number)>=lo && Number(q.question_number)<=hi);
     for(const q of qs){
       const no=Number(q.question_number);
@@ -486,7 +502,20 @@ function normalizeCorrectForOptions(raw,opts){
   }).join("||");
 }
 
-function normalizeType(t){let x=String(t||"").toLowerCase();x=x.replace(/^listening_/,'').replace(/^reading_/,'');const m={multiple_choice:'single',multiple_choice_single:'single',multiple_choice_multiple:'multi',short_answer:'short',note_completion:'note',form_completion:'form',table_completion:'table',sentence_completion:'sentence',summary_completion:'summary',flowchart_completion:'flow',flow_chart_completion:'flow',diagram_label:'map',diagram_label_completion:'map',plan_map:'map',true_false_not_given:'tfng',yes_no_not_given:'yng'};return m[x]||x}
+function normalizeType(t){
+  let x=String(t||"").toLowerCase().trim();
+  x=x.replace(/^listening_/,'').replace(/^reading_/,'');
+  const m={
+    multiple_choice:'single',multiple_choice_single:'single',multiple_choice_multiple:'multi',
+    short_answer:'short',note_completion:'note',form_completion:'form',table_completion:'table',
+    sentence_completion:'sentence',summary_completion:'summary',flowchart_completion:'flow',flow_chart_completion:'flow',
+    diagram_label:'map',diagram_label_completion:'map',plan_map:'map',
+    true_false_not_given:'tfng',yes_no_not_given:'yng',
+    matching_headings:'headings',matching_information:'information',matching_features:'features',
+    matching_sentence_endings:'endings',sentence_endings:'endings'
+  };
+  return m[x]||x;
+}
 function typeMap(){return admin.test.module==="reading"?R_TYPES:L_TYPES}
 function renderBuilder(){
   const t=admin.test,s=admin.sections[admin.sectionIndex],qs=admin.questions.filter(q=>q.section_id===s?.id),gs=admin.groups.filter(g=>g.section_id===s?.id);
@@ -902,9 +931,9 @@ function hasAns(id){const v=exam.answers[id];return Array.isArray(v)?v.length>0:
 function renderExam(){
   const m=exam.data.test.module;if(m==="writing")return renderWritingExam();
   const s=exam.data.sections[exam.currentSection];
-  const [rangeLo,rangeHi]=sectionQuestionRange(m,s.section_number);
+  const [rangeLo,rangeHi]=sectionQuestionRange(m,s.section_number,exam.data);
   const qs=exam.data.questions.filter(q=>q.section_id===s.id&&Number(q.question_number)>=rangeLo&&Number(q.question_number)<=rangeHi).sort((a,b)=>a.question_number-b.question_number);
-  const gs=exam.data.groups.filter(g=>g.section_id===s.id&&Number(g.start_question)>=rangeLo&&Number(g.end_question)<=rangeHi).sort((a,b)=>a.group_order-b.group_order);
+  const gs=exam.data.groups.filter(g=>g.section_id===s.id).sort((a,b)=>(Number(a.group_order)||Number(a.start_question)||0)-(Number(b.group_order)||Number(b.start_question)||0));
   if(m==="reading"){
     app().innerHTML=headerExam()+`<div class="shell">${tabs("Passage")}<div class="exam-split"><div class="pane"><h2>${esc(s.title)}</h2>${s.instructions?`<div class="instructions student-rich" data-highlight-key="${attr(highlightKey("reading-instructions",s.id))}">${richTextSanitize(s.instructions)}</div>`:""}${s.image_url?`<img class="media" src="${attr(s.image_url)}">`:""}<div class="student-rich" data-highlight-key="${attr(highlightKey("reading-content",s.id))}">${richTextSanitize(s.content||"")}</div></div>
     <div class="pane"><h3>Questions</h3>${gs.length?"":qnav(qs)}${renderGroupsOrQuestions(gs,qs)}</div></div>${examNav()}</div>`;
@@ -921,10 +950,10 @@ function renderInlineRich(txt,qs){const tokenMap=[];let html=String(txt||"").rep
 function renderGroup(g,qs){
   const sub=qs.filter(q=>q.question_number>=g.start_question&&q.question_number<=g.end_question),inline=COMPLETION_TYPES.includes(normalizeType(g.question_type))&&/\[BLANK\s*\d+\]/i.test(g.content||"");
   return `<div class="group"><strong>Questions ${g.start_question}–${g.end_question}</strong>${g.instructions?`<div class="instructions student-rich" data-highlight-key="${attr(highlightKey("group-instructions",g.id))}">${richTextSanitize(g.instructions)}</div>`:""}${g.image_url?`<img class="media" src="${attr(g.image_url)}">`:""}${g.content?`<div class="student-rich" data-highlight-key="${attr(highlightKey("group-content",g.id))}">${renderInlineRich(g.content,sub)}</div>`:""}
-  ${(g.options||[]).length?`<div class="notice">${g.options.map(o=>`<div><strong>${esc(o.option_key)}.</strong> ${esc(o.option_text)}</div>`).join("")}</div>`:""}${inline?"":sub.map(q=>renderQuestion(q,g.options||[])).join("")}</div>`;
+  ${(g.options||[]).length?`<div class="notice">${g.options.map(o=>`<div><strong>${esc(o.option_key)}.</strong> ${esc(o.option_text)}</div>`).join("")}</div>`:""}${inline?"":sub.map(q=>renderQuestion(q,g.options||[],g.question_type)).join("")}</div>`;
 }
-function renderQuestion(q,shared=[]){
-  const opts=(q.options||[]).length?q.options:shared,s=exam.answers[q.id]??"",t=normalizeType(q.question_type);let c="";
+function renderQuestion(q,shared=[],groupType=null){
+  const opts=(q.options||[]).length?q.options:shared,s=exam.answers[q.id]??"",t=normalizeType(groupType||q.question_type);let c="";
   if(t==="single"||["tfng","yng","title"].includes(t)){c=opts.map(o=>`<label style="font-weight:400"><input style="width:auto" type="radio" name="r-${q.id}" value="${attr(o.option_key)}" ${s===o.option_key?"checked":""} onchange="setAns('${q.id}',this.value)" ${exam.locked?"disabled":""}> <strong>${esc(o.option_key)}.</strong> ${esc(o.option_text)}</label>`).join("")}
   else if(t==="multi"||t==="list"){const a=Array.isArray(s)?s:[];c=opts.map(o=>`<label style="font-weight:400"><input style="width:auto" type="checkbox" value="${attr(o.option_key)}" ${a.includes(o.option_key)?"checked":""} onchange="toggleAns('${q.id}',this.value,this.checked)" ${exam.locked?"disabled":""}> ${esc(o.option_key)}. ${esc(o.option_text)}</label>`).join("")}
   else if(["matching","map","headings","information","features","endings"].includes(t)&&opts.length){c=`<select onchange="setAns('${q.id}',this.value)" ${exam.locked?"disabled":""}><option value="">Select answer</option>${opts.map(o=>`<option value="${attr(o.option_key)}" ${s===o.option_key?"selected":""}>${esc(o.option_key)} — ${esc(o.option_text)}</option>`).join("")}</select>`}
