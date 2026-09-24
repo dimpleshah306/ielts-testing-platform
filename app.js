@@ -1094,7 +1094,9 @@ async function submitExam(auto=false){
     if(mod==="listening")upd.listening_score=score;if(mod==="reading")upd.reading_score=score;if(mod==="writing")upd.writing_score=null;
     const {error}=await sb.from("results").update(upd).eq("id",exam.resultId).eq("status","in_progress");if(error)throw error;
     const resultId=exam.resultId;clearExam(exam.testId,exam.studentId,exam.resultId);clearRoute();exam=null;
-    await studentResultPage(resultId,true);
+    // After successful submission, go directly to the student's saved-answer review.
+    // The score/result card is still available from the dashboard, but is not shown in the post-submit flow.
+    await studentReviewAnswers(resultId);
   }catch(e){
     console.error(e);
     if(exam){exam.locked=true;saveExam();renderExam();}
