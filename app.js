@@ -16,7 +16,13 @@ const $ = id => document.getElementById(id);
    ========================================================= */
 function richTextSanitize(html=""){
   const raw=String(html||"");
-  if(raw && !/<[a-z][\s\S]*>/i.test(raw)) return esc(raw).replace(/\r?\n/g,"<br>");
+  if(raw && !/<[a-z][\s\S]*>/i.test(raw)){
+    // Decode any previously HTML-encoded plain text (e.g. &#039;) before re-encoding safely.
+    const decoder=document.createElement("textarea");
+    decoder.innerHTML=raw;
+    const decoded=decoder.value;
+    return esc(decoded).replace(/\r?\n/g,"<br>");
+  }
   const box=document.createElement("div");
   box.innerHTML=raw;
   const allowed=new Set(["P","BR","STRONG","B","EM","I","U","UL","OL","LI","DIV","SPAN","MARK","H1","H2","H3","H4","BLOCKQUOTE"]);
@@ -961,10 +967,33 @@ function renderExam(){
   }
 }
 function renderGroupsOrQuestions(gs,qs){return gs.length?gs.map(g=>renderGroup(g,qs)).join(""):qs.map(q=>renderQuestion(q)).join("")}
-function renderInlineRich(txt,qs){const tokenMap=[];let html=String(txt||"").replace(/\[BLANK\s*(\d+)\]/gi,(_,n)=>{const q=qs.find(x=>+x.question_number===+n),k=q?.id||`blank_${n}`;const token=`__UEBLANK_${tokenMap.length}__`;tokenMap.push(`<input style="display:inline-block;width:130px;margin:0 4px" value="${attr(exam.answers[k]||"")}" oninput="setAns('${k}',this.value)" ${exam.locked?"disabled":""}>`);return token});html=richTextSanitize(html);tokenMap.forEach((v,i)=>{html=html.replace(`__UEBLANK_${i}__`,v)});return html}
+function renderInlineRich(txt,qs){
+  const tokenMap=[];
+  let html=String(txt||"").replace(/\[BLANK\s*(\d+)\]/gi,(_,n)=>{
+    const q=qs.find(x=>+x.question_number===+n),k=q?.id||`blank_${n}`;
+    const token=`__UEBLANK_${tokenMap.length}__`;
+    const opts=(q?.options||[]);
+    if(opts.length){
+      const current=exam.answers[k]??"";
+      tokenMap.push(`<select style="display:inline-block;min-width:180px;margin:0 4px" onchange="setAns('${k}',this.value)" ${exam.locked?"disabled":""}><option value="">Select answer</option>${opts.map(o=>`<option value="${attr(o.option_key)}" ${String(current)===String(o.option_key)?"selected":""}>${esc(o.option_key)}. ${esc(o.option_text)}</option>`).join("")}</select>`);
+    }else{
+      tokenMap.push(`<input style="display:inline-block;width:130px;margin:0 4px" value="${attr(exam.answers[k]||"")}" oninput="setAns('${k}',this.value)" ${exam.locked?"disabled":""}>`);
+    }
+    return token;
+  });
+  html=richTextSanitize(html);
+  tokenMap.forEach((v,i)=>{html=html.replace(`__UEBLANK_${i}__`,v)});
+  return html;
+}
 function renderGroup(g,qs){
-  const sub=qs.filter(q=>q.question_number>=g.start_question&&q.question_number<=g.end_question),inline=COMPLETION_TYPES.includes(normalizeType(g.question_type))&&/\[BLANK\s*\d+\]/i.test(g.content||"");
-  return `<div class="group"><strong>Questions ${g.start_question}–${g.end_question}</strong>${g.instructions?`<div class="instructions student-rich" data-highlight-key="${attr(highlightKey("group-instructions",g.id))}">${richTextSanitize(g.instructions)}</div>`:""}${g.image_url?`<img class="media" src="${attr(g.image_url)}">`:""}${g.content?`<div class="student-rich" data-highlight-key="${attr(highlightKey("group-content",g.id))}">${renderInlineRich(g.content,sub)}</div>`:""}
+  const sub=qs.filter(q=>q.question_number>=g.start_question&&q.question_number<=g.end_question),t=normalizeType(g.question_type),inline=COMPLETION_TYPES.includes(t)&&/\[BLANK\s*\d+\]/i.test(g.content||"");
+  const wordList=inline ? (()=>{
+    const seen=new Set(),out=[];
+    for(const q of sub){for(const o of (q.options||[])){const key=String(o.option_key||"");if(!seen.has(key)){seen.add(key);out.push(o)}}}
+    return out;
+  })() : [];
+  const hasQuestionWordList=wordList.length>0;
+  return `<div class="group"><strong>Questions ${g.start_question}–${g.end_question}</strong>${g.instructions?`<div class="instructions student-rich" data-highlight-key="${attr(highlightKey("group-instructions",g.id))}">${richTextSanitize(g.instructions)}</div>`:""}${g.image_url?`<img class="media" src="${attr(g.image_url)}">`:""}${hasQuestionWordList?`<div class="notice"><strong>Word List:</strong>${wordList.map(o=>`<div><strong>${esc(o.option_key)}.</strong> ${esc(o.option_text)}</div>`).join("")}</div>`:""}${g.content?`<div class="student-rich" data-highlight-key="${attr(highlightKey("group-content",g.id))}">${renderInlineRich(g.content,sub)}</div>`:""}
   ${(g.options||[]).length?`<div class="notice">${g.options.map(o=>`<div><strong>${esc(o.option_key)}.</strong> ${esc(o.option_text)}</div>`).join("")}</div>`:""}${inline?"":sub.map(q=>renderQuestion(q,g.options||[],g.question_type)).join("")}</div>`;
 }
 function renderQuestion(q,shared=[],groupType=null){
