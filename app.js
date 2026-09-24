@@ -170,19 +170,24 @@ function scoreBand(module, raw, readingType='academic'){
   if(m==='reading') return bandFromRaw('reading', whole, readingType);
   return null;
 }
-async function recalculateStoredScore(r){
-  const mod=normalizeModule(r.tests?.module);
-  if(mod!=='listening'&&mod!=='reading') return null;
+async function objectiveAttemptSummary(r){
   const d=await loadTestBundle(r.test_id);
+  const mod=normalizeModule(r.tests?.module||d?.test?.module||"");
+  if(mod!=='listening'&&mod!=='reading') return {module:mod,score:null,correct:0,wrong:0,unanswered:0,total:0,questions:[]};
   const questions=mod==='listening'?listeningQuestions40(d):readingQuestions40(d);
   const qids=questions.map(q=>q.id);
   let rows=[];
   if(qids.length){const a=await sb.from("answers").select("question_id,answer_text").eq("result_id",r.id).in("question_id",qids);if(a.error)throw a.error;rows=a.data||[]}
   const am=new Map(rows.map(a=>[a.question_id,a]));
   const answerMap={};
-  for(const [qid,row] of am.entries()) answerMap[qid]=deserializeStoredAnswer(questions.find(q=>q.id===qid),row.answer_text);
+  for(const q of questions){const row=am.get(q.id);if(row)answerMap[q.id]=deserializeStoredAnswer(q,row.answer_text);}
   const summary=calculateObjectiveScore(questions,answerMap);
-  const field=mod==='listening'?'listening_score':'reading_score';
+  return {...summary,module:mod,questions};
+}
+async function recalculateStoredScore(r){
+  const summary=await objectiveAttemptSummary(r);
+  if(summary.module!=='listening'&&summary.module!=='reading') return null;
+  const field=summary.module==='listening'?'listening_score':'reading_score';
   if(Number(r[field])!==summary.score){const u=await sb.from("results").update({[field]:summary.score}).eq("id",r.id);if(u.error)throw u.error;r[field]=summary.score;}
   return summary.score;
 }
