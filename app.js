@@ -1,4 +1,4 @@
-// UNIVERSAL EDUCATION IELTS — COMPLETE V12.3.2 CUMULATIVE
+// UNIVERSAL EDUCATION IELTS — COMPLETE V12.3.6 CUMULATIVE
 const SUPABASE_URL = "https://fmwcvwgcwisdxiudlstq.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_ibtCq2hamnZkRNWPsxlddQ_JfexwHYM";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
@@ -60,7 +60,7 @@ function richExec(id,cmd){const e=$(id);if(!e)return;e.focus();document.execComm
 function richAlign(id,a){const e=$(id);if(!e)return;e.focus();const m={left:"justifyLeft",center:"justifyCenter",right:"justifyRight",justify:"justifyFull"}[a];document.execCommand(m,false,null)}
 function richValue(id){return richTextSanitize($(id)?.innerHTML||"")}
 function initRichStyles(){if($("ueRichStyles"))return;const st=document.createElement("style");st.id="ueRichStyles";st.textContent=`
-.rich-toolbar{display:flex;flex-wrap:wrap;gap:5px;padding:7px;border:1px solid #d5dce5;border-bottom:0;border-radius:8px 8px 0 0;background:#f5f7fa;margin-top:5px}.rich-toolbar button{border:1px solid #cbd5e1;background:#fff;padding:5px 9px;border-radius:5px;cursor:pointer;font-size:13px}.rich-toolbar button:hover{background:#e8eef7}.rich-sep{width:1px;background:#cbd5e1;margin:2px 4px}.rich-editor{padding:12px;border:1px solid #d5dce5;border-radius:0 0 8px 8px;background:#fff;line-height:1.7;outline:none;overflow:auto}.rich-editor:focus{border-color:#2563eb}.rich-editor p{margin:0 0 10px}.student-rich{line-height:1.8;user-select:text}.student-rich p{margin:0 0 12px}.student-highlight{background:#fff59d!important;border-radius:2px;padding:0 1px}.student-highlight-menu{position:absolute;z-index:99999;display:none;background:#111827;padding:5px;border-radius:7px;box-shadow:0 5px 18px rgba(0,0,0,.25)}.student-highlight-menu button{color:#fff;background:#111827;border:0;padding:7px 11px;border-radius:5px;cursor:pointer}.student-highlight-menu button:hover{background:#374151}`;document.head.appendChild(st)}
+.rich-toolbar{display:flex;flex-wrap:wrap;gap:5px;padding:7px;border:1px solid #d5dce5;border-bottom:0;border-radius:8px 8px 0 0;background:#f5f7fa;margin-top:5px}.rich-toolbar button{border:1px solid #cbd5e1;background:#fff;padding:5px 9px;border-radius:5px;cursor:pointer;font-size:13px}.rich-toolbar button:hover{background:#e8eef7}.rich-sep{width:1px;background:#cbd5e1;margin:2px 4px}.rich-editor{padding:12px;border:1px solid #d5dce5;border-radius:0 0 8px 8px;background:#fff;line-height:1.7;outline:none;overflow:auto}.rich-editor:focus{border-color:#2563eb}.rich-editor p{margin:0 0 10px}.student-rich{line-height:1.8;user-select:text}.student-rich p{margin:0 0 12px}.student-highlight{background:#fff59d!important;border-radius:2px;padding:0 1px}.student-highlight-menu{position:absolute;z-index:99999;display:none;background:#111827;padding:5px;border-radius:7px;box-shadow:0 5px 18px rgba(0,0,0,.25)}.student-highlight-menu button{color:#fff;background:#111827;border:0;padding:7px 11px;border-radius:5px;cursor:pointer}.student-highlight-menu button:hover{background:#374151}.writing-review{white-space:pre-wrap;border:1px solid #d5dce5;border-radius:8px;padding:14px;background:#fff;line-height:1.7;min-height:120px}`;document.head.appendChild(st)}
 function highlightKey(kind,id){return `ue_highlight_v1_${exam?.studentId||currentProfile?.id||"anon"}_${exam?.testId||"test"}_${exam?.resultId||"attempt"}_${kind}_${id}`}
 function showHighlightMenu(key){let m=$("studentHighlightMenu");if(!m){m=document.createElement("div");m.id="studentHighlightMenu";m.className="student-highlight-menu";m.innerHTML=`<button type="button" onclick="applyStudentHighlight(window.__ueHighlightKey)">🖍 Highlight</button>`;document.body.appendChild(m)}window.__ueHighlightKey=key;const sel=window.getSelection();if(sel&&sel.rangeCount&&!sel.isCollapsed){const r=sel.getRangeAt(0).getBoundingClientRect();m.style.left=(window.scrollX+r.left)+"px";m.style.top=(window.scrollY+r.bottom+6)+"px";m.style.display="block"}}
 function bindHighlightable(root){if(!root)return;root.querySelectorAll(".student-rich").forEach(el=>{el.addEventListener("mouseup",()=>{const sel=window.getSelection();if(sel&&!sel.isCollapsed&&sel.toString().trim())showHighlightMenu(el.dataset.highlightKey)})})}
@@ -219,6 +219,38 @@ function queueAnswerSave(questionId,value){
   if(!exam||exam.preview||exam.locked||!questionId)return;
   const old=answerSaveTimers.get(questionId);if(old)clearTimeout(old);
   answerSaveTimers.set(questionId,setTimeout(()=>{answerSaveTimers.delete(questionId);persistAnswerToDb(questionId,value)},450));
+}
+async function persistWritingAttempt(part,answer,locked=false,submissionTime=null){
+  if(!exam||exam.preview||!exam.testId||!exam.studentId||!part)return;
+  try{
+    const text=String(answer??"");
+    const payload={
+      test_id:exam.testId,
+      student_id:exam.studentId,
+      part:Number(part),
+      answer:text,
+      word_count:answerWords(text),
+      submission_time:submissionTime||null,
+      time_taken_seconds:exam.startedAt?Math.max(0,Math.floor((Date.now()-new Date(exam.startedAt).getTime())/1000)):null,
+      evaluation_status:locked?'submitted':'pending',
+      locked:!!locked,
+      updated_at:new Date().toISOString()
+    };
+    const {error}=await sb.from('writing_attempts').upsert(payload,{onConflict:'test_id,student_id,part'});
+    if(error)throw error;
+  }catch(e){console.warn('Writing attempt autosave failed:',e.message)}
+}
+function queueWritingAttemptSave(part,answer){
+  if(!exam||exam.preview||exam.locked||!part)return;
+  const key=`writing_part_${part}`;
+  const old=answerSaveTimers.get(key);if(old)clearTimeout(old);
+  answerSaveTimers.set(key,setTimeout(()=>{answerSaveTimers.delete(key);persistWritingAttempt(part,answer,false)},600));
+}
+async function loadWritingAttempts(testId,studentId){
+  if(!testId||!studentId)return [];
+  const {data,error}=await sb.from('writing_attempts').select('*').eq('test_id',testId).eq('student_id',studentId).order('part');
+  if(error){console.warn('Could not load writing attempts:',error.message);return []}
+  return data||[];
 }
 async function loadAttemptAnswers(resultId){
   if(!resultId)return {};
@@ -855,8 +887,8 @@ async function studentDashboard(){
     const icon=t.module==="listening"?"🎧":t.module==="reading"?"📖":"✍️";
     let action=a?.status==="submitted"?`<div class="actions"><button class="btn primary" onclick="studentResultPage('${a.id}')">View Result</button><button class="btn secondary" onclick="startStudentTest('${t.id}',true)">View Submitted Test</button></div>`:a?.status==="in_progress"?`<button class="btn warning" onclick="startStudentTest('${t.id}',true)">Resume Test</button>`:`<button class="btn primary" onclick="startStudentTest('${t.id}',true)">Start Test</button>`;
     const status=a?.status==="submitted"?`<span class="status published">Completed</span>`:a?.status==="in_progress"?`<span class="status draft">In Progress</span>`:`<span class="status draft">Not Started</span>`;
-    const score=a?.status==="submitted"?(t.module==="listening"?a.listening_score:t.module==="reading"?a.reading_score:"Pending"):"";
-    const band=a?.status==="submitted"&&t.module!=="writing"?bandText(t.module,t.module==="listening"?a.listening_score:a.reading_score,(t.settings||{}).reading_type||"academic"):"";
+    const score=a?.status==="submitted"?(t.module==="listening"?a.listening_score:t.module==="reading"?a.reading_score:(a.writing_score==null?"Pending":a.writing_score)):"";
+    const band=a?.status==="submitted"&&t.module!=="writing"?bandText(t.module,t.module==="listening"?a.listening_score:a.reading_score,(t.settings||{}).reading_type||"academic"):a?.status==="submitted"&&t.module==="writing"&&a.writing_score!=null?Number(a.writing_score).toFixed(1):"";
     return `<div class="dashbtn"><div style="font-size:32px">${icon}</div><strong>${esc(t.title)}</strong><span class="muted">${t.module.toUpperCase()} • ${t.duration_minutes} min</span><div style="margin-top:10px">${status}</div>${score!==""?`<div style="margin:8px 0"><strong>Score: ${esc(score)}</strong>${band?` • <strong>Band: ${esc(band)}</strong>`:""}</div>`:""}<div class="actions" style="margin-top:10px">${action}</div></div>`;
   }).join("")||`<div class="card">No published tests are available.</div>`}</div>`);
 }
@@ -908,6 +940,13 @@ async function startStudentTest(id,resume=true,preview=false){
     if(d.questions?.length){for(const q of d.questions){if(q.image_url&&!String(q.image_url).startsWith("http")){try{q.image_url=await signed("question-images",q.image_url)}catch(e){console.warn("Question image could not be signed",e)}}}}
     if(d.writingTasks?.length){for(const wt of d.writingTasks){if(wt.media_url&&!String(wt.media_url).startsWith("http")){try{wt.media_url=await signed("question-images",wt.media_url)}catch(e){console.warn("Writing task image could not be signed",e)}}}}
     let dbAnswers={};if(!preview&&attempt?.id)dbAnswers=await loadAttemptAnswers(attempt.id);
+    if(!preview&&user&&d.test.module==='writing'){
+      const wattempts=await loadWritingAttempts(id,user.id);
+      for(const wa of wattempts){
+        const wt=(d.writingTasks||[]).find(x=>Number(x.part)===Number(wa.part));
+        if(wt)dbAnswers[`task_${wt.id}`]=String(wa.answer||'');
+      }
+    }
     const mergedAnswers={...(saved?.answers||{}),...dbAnswers};
     const endAt=preview?null:(attempt?.started_at?new Date(attempt.started_at).getTime()+d.test.duration_minutes*60000:(saved?.endAt||Date.now()+d.test.duration_minutes*60000));
     exam={preview,testId:id,studentId:preview?null:(user?.id||saved?.studentId),resultId:preview?null:(attempt?.id||saved?.resultId),data:d,currentSection:preview?0:(saved?.currentSection||0),currentTask:saved?.currentTask||0,answers:mergedAnswers,startedAt:attempt?.started_at||saved?.startedAt||new Date().toISOString(),endAt:review?null:endAt, audioUrl,locked:review||!!saved?.locked,review};
@@ -1019,7 +1058,15 @@ function renderWritingExam(){
   setTimeout(restoreAndBindHighlights,0);
   updateWC();
 }
-function setWriting(id,v){setAns(id,v);updateWC()}function updateWC(){const v=$("wa")?.value||"",n=v.trim()?v.trim().split(/\s+/).length:0;if($("wc"))$("wc").textContent=n+" words"}
+function setWriting(id,v){
+  if(!exam||exam.locked)return;
+  exam.answers[id]=v;saveExam();
+  const qid=String(id||'').replace(/^task_/,'');
+  const wt=(exam.data.writingTasks||[]).find(x=>String(x.id)===qid);
+  if(wt)queueWritingAttemptSave(Number(wt.part),v);
+  updateWC();
+}
+function updateWC(){const v=$("wa")?.value||"",n=v.trim()?v.trim().split(/\s+/).length:0;if($("wc"))$("wc").textContent=n+" words"}
 
 function norm(v){return String(v??"").trim().toLowerCase().replace(/\s+/g," ")}
 function answerWords(v){const s=String(v??"").trim();return s?s.split(/\s+/).filter(Boolean).length:0}
@@ -1088,6 +1135,14 @@ async function submitExam(auto=false){
       if(existing?.id){const {error}=await sb.from("answers").update(payload).eq("id",existing.id);if(error)throw error}
       else {const {error}=await sb.from("answers").insert(payload);if(error)throw error}
     }
+    if(mod==="writing"){
+      const now=new Date().toISOString();
+      for(const wt of (exam.data.writingTasks||[])){
+        const key=`task_${wt.id}`;
+        const finalAnswer=String(exam.answers[key]??"");
+        await persistWritingAttempt(Number(wt.part),finalAnswer,true,now);
+      }
+    }
     const summary=mod==="writing"?null:calculateObjectiveScore(qs,exam.answers);
     const score=summary?.score??null;
     const upd={status:"submitted",submitted_at:new Date().toISOString()};
@@ -1111,7 +1166,7 @@ async function studentResultPage(resultId,justSubmitted=false){
     const mod=normalizeModule(r.tests?.module);let raw=mod==="listening"?r.listening_score:mod==="reading"?r.reading_score:null;if(r.status==="submitted"&&(mod==="listening"||mod==="reading")) raw=await recalculateStoredScore(r);const readingType=getReadingType(r.tests);const band=scoreBand(mod,raw,readingType);
     shell(`<div class="actions"><button class="btn secondary" onclick="studentDashboard()">← Dashboard</button></div><div class="card" style="max-width:760px;margin:20px auto;text-align:center">
       <div style="font-size:52px">✅</div><h2>${justSubmitted?"Test Submitted":"Test Result"}</h2><h3>${esc(r.tests?.title||"")}</h3>
-      ${mod==="writing"?`<p style="font-size:20px"><strong>Writing Evaluation Pending</strong></p>`:`<div class="dashboard-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:18px"><div class="card"><strong>Score</strong><div style="font-size:34px;margin-top:6px">${esc(raw??"-")} / 40</div></div><div class="card"><strong>Band Score</strong><div style="font-size:34px;margin-top:6px">${esc(band==null?"—":Number(band).toFixed(1))}</div></div></div>`}
+      ${mod==="writing"?(r.writing_score==null?`<p style="font-size:20px"><strong>Writing Evaluation Pending</strong></p>`:`<div class="card"><strong>Writing Band</strong><div style="font-size:34px;margin-top:6px">${Number(r.writing_score).toFixed(1)}</div></div>`):`<div class="dashboard-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:18px"><div class="card"><strong>Score</strong><div style="font-size:34px;margin-top:6px">${esc(raw??"-")} / 40</div></div><div class="card"><strong>Band Score</strong><div style="font-size:34px;margin-top:6px">${esc(band==null?"—":Number(band).toFixed(1))}</div></div></div>`}
       <div class="actions" style="justify-content:center;margin-top:20px"><button class="btn secondary" onclick="studentReviewAnswers('${r.id}')">View My Saved Answers</button><button class="btn primary" onclick="studentDashboard()">Back to Dashboard</button></div>
     </div>`);
   }catch(e){alert("Could not load result: "+e.message)}
@@ -1120,7 +1175,19 @@ async function studentReviewAnswers(resultId){
   try{
     const {data:r,error:re}=await sb.from("results").select("*,tests(title,module,id,settings)").eq("id",resultId).single();if(re)throw re;
     const d=await loadTestBundle(r.test_id);
-    const qs=r.tests?.module==="listening"?listeningQuestions40(d):r.tests?.module==="reading"?readingQuestions40(d):validModuleQuestions(d);
+    const mod=normalizeModule(r.tests?.module);
+    if(mod==="writing"){
+      const wa=await sb.from('writing_attempts').select('*').eq('test_id',r.test_id).eq('student_id',r.student_id).order('part');
+      if(wa.error)throw wa.error;
+      const attempts=wa.data||[];
+      const cards=(d.writingTasks||[]).slice().sort((a,b)=>a.part-b.part).map(wt=>{
+        const a=attempts.find(x=>Number(x.part)===Number(wt.part));
+        return `<div class="card"><h3>Task ${wt.part} — Submitted Answer</h3>${wt.prompt?`<p class="muted">${esc(wt.prompt)}</p>`:""}<div class="writing-review">${esc(a?.answer||"—")}</div><p class="muted">Word Count: ${Number(a?.word_count||0)} • ${a?.locked?"Locked":"Saved"}</p></div>`;
+      }).join("");
+      shell(`<div class="actions"><button class="btn secondary" onclick="studentDashboard()">← Dashboard</button></div><h2>Submitted Writing Review</h2><p class="muted">${esc(r.tests?.title||"")} • Submitted and read-only. Your original Task 1 and Task 2 answers are preserved.</p>${cards||`<div class="card">No writing submissions found.</div>`}`);
+      return;
+    }
+    const qs=mod==="listening"?listeningQuestions40(d):readingQuestions40(d);
     const qids=qs.map(q=>q.id);
     let ans=[];
     if(qids.length){const a=await sb.from("answers").select("*").eq("result_id",resultId).in("question_id",qids);if(a.error)throw a.error;ans=a.data||[]}
@@ -1129,8 +1196,8 @@ async function studentReviewAnswers(resultId){
       const a=am.get(q.id);const given=String(a?.answer_text??"").trim();const stored=deserializeStoredAnswer(q,a?.answer_text);const correct=(Array.isArray(stored)?stored.length>0:!!given)&&evalQ(q,stored);
       return `<tr><td><strong>Q${esc(q.question_number)}</strong></td><td>${esc(q.question_text||"")}</td><td>${esc(given||"—")}</td><td>${esc(q.correct_answer||"—")}</td><td>${esc((q.question_config?.acceptedAnswers||[]).join(" / ")||"—")}</td><td><span class="status ${!given?"warning":correct?"success":"danger"}">${!given?"Not Answered":correct?"Correct":"Wrong"}</span></td></tr>`;
     }).join("");
-    const mod=normalizeModule(r.tests?.module);const raw=mod==="listening"?await recalculateStoredScore(r):mod==="reading"?await recalculateStoredScore(r):null;const band=mod!=="writing"?scoreBand(mod,raw,getReadingType(r.tests)):null;
-    shell(`<div class="actions"><button class="btn secondary" onclick="studentResultPage('${r.id}')">← Score</button><button class="btn primary" onclick="studentDashboard()">Dashboard</button></div><h2>Submitted Test Review</h2><p class="muted">${esc(r.tests?.title||"")} • Submitted and read-only. You can review your saved answers, but you cannot start a new attempt for this test.</p>${mod!=="writing"?`<div class="dashboard-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));margin:14px 0"><div class="card"><strong>Raw Score</strong><div style="font-size:30px;margin-top:6px">${esc(raw??"-")} / 40</div></div><div class="card"><strong>Band</strong><div style="font-size:30px;margin-top:6px">${esc(band==null?"—":Number(band).toFixed(1))}</div></div></div>`:""}<div class="card table-wrap"><table><thead><tr><th>Q</th><th>Question</th><th>My Answer</th><th>Correct Answer</th><th>Alternative Accepted</th><th>Status</th></tr></thead><tbody>${rows||`<tr><td colspan="6">No questions configured.</td></tr>`}</tbody></table></div>`);
+    const raw=await recalculateStoredScore(r);const band=scoreBand(mod,raw,getReadingType(r.tests));
+    shell(`<div class="actions"><button class="btn secondary" onclick="studentResultPage('${r.id}')">← Score</button><button class="btn primary" onclick="studentDashboard()">Dashboard</button></div><h2>Submitted Test Review</h2><p class="muted">${esc(r.tests?.title||"")} • Submitted and read-only. You can review your saved answers, but you cannot start a new attempt for this test.</p><div class="dashboard-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));margin:14px 0"><div class="card"><strong>Raw Score</strong><div style="font-size:30px;margin-top:6px">${esc(raw??"-")} / 40</div></div><div class="card"><strong>Band</strong><div style="font-size:30px;margin-top:6px">${esc(band==null?"—":Number(band).toFixed(1))}</div></div></div><div class="card table-wrap"><table><thead><tr><th>Q</th><th>Question</th><th>My Answer</th><th>Correct Answer</th><th>Alternative Accepted</th><th>Status</th></tr></thead><tbody>${rows||`<tr><td colspan="6">No questions configured.</td></tr>`}</tbody></table></div>`);
   }catch(e){alert("Could not load saved answers: "+e.message)}
 }
 
@@ -1142,6 +1209,34 @@ async function deleteResult(resultId){
     alert("Result deleted successfully.");resultsPage();
   }catch(e){alert("Could not delete result: "+e.message)}
 }
+async function downloadTextFile(filename,text,mime='text/plain'){
+  const blob=new Blob([text],{type:mime+';charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+async function downloadWritingSubmission(resultId,studentName,testTitle,task1,task2,mode='all'){
+  const safe=s=>String(s||'').replace(/[^a-z0-9._-]+/gi,'_').replace(/^_+|_+$/g,'')||'student';
+  const header=`Student: ${studentName||'Student'}\nTest: ${testTitle||''}\n\n`;
+  let body=header;
+  if(mode==='task1'||mode==='all')body+=`TASK 1\n\n${String(task1||'')}\n\n`;
+  if(mode==='task2'||mode==='all')body+=`TASK 2\n\n${String(task2||'')}\n`;
+  const suffix=mode==='task1'?'Task1':mode==='task2'?'Task2':'Writing';
+  await downloadTextFile(`${safe(studentName)}_${safe(testTitle)}_${suffix}.txt`,body);
+}
+async function saveWritingFacultyEvaluation(resultId,testId,studentId){
+  try{
+    const rows=await sb.from('writing_attempts').select('*').eq('test_id',testId).eq('student_id',studentId).order('part');
+    if(rows.error)throw rows.error;
+    const t1=Number($('wtTask1Band')?.value);const t2=Number($('wtTask2Band')?.value);const final=Number($('wtFinalBand')?.value);
+    if(Number.isFinite(t1)){const r=(rows.data||[]).find(x=>Number(x.part)===1);if(r){const u=await sb.from('writing_attempts').update({band_score:t1,evaluation_status:'evaluated',updated_at:new Date().toISOString()}).eq('id',r.id);if(u.error)throw u.error}}
+    if(Number.isFinite(t2)){const r=(rows.data||[]).find(x=>Number(x.part)===2);if(r){const u=await sb.from('writing_attempts').update({band_score:t2,evaluation_status:'evaluated',updated_at:new Date().toISOString()}).eq('id',r.id);if(u.error)throw u.error}}
+    if(Number.isFinite(final)){const u=await sb.from('results').update({writing_score:final}).eq('id',resultId);if(u.error)throw u.error}
+    alert('Writing evaluation saved.');
+    resultDetails(resultId);
+  }catch(e){alert('Could not save writing evaluation: '+e.message)}
+}
+
 async function resultsPage(){
   setRoute("results");
   const {data,error}=await sb.from("results").select("*,tests(title,module,total_questions)").order("created_at",{ascending:false});
@@ -1160,7 +1255,7 @@ async function resultsPage(){
   ${(data||[]).map(r=>{
     const mod=r.tests?.module,p=pm.get(r.student_id);
     const score=mod==="listening"?r.listening_score??"-":mod==="reading"?r.reading_score??"-":r.writing_score??"Pending";
-    const band=mod==="listening"?bandText("listening",r.listening_score):mod==="reading"?bandText("reading",r.reading_score):"Pending";
+    const band=mod==="listening"?bandText("listening",r.listening_score):mod==="reading"?bandText("reading",r.reading_score):(r.writing_score==null?"Pending":Number(r.writing_score).toFixed(1));
     const name=p?.full_name||r.student_id||"Unknown Student";
     return `<tr><td><strong>${esc(name)}</strong></td><td>${esc(r.tests?.title||"")}</td><td>${esc((mod||"").toUpperCase())}</td><td>${esc(r.status||"")}</td><td><strong>${esc(score)}</strong>${mod!=="writing"?`<br><small>Band: <strong>${esc(band)}</strong></small>`:""}</td><td>${r.submitted_at?new Date(r.submitted_at).toLocaleString():"-"}</td><td><div class="actions"><button class="btn primary" onclick="resultDetails('${r.id}')">View Answers</button><button class="btn danger" onclick="deleteResult('${r.id}')">Delete</button></div></td></tr>`
   }).join("")||`<tr><td colspan="7">No results.</td></tr>`}</tbody></table></div>`);
@@ -1174,6 +1269,22 @@ async function resultDetails(resultId){
     if(pe)throw pe;
     const d=await loadTestBundle(r.test_id);
     const mod=normalizeModule(r.tests?.module||d.test?.module||"");
+    if(mod==="writing"){
+      const wa=await sb.from('writing_attempts').select('*').eq('test_id',r.test_id).eq('student_id',r.student_id).order('part');
+      if(wa.error)throw wa.error;
+      const attempts=wa.data||[];
+      const t1=attempts.find(x=>Number(x.part)===1),t2=attempts.find(x=>Number(x.part)===2);
+      const task1=(d.writingTasks||[]).find(x=>Number(x.part)===1),task2=(d.writingTasks||[]).find(x=>Number(x.part)===2);
+      const studentName=p.full_name||r.student_id||'Student';
+      shell(`<div class="actions"><button class="btn secondary" onclick="resultsPage()">← Results</button><button class="btn danger" onclick="deleteResult('${r.id}')">Delete Result</button></div>
+      <h2>${esc(studentName)}</h2><p class="muted"><strong>${esc(r.tests?.title||"")}</strong> • WRITING${r.submitted_at?` • Submitted ${new Date(r.submitted_at).toLocaleString()}`:""}</p>
+      <div class="dashboard-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));margin:14px 0"><div class="card"><strong>Final Writing Band</strong><div style="font-size:26px;margin-top:6px">${r.writing_score==null?"Pending":Number(r.writing_score).toFixed(1)}</div></div><div class="card"><strong>Status</strong><div style="font-size:26px;margin-top:6px">${esc(r.status||"")}</div></div></div>
+      <div class="card"><h3>Task 1 — Original Student Answer</h3><p class="muted">${esc(task1?.prompt||"")}</p><div class="writing-review">${esc(t1?.answer||"")}</div><p class="muted">Word Count: ${Number(t1?.word_count||0)} • Evaluation: ${esc(t1?.evaluation_status||"pending")}</p><div class="actions"><button class="btn secondary" onclick="downloadWritingSubmission('${r.id}','${attr(studentName)}','${attr(r.tests?.title||'')}','${attr(t1?.answer||'')}','', 'task1')">Download Task 1</button></div></div>
+      <div class="card"><h3>Task 2 — Original Student Answer</h3><p class="muted">${esc(task2?.prompt||"")}</p><div class="writing-review">${esc(t2?.answer||"")}</div><p class="muted">Word Count: ${Number(t2?.word_count||0)} • Evaluation: ${esc(t2?.evaluation_status||"pending")}</p><div class="actions"><button class="btn secondary" onclick="downloadWritingSubmission('${r.id}','${attr(studentName)}','${attr(r.tests?.title||'')}','','${attr(t2?.answer||'')}', 'task2')">Download Task 2</button></div></div>
+      <div class="card"><h3>Download Complete Writing</h3><p class="muted">Downloads the student's original Task 1 and Task 2 answers without changing the submitted text.</p><div class="actions"><button class="btn secondary" onclick="downloadWritingSubmission('${r.id}','${attr(studentName)}','${attr(r.tests?.title||'')}','${attr(t1?.answer||'')}','${attr(t2?.answer||'')}','all')">Download Complete Writing</button></div></div>
+      <div class="card"><h3>Faculty Evaluation</h3><div class="grid"><div><label>Task 1 Band</label><input id="wtTask1Band" type="number" step="0.5" min="0" max="9" value="${t1?.band_score??''}"></div><div><label>Task 2 Band</label><input id="wtTask2Band" type="number" step="0.5" min="0" max="9" value="${t2?.band_score??''}"></div><div><label>Final Writing Band</label><input id="wtFinalBand" type="number" step="0.5" min="0" max="9" value="${r.writing_score??''}"></div></div><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="saveWritingFacultyEvaluation('${r.id}','${r.test_id}','${r.student_id}')">Save Faculty Evaluation</button></div></div>`);
+      return;
+    }
     const questions=mod==="listening"?listeningQuestions40(d):validModuleQuestions(d);
     const qids=questions.map(q=>q.id);
     let ans=[];
@@ -1211,5 +1322,5 @@ async function resultDetails(resultId){
   }catch(e){alert("Could not load result details: "+e.message)}
 }
 
-window.staffDashboard=staffDashboard;window.studentDashboard=studentDashboard;window.studentsPage=studentsPage;window.newStudentForm=newStudentForm;window.createStudent=createStudent;window.manageStudent=manageStudent;window.saveStudent=saveStudent;window.toggleStudent=toggleStudent;window.setTestAccess=setTestAccess;window.deleteStudent=deleteStudent;window.testsPage=testsPage;window.answerKeyPage=answerKeyPage;window.saveAnswerKey=saveAnswerKey;window.newTestForm=newTestForm;window.syncNewTestDefaults=syncNewTestDefaults;window.createTest=createTest;window.togglePublish=togglePublish;window.deleteTest=deleteTest;window.openBuilder=openBuilder;window.renderBuilder=renderBuilder;window.switchAdminSection=switchAdminSection;window.saveTestHeader=saveTestHeader;window.saveSection=saveSection;window.groupForm=groupForm;window.saveGroup=saveGroup;window.deleteGroup=deleteGroup;window.questionForm=questionForm;window.saveQuestion=saveQuestion;window.deleteQuestion=deleteQuestion;window.writingTaskForm=writingTaskForm;window.saveWritingTask=saveWritingTask;window.deleteWritingTask=deleteWritingTask;window.uploadAudio=uploadAudio;window.removeAudio=removeAudio;window.previewCurrentTest=previewCurrentTest;window.startStudentTest=startStudentTest;window.switchExamSection=switchExamSection;window.switchTask=switchTask;window.setAns=setAns;window.toggleAns=toggleAns;window.setWriting=setWriting;window.submitExam=submitExam;window.exitExam=exitExam;window.resultsPage=resultsPage;window.resultDetails=resultDetails;window.studentResultPage=studentResultPage;window.studentReviewAnswers=studentReviewAnswers;window.deleteResult=deleteResult;window.logout=logout;
+window.staffDashboard=staffDashboard;window.studentDashboard=studentDashboard;window.studentsPage=studentsPage;window.newStudentForm=newStudentForm;window.createStudent=createStudent;window.manageStudent=manageStudent;window.saveStudent=saveStudent;window.toggleStudent=toggleStudent;window.setTestAccess=setTestAccess;window.deleteStudent=deleteStudent;window.testsPage=testsPage;window.answerKeyPage=answerKeyPage;window.saveAnswerKey=saveAnswerKey;window.newTestForm=newTestForm;window.syncNewTestDefaults=syncNewTestDefaults;window.createTest=createTest;window.togglePublish=togglePublish;window.deleteTest=deleteTest;window.openBuilder=openBuilder;window.renderBuilder=renderBuilder;window.switchAdminSection=switchAdminSection;window.saveTestHeader=saveTestHeader;window.saveSection=saveSection;window.groupForm=groupForm;window.saveGroup=saveGroup;window.deleteGroup=deleteGroup;window.questionForm=questionForm;window.saveQuestion=saveQuestion;window.deleteQuestion=deleteQuestion;window.writingTaskForm=writingTaskForm;window.saveWritingTask=saveWritingTask;window.deleteWritingTask=deleteWritingTask;window.uploadAudio=uploadAudio;window.removeAudio=removeAudio;window.previewCurrentTest=previewCurrentTest;window.startStudentTest=startStudentTest;window.switchExamSection=switchExamSection;window.switchTask=switchTask;window.setAns=setAns;window.toggleAns=toggleAns;window.setWriting=setWriting;window.submitExam=submitExam;window.exitExam=exitExam;window.resultsPage=resultsPage;window.resultDetails=resultDetails;window.studentResultPage=studentResultPage;window.studentReviewAnswers=studentReviewAnswers;window.deleteResult=deleteResult;window.downloadWritingSubmission=downloadWritingSubmission;window.saveWritingFacultyEvaluation=saveWritingFacultyEvaluation;window.logout=logout;
 document.addEventListener("DOMContentLoaded",init);
