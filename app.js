@@ -35,6 +35,8 @@ function richTextSanitize(html=""){
       if(st.fontStyle)keep.push(`font-style:${st.fontStyle}`);
       if(st.textDecoration)keep.push(`text-decoration:${st.textDecoration}`);
       if(st.textAlign)keep.push(`text-align:${st.textAlign}`);
+      if(st.fontSize)keep.push(`font-size:${st.fontSize}`);
+      if(st.color)keep.push(`color:${st.color}`);
       if(st.backgroundColor)keep.push(`background-color:${st.backgroundColor}`);
       el.setAttribute("style",keep.join(";"));
     }
@@ -54,13 +56,49 @@ function richEditor(id,value="",height=220){
     <span class="rich-sep"></span>
     <button type="button" onclick="richExec('${id}','insertUnorderedList')">• List</button>
     <button type="button" onclick="richExec('${id}','insertOrderedList')">1. List</button>
+    <span class="rich-sep"></span>
+    <label class="rich-size-label" title="Change font size">Font Size
+      <select onchange="richFontSize('${id}',this.value)" aria-label="Font Size">
+        <option value="">Default</option>
+        <option value="12px">12</option>
+        <option value="14px">14</option>
+        <option value="16px" selected>16</option>
+        <option value="18px">18</option>
+        <option value="20px">20</option>
+        <option value="22px">22</option>
+        <option value="24px">24</option>
+        <option value="28px">28</option>
+        <option value="32px">32</option>
+      </select>
+    </label>
   </div><div id="${id}" class="rich-editor" contenteditable="true" spellcheck="true" style="min-height:${height}px">${richTextSanitize(value)}</div>`;
 }
 function richExec(id,cmd){const e=$(id);if(!e)return;e.focus();document.execCommand(cmd,false,null)}
 function richAlign(id,a){const e=$(id);if(!e)return;e.focus();const m={left:"justifyLeft",center:"justifyCenter",right:"justifyRight",justify:"justifyFull"}[a];document.execCommand(m,false,null)}
+function richFontSize(id,size){
+  const e=$(id); if(!e || !size)return;
+  e.focus();
+  const sel=window.getSelection();
+  if(!sel || sel.rangeCount===0 || sel.isCollapsed)return;
+  try{
+    document.execCommand("fontSize",false,"7");
+    e.querySelectorAll('font[size="7"]').forEach(font=>{
+      const span=document.createElement("span");
+      span.style.fontSize=size;
+      span.innerHTML=font.innerHTML;
+      font.replaceWith(span);
+    });
+  }catch(_){
+    try{
+      const range=sel.getRangeAt(0), span=document.createElement("span");
+      span.style.fontSize=size;
+      range.surroundContents(span);
+    }catch(__){}
+  }
+}
 function richValue(id){return richTextSanitize($(id)?.innerHTML||"")}
 function initRichStyles(){if($("ueRichStyles"))return;const st=document.createElement("style");st.id="ueRichStyles";st.textContent=`
-.rich-toolbar{display:flex;flex-wrap:wrap;gap:5px;padding:7px;border:1px solid #d5dce5;border-bottom:0;border-radius:8px 8px 0 0;background:#f5f7fa;margin-top:5px}.rich-toolbar button{border:1px solid #cbd5e1;background:#fff;padding:5px 9px;border-radius:5px;cursor:pointer;font-size:13px}.rich-toolbar button:hover{background:#e8eef7}.rich-sep{width:1px;background:#cbd5e1;margin:2px 4px}.rich-editor{padding:12px;border:1px solid #d5dce5;border-radius:0 0 8px 8px;background:#fff;line-height:1.7;outline:none;overflow:auto}.rich-editor:focus{border-color:#2563eb}.rich-editor p{margin:0 0 10px}.student-rich{line-height:1.8;user-select:text}.student-rich p{margin:0 0 12px}.student-highlight{background:#fff59d!important;border-radius:2px;padding:0 1px}.student-highlight-menu{position:absolute;z-index:99999;display:none;background:#111827;padding:5px;border-radius:7px;box-shadow:0 5px 18px rgba(0,0,0,.25)}.student-highlight-menu button{color:#fff;background:#111827;border:0;padding:7px 11px;border-radius:5px;cursor:pointer}.student-highlight-menu button:hover{background:#374151}.writing-review{white-space:pre-wrap;border:1px solid #d5dce5;border-radius:8px;padding:14px;background:#fff;line-height:1.7;min-height:120px}`;document.head.appendChild(st)}
+.rich-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:5px;padding:7px;border:1px solid #d5dce5;border-bottom:0;border-radius:8px 8px 0 0;background:#f5f7fa;margin-top:5px}.rich-toolbar button{border:1px solid #cbd5e1;background:#fff;padding:5px 9px;border-radius:5px;cursor:pointer;font-size:13px}.rich-toolbar button:hover{background:#e8eef7}.rich-sep{width:1px;background:#cbd5e1;margin:2px 4px}.rich-size-label{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#334155;margin:0}.rich-size-label select{width:auto;min-width:92px;padding:5px 7px;border:1px solid #cbd5e1;border-radius:5px;background:#fff;font-size:13px}.rich-editor{padding:12px;border:1px solid #d5dce5;border-radius:0 0 8px 8px;background:#fff;line-height:1.7;outline:none;overflow:auto}.rich-editor:focus{border-color:#2563eb}.rich-editor p{margin:0 0 10px}.student-rich{line-height:1.8;user-select:text}.student-rich p{margin:0 0 12px}.student-highlight{background:#fff59d!important;border-radius:2px;padding:0 1px}.student-highlight-menu{position:absolute;z-index:99999;display:none;background:#111827;padding:5px;border-radius:7px;box-shadow:0 5px 18px rgba(0,0,0,.25)}.student-highlight-menu button{color:#fff;background:#111827;border:0;padding:7px 11px;border-radius:5px;cursor:pointer}.student-highlight-menu button:hover{background:#374151}.writing-review{white-space:pre-wrap;border:1px solid #d5dce5;border-radius:8px;padding:14px;background:#fff;line-height:1.7;min-height:120px}`;document.head.appendChild(st)}
 function highlightKey(kind,id){return `ue_highlight_v1_${exam?.studentId||currentProfile?.id||"anon"}_${exam?.testId||"test"}_${exam?.resultId||"attempt"}_${kind}_${id}`}
 function showHighlightMenu(key){let m=$("studentHighlightMenu");if(!m){m=document.createElement("div");m.id="studentHighlightMenu";m.className="student-highlight-menu";m.innerHTML=`<button type="button" onclick="applyStudentHighlight(window.__ueHighlightKey)">🖍 Highlight</button>`;document.body.appendChild(m)}window.__ueHighlightKey=key;const sel=window.getSelection();if(sel&&sel.rangeCount&&!sel.isCollapsed){const r=sel.getRangeAt(0).getBoundingClientRect();m.style.left=(window.scrollX+r.left)+"px";m.style.top=(window.scrollY+r.bottom+6)+"px";m.style.display="block"}}
 function bindHighlightable(root){if(!root)return;root.querySelectorAll(".student-rich").forEach(el=>{el.addEventListener("mouseup",()=>{const sel=window.getSelection();if(sel&&!sel.isCollapsed&&sel.toString().trim())showHighlightMenu(el.dataset.highlightKey)})})}
