@@ -509,7 +509,17 @@ async function loadTestBundle(id){
   const qids=questions.map(x=>x.id),gids=groups.map(x=>x.id);
   let options=[],groupOptions=[];
   let writingTasks=[];
-  if(test.module==="writing"){const wt=await sb.from("writing_tasks").select("*").eq("test_id",id).order("part");if(wt.error)throw wt.error;writingTasks=wt.data||[]}
+  if(test.module==="writing"){
+    const wt=await sb.from("writing_tasks").select("*").eq("test_id",id).order("part");
+    if(wt.error)throw wt.error;
+    writingTasks=(wt.data||[]).map(x=>({
+      ...x,
+      minimum:x.minimum_words,
+      maximum:x.maximum_words,
+      suggested:x.suggested_time,
+      media_url:Array.isArray(x.media)&&x.media[0]?.url?x.media[0].url:null
+    }));
+  }
   if(qids.length){const o=await sb.from("options").select("*").in("question_id",qids).order("sort_order");if(o.error)throw o.error;options=o.data||[]}
   if(gids.length){const o=await sb.from("question_group_options").select("*").in("group_id",gids).order("sort_order");if(o.error)throw o.error;groupOptions=o.data||[]}
   const byQ={};options.forEach(o=>(byQ[o.question_id]??=[]).push(o));questions=questions.map(q=>({...q,options:byQ[q.id]||[],config:q.question_config||{}}));
@@ -725,7 +735,7 @@ async function saveQuestion(id,sid){
   }catch(e){alert(e.message)}
 }
 function writingTaskForm(part=null){
-  const tasks=admin.writingTasks||[],w=part?tasks.find(x=>x.part===part):null,n=part||([1,2].find(x=>!tasks.some(t=>t.part===x))||1),current=w?.media_url||"";
+  const tasks=admin.writingTasks||[],w=part?tasks.find(x=>x.part===part):null,n=part||([1,2].find(x=>!tasks.some(t=>t.part===x))||1),current=w?.media_url||((Array.isArray(w?.media)&&w.media[0]?.url)||"");
   shell(`<div class="actions"><button class="btn secondary" onclick="renderBuilder()">← Builder</button></div><h2>${w?"Edit":"Add"} Writing Task ${n}</h2><div class="card">
   <label>Task Number</label><select id="wNo"><option value="1" ${n==1?"selected":""}>Task 1</option><option value="2" ${n==2?"selected":""}>Task 2</option></select>
   <label>Instructions</label>${richEditor("wInstEditor",w?.instructions||"",140)}<label>Prompt</label>${richEditor("wPromptEditor",w?.prompt||"",220)}
@@ -738,7 +748,20 @@ function writingTaskForm(part=null){
 async function saveWritingTask(id){
   try{
     const part=+$('wNo').value, current=$('wMedia').value.trim()||null, remove=$('wRemoveImage')?.checked===true, file=$('wMediaFile')?.files?.[0];
-    const payload={test_id:admin.test.id,part,task_type:part===1?'task1':'task2',instructions:richValue('wInstEditor'),prompt:richValue('wPromptEditor'),minimum:+$('wMin').value||null,maximum:+$('wMax').value||null,suggested:part===1?20:40,media_url:remove?null:current,evaluation_status:'pending',updated_at:new Date().toISOString()};
+    const currentMedia=remove?[]:(current?[{type:'image',url:current}]:[]);
+    const payload={
+      test_id:admin.test.id,
+      part,
+      task_type:part===1?'task1':'task2',
+      instructions:richValue('wInstEditor'),
+      prompt:richValue('wPromptEditor'),
+      minimum_words:+$('wMin').value||0,
+      maximum_words:+$('wMax').value||null,
+      suggested_time:part===1?20:40,
+      media:currentMedia,
+      evaluation_status:'pending',
+      updated_at:new Date().toISOString()
+    };
     let rowId=id;
     if(id){const {error}=await sb.from('writing_tasks').update(payload).eq('id',id);if(error)throw error}
     else{const {data,error}=await sb.from('writing_tasks').insert(payload).select().single();if(error)throw error;rowId=data.id}
@@ -750,7 +773,7 @@ async function saveWritingTask(id){
       mediaPath=`${admin.test.id}/writing/task-${part}-${rowId}-${Date.now()}.${ext}`;
       const up=await sb.storage.from('question-images').upload(mediaPath,file,{upsert:true,contentType:file.type||`image/${ext}`});
       if(up.error)throw up.error;
-      const {error}=await sb.from('writing_tasks').update({media_url:mediaPath,updated_at:new Date().toISOString()}).eq('id',rowId);if(error)throw error;
+      const {error}=await sb.from('writing_tasks').update({media:[{type:'image',url:mediaPath}],updated_at:new Date().toISOString()}).eq('id',rowId);if(error)throw error;
     }
     openBuilder(admin.test.id)
   }catch(e){alert(e.message)}
@@ -938,7 +961,18 @@ async function startStudentTest(id,resume=true,preview=false){
     if(d.sections?.length){for(const sec of d.sections){const raw=sec.image_path||sec.image_url;if(raw&&!String(raw).startsWith("http")){try{sec.image_url=await signed("question-images",raw)}catch(e){console.warn("Section image could not be signed",e)}}}}
     if(d.groups?.length){for(const g of d.groups){if(g.image_path){try{g.image_url=await signed("question-images",g.image_path)}catch(e){console.warn("Group image could not be signed",e)}}}}
     if(d.questions?.length){for(const q of d.questions){if(q.image_url&&!String(q.image_url).startsWith("http")){try{q.image_url=await signed("question-images",q.image_url)}catch(e){console.warn("Question image could not be signed",e)}}}}
-    if(d.writingTasks?.length){for(const wt of d.writingTasks){if(wt.media_url&&!String(wt.media_url).startsWith("http")){try{wt.media_url=await signed("question-images",wt.media_url)}catch(e){console.warn("Writing task image could not be signed",e)}}}}
+    if(d.writingTasks?.length){
+      for(const wt of d.writingTasks){
+        const url=wt.media_url||((Array.isArray(wt.media)&&wt.media[0]?.url)||null);
+        if(url&&!String(url).startsWith("http")){
+          try{
+            const signedUrl=await signed("question-images",url);
+            wt.media_url=signedUrl;
+            if(Array.isArray(wt.media)&&wt.media.length)wt.media=[{...wt.media[0],url:signedUrl}];
+          }catch(e){console.warn("Writing task image could not be signed",e)}
+        } else if(url){wt.media_url=url}
+      }
+    }
     let dbAnswers={};if(!preview&&attempt?.id)dbAnswers=await loadAttemptAnswers(attempt.id);
     if(!preview&&user&&d.test.module==='writing'){
       const wattempts=await loadWritingAttempts(id,user.id);
