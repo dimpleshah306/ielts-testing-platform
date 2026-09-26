@@ -918,8 +918,14 @@ async function studentDashboard(){
   if(allowedIds.length){const tq=await sb.from("tests").select("id,title,module,description,duration_minutes,total_questions,settings").eq("is_published",true).in("id",allowedIds).order("module");if(tq.error)return alert(tq.error.message);tests=tq.data||[]}
   const ids=(tests||[]).map(t=>t.id);
   let attempts=[];
-  if(ids.length){const a=await sb.from("results").select("id,test_id,status,started_at,submitted_at,listening_score,reading_score,writing_score").eq("student_id",user.id).in("test_id",ids).order("created_at",{ascending:false});if(a.error)return alert(a.error.message);attempts=a.data||[]}
-  const latest=new Map();attempts.forEach(a=>{if(!latest.has(a.test_id))latest.set(a.test_id,a)});
+  if(ids.length){const a=await sb.from("results").select("id,test_id,status,started_at,submitted_at,listening_score,reading_score,writing_score,created_at").eq("student_id",user.id).in("test_id",ids).order("created_at",{ascending:false});if(a.error)return alert(a.error.message);attempts=a.data||[]}
+  const latest=new Map();
+  attempts.forEach(a=>{
+    const prev=latest.get(a.test_id);
+    // Prefer a submitted attempt over an older/newer in-progress row. This prevents a stale
+    // draft attempt from masking a completed submission on the student dashboard.
+    if(!prev || a.status==="submitted" || (prev.status!=="submitted" && new Date(a.created_at||0)>new Date(prev.created_at||0))) latest.set(a.test_id,a);
+  });
   shell(`<h2>Student Dashboard</h2><p class="muted">Published tests are shown below. After submission, the result and the submitted test can be reviewed again in read-only mode.</p><div class="dashboard-grid">${(tests||[]).map(t=>{
     const a=latest.get(t.id);
     const icon=t.module==="listening"?"🎧":t.module==="reading"?"📖":"✍️";
@@ -955,9 +961,11 @@ async function startStudentTest(id,resume=true,preview=false){
     if(!preview){
       user=(await sb.auth.getUser()).data.user;
       if(!user)throw new Error("Please login again.");
-      const existing=await sb.from("results").select("*").eq("student_id",user.id).eq("test_id",id).order("created_at",{ascending:false}).limit(1).maybeSingle();
+      const existing=await sb.from("results").select("*").eq("student_id",user.id).eq("test_id",id).order("created_at",{ascending:false});
       if(existing.error)throw existing.error;
-      attempt=existing.data||null;
+      const attemptsForTest=existing.data||[];
+      // If any submitted attempt exists, it is the canonical attempt for review. Otherwise use the latest draft.
+      attempt=attemptsForTest.find(x=>x.status==="submitted")||attemptsForTest[0]||null;
       if(attempt?.status==="submitted"){
         // A submitted attempt remains available for review after logout/login.
         // It is read-only: the original answers are loaded from this student's result_id.
@@ -1204,9 +1212,15 @@ async function submitExam(auto=false){
     }
     const summary=mod==="writing"?null:calculateObjectiveScore(qs,exam.answers);
     const score=summary?.score??null;
-    const upd={status:"submitted",submitted_at:new Date().toISOString()};
-    if(mod==="listening")upd.listening_score=score;if(mod==="reading")upd.reading_score=score;if(mod==="writing")upd.writing_score=null;
-    const {error}=await sb.from("results").update(upd).eq("id",exam.resultId).eq("status","in_progress");if(error)throw error;
+    // Submit through a SECURITY DEFINER RPC so RLS cannot silently discard the status update.
+    // The RPC verifies that the authenticated user owns the attempt and only changes submission fields.
+    const {data:submittedResult,error:submitError}=await sb.rpc("submit_exam_result",{
+      p_result_id:exam.resultId,
+      p_listening_score:mod==="listening"?score:null,
+      p_reading_score:mod==="reading"?score:null
+    });
+    if(submitError)throw submitError;
+    if(!submittedResult || submittedResult.status!=="submitted") throw new Error("The test could not be marked as submitted.");
     const resultId=exam.resultId;clearExam(exam.testId,exam.studentId,exam.resultId);clearRoute();exam=null;
     // After successful submission, go directly to the student's saved-answer review.
     // The score/result card is still available from the dashboard, but is not shown in the post-submit flow.
