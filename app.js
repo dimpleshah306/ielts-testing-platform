@@ -614,11 +614,83 @@ function renderAudioAdmin(){
   ${admin.audio?`<button class="btn danger" onclick="removeAudio()">Remove Audio</button>`:""}</div>${admin.audio?`<p>Current: ${esc(admin.audio.original_name||admin.audio.audio_path)}</p>`:""}</div>`;
 }
 function renderQuestionAdmin(gs,qs){
-  return `<div class="card" style="margin-top:12px"><div class="actions"><button class="btn primary" onclick="groupForm()">+ Question Group</button><button class="btn primary" onclick="questionForm()">+ Question</button></div>
-  <h3>Question Groups</h3>${gs.map(g=>`<div class="editor-block"><strong>Q${g.start_question}–${g.end_question} • ${esc(typeMap()[g.question_type]||g.question_type)}</strong><div class="muted">${esc(g.instructions||"")}</div>
-  <div class="actions"><button class="btn secondary" onclick="groupForm('${g.id}')">Edit</button><button class="btn danger" onclick="deleteGroup('${g.id}')">Delete</button></div></div>`).join("")||`<p class="muted">No groups yet.</p>`}
-  <h3>Questions</h3>${qs.map(q=>`<div class="editor-block"><strong>${q.question_number}. ${esc(q.question_text||"(inline blank)")}</strong><div>${esc(typeMap()[q.question_type]||q.question_type)} • Correct: ${esc(q.correct_answer||"")}</div>
-  <div class="actions"><button class="btn secondary" onclick="questionForm('${q.id}')">Edit</button><button class="btn danger" onclick="deleteQuestion('${q.id}')">Delete</button></div></div>`).join("")||`<p class="muted">No questions yet.</p>`}</div>`;
+  const t=admin.test;
+  const allQs=(admin.questions||[]).slice().sort((a,b)=>Number(a.question_number)-Number(b.question_number));
+  const typeOptions=Object.entries(typeMap());
+  const sectionOptions=(admin.sections||[]).slice().sort((a,b)=>Number(a.section_number)-Number(b.section_number));
+  return `<div class="card" style="margin-top:12px">
+    <div class="actions" style="justify-content:space-between;align-items:center">
+      <div><h3 style="margin:0">Questions Q1–Q40</h3><div class="muted">No Group Structure is required here. Every question is managed directly. Part/Passage is retained internally so the student exam layout continues to work correctly.</div></div>
+      <div class="actions"><button class="btn primary" onclick="saveAllQuestionsBulk()">💾 Save All Questions</button><button class="btn secondary" onclick="questionForm()">+ Add Question</button></div>
+    </div>
+    <div class="notice"><strong>Bulk Editor:</strong> Edit question type, question text, options, correct answer, alternative answers and Part/Passage directly here. Changes are saved together with one button.</div>
+    <div style="margin:12px 0;display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn primary" onclick="filterBulkQuestions('all')">ALL Q1–Q40</button>
+      ${sectionOptions.map((sec,i)=>`<button class="btn secondary" onclick="filterBulkQuestions('${sec.id}')">${t.module==='reading'?'Passage':'Part'} ${i+1}</button>`).join('')}
+    </div>
+    <div id="bulkQuestionList">
+      ${allQs.map(q=>bulkQuestionCard(q,sectionOptions,typeOptions)).join('')}
+    </div>
+  </div>`;
+}
+function bulkQuestionCard(q,sectionOptions,typeOptions){
+  const cfg=q.config||q.question_config||{};
+  const opts=(q.options||[]).map(o=>`${o.option_key}|${o.option_text}`).join('\n');
+  const sec=sectionOptions.find(s=>s.id===q.section_id);
+  return `<div class="editor-block bulk-q-card" data-section-id="${attr(q.section_id||'')}" data-qno="${Number(q.question_number)}" style="margin-bottom:14px">
+    <div class="actions" style="justify-content:space-between"><strong style="font-size:18px">Question ${Number(q.question_number)}</strong><span class="muted">${esc(sec?.title||'Section')}</span></div>
+    <div class="grid3">
+      <div><label>Question No.</label><input class="bq-no" type="number" min="1" max="40" value="${Number(q.question_number)||1}"></div>
+      <div><label>Question Type</label><select class="bq-type">${typeOptions.map(([k,v])=>`<option value="${attr(k)}" ${normalizeType(q.question_type)===k?'selected':''}>${esc(v)}</option>`).join('')}</select></div>
+      <div><label>${admin.test.module==='reading'?'Passage':'Part'}</label><select class="bq-section">${sectionOptions.map((s,i)=>`<option value="${attr(s.id)}" ${s.id===q.section_id?'selected':''}>${admin.test.module==='reading'?'Passage':'Part'} ${i+1}</option>`).join('')}</select></div>
+    </div>
+    <label>Question Text</label><textarea class="bq-text" rows="3">${esc(q.question_text||'')}</textarea>
+    <div class="grid">
+      <div><label>Correct Answer</label><input class="bq-correct" value="${attr(q.correct_answer||'')}"><div class="inline-help">Multiple accepted keys/answers can be separated with ||.</div></div>
+      <div><label>Alternative Accepted Answers</label><input class="bq-accepted" value="${attr((cfg.acceptedAnswers||[]).join('||'))}"><div class="inline-help">Example: centre||center</div></div>
+    </div>
+    <label>Options / Matching Choices</label>
+    <textarea class="bq-options" rows="4" placeholder="A|Option text\nB|Option text\nC|Option text\nD|Option text">${esc(opts)}</textarea>
+    <div class="grid">
+      <div><label>Word Limit (optional)</label><input class="bq-limit" type="number" value="${cfg.wordLimit||''}"></div>
+      <div><label>Case Sensitive</label><select class="bq-case"><option value="false" ${cfg.caseSensitive?'':'selected'}>No</option><option value="true" ${cfg.caseSensitive?'selected':''}>Yes</option></select></div>
+    </div>
+    <div class="actions"><button class="btn danger" onclick="deleteQuestion('${q.id}')">Delete Question</button><button class="btn secondary" onclick="questionForm('${q.id}')">Open Full Editor</button></div>
+  </div>`;
+}
+function filterBulkQuestions(sectionId){
+  document.querySelectorAll('.bulk-q-card').forEach(card=>{card.style.display=(sectionId==='all'||card.dataset.sectionId===sectionId)?'block':'none'});
+}
+async function saveAllQuestionsBulk(){
+  const cards=[...document.querySelectorAll('.bulk-q-card')];
+  if(!cards.length){alert('No questions found.');return}
+  try{
+    const rows=[];
+    for(const card of cards){
+      const id=card.querySelector('.bq-section')?.closest('.bulk-q-card')?.querySelector('.btn.danger')?.getAttribute('onclick')?.match(/deleteQuestion\('([^']+)'\)/)?.[1];
+      if(!id) continue;
+      const q=admin.questions.find(x=>x.id===id);
+      if(!q) continue;
+      const opts=parseOptionLines(card.querySelector('.bq-options').value);
+      const correct=normalizeCorrectForOptions(card.querySelector('.bq-correct').value.trim(),opts);
+      const accepted=card.querySelector('.bq-accepted').value.split('||').map(x=>x.trim()).filter(Boolean).map(a=>normalizeCorrectForOptions(a,opts)).join('||').split('||').map(x=>x.trim()).filter(Boolean);
+      const config={...(q.config||q.question_config||{}),acceptedAnswers:accepted,wordLimit:+card.querySelector('.bq-limit').value||null,caseSensitive:card.querySelector('.bq-case').value==='true'};
+      rows.push({id,section_id:card.querySelector('.bq-section').value,question_number:+card.querySelector('.bq-no').value,question_type:card.querySelector('.bq-type').value,question_text:card.querySelector('.bq-text').value,correct_answer:correct,question_config:config,options:opts});
+    }
+    const nums=rows.map(x=>x.question_number);
+    const dup=nums.filter((n,i)=>nums.indexOf(n)!==i);
+    if(dup.length){alert(`Duplicate question number(s): ${[...new Set(dup)].join(', ')}`);return}
+    if(rows.some(x=>x.question_number<1||x.question_number>40)){alert('Question numbers must be between 1 and 40.');return}
+    for(const r of rows){
+      const {error}=await sb.from('questions').update({section_id:r.section_id,question_number:r.question_number,question_type:r.question_type,question_text:r.question_text,correct_answer:r.correct_answer,question_config:r.question_config}).eq('id',r.id);
+      if(error)throw error;
+      const {error:de}=await sb.from('options').delete().eq('question_id',r.id);if(de)throw de;
+      if(r.options.length){const optionRows=r.options.map(o=>({question_id:r.id,option_key:o.option_key,option_text:o.option_text,sort_order:o.sort_order,is_correct:false}));const {error:oe}=await sb.from('options').insert(optionRows);if(oe)throw oe}
+    }
+    const currentScroll=window.scrollY||document.documentElement.scrollTop||0;
+    await openBuilder(admin.test.id,admin.sectionIndex,currentScroll);
+    alert('All questions saved successfully.');
+  }catch(e){alert('Could not save all questions: '+(e.message||e))}
 }
 function renderWritingAdmin(qs){
   const tasks=(admin.writingTasks||[]).slice().sort((a,b)=>a.part-b.part);
