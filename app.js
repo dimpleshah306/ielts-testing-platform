@@ -1338,14 +1338,12 @@ async function resultsPage(){
   const pm=new Map(profiles.map(x=>[x.id,x]));
   shell(`<div class="actions"><button class="btn secondary" onclick="staffDashboard()">← Dashboard</button></div>
   <h2>Student Results</h2><p class="muted">Open a submitted attempt to see the student's answer for every question, the correct answer, and the marking status.</p>
-  <div class="card table-wrap"><table><thead><tr><th>Student</th><th>Test</th><th>Module</th><th>Status</th><th>Score</th><th>Submitted</th><th>Details</th></tr></thead><tbody>
+  <div class="card table-wrap"><table><thead><tr><th>Student</th><th>Test</th><th>Module</th><th>Status</th><th>Submitted</th><th>Details</th></tr></thead><tbody>
   ${(data||[]).map(r=>{
     const mod=r.tests?.module,p=pm.get(r.student_id);
-    const score=mod==="listening"?r.listening_score??"-":mod==="reading"?r.reading_score??"-":r.writing_score??"Pending";
-    const band=mod==="listening"?bandText("listening",r.listening_score):mod==="reading"?bandText("reading",r.reading_score):(r.writing_score==null?"Pending":Number(r.writing_score).toFixed(1));
     const name=p?.full_name||r.student_id||"Unknown Student";
-    return `<tr><td><strong>${esc(name)}</strong></td><td>${esc(r.tests?.title||"")}</td><td>${esc((mod||"").toUpperCase())}</td><td>${esc(r.status||"")}</td><td><strong>${esc(score)}</strong>${mod!=="writing"?`<br><small>Band: <strong>${esc(band)}</strong></small>`:""}</td><td>${r.submitted_at?new Date(r.submitted_at).toLocaleString():"-"}</td><td><div class="actions"><button class="btn primary" onclick="resultDetails('${r.id}')">View Answers</button><button class="btn danger" onclick="deleteResult('${r.id}')">Delete</button></div></td></tr>`
-  }).join("")||`<tr><td colspan="7">No results.</td></tr>`}</tbody></table></div>`);
+    return `<tr><td><strong>${esc(name)}</strong></td><td>${esc(r.tests?.title||"")}</td><td>${esc((mod||"").toUpperCase())}</td><td>${esc(r.status||"")}</td><td>${r.submitted_at?new Date(r.submitted_at).toLocaleString():"-"}</td><td><div class="actions"><button class="btn primary" onclick="resultDetails('${r.id}')">View Answers</button><button class="btn danger" onclick="deleteResult('${r.id}')">Delete</button></div></td></tr>`
+  }).join("")||`<tr><td colspan="6">No results.</td></tr>`}</tbody></table></div>`);
 }
 
 async function resultDetails(resultId){
