@@ -906,7 +906,45 @@ async function uploadAudio(){
   }catch(e){alert(e.message)}
 }
 async function removeAudio(){if(!admin.audio)return;await sb.storage.from("listening-audio").remove([admin.audio.audio_path]);await sb.from("test_audio").delete().eq("test_id",admin.test.id);openBuilder(admin.test.id)}
-async function signed(bucket,path){if(!path)return null;const {data,error}=await sb.storage.from(bucket).createSignedUrl(path,3600);if(error)throw error;return data.signedUrl}
+async function signed(bucket,path){
+  if(!path)return null;
+  const raw=String(path).trim();
+  if(!raw)return null;
+  // Accept both Storage object paths and full public/signed URLs. This prevents
+  // accidental double-signing and makes older saved paths compatible.
+  if(/^https?:\/\//i.test(raw))return raw;
+  const {data,error}=await sb.storage.from(bucket).createSignedUrl(raw,3600);
+  if(error){
+    console.warn(`Storage object could not be signed (${bucket}):`,raw,error.message||error);
+    return null;
+  }
+  return data?.signedUrl||null;
+}
+async function resolveListeningAudio(testId,audio){
+  if(!audio?.audio_path)return null;
+  const direct=await signed("listening-audio",audio.audio_path);
+  if(direct)return direct;
+  // Recover from an old/stale database path when the actual uploaded file still
+  // exists under this test's folder.
+  try{
+    const folder=String(testId||'').trim();
+    if(!folder)return null;
+    const {data:files,error}=await sb.storage.from("listening-audio").list(folder,{limit:50});
+    if(error)throw error;
+    const candidate=(files||[]).find(f=>/^listening\.[a-z0-9]+$/i.test(f.name||'')) || (files||[]).find(f=>/\.(mp3|m4a|wav|aac|ogg|webm)$/i.test(f.name||''));
+    if(!candidate)return null;
+    const path=`${folder}/${candidate.name}`;
+    const url=await signed("listening-audio",path);
+    if(url && path!==audio.audio_path){
+      const {error:updateError}=await sb.from("test_audio").update({audio_path:path,updated_at:new Date().toISOString()}).eq("test_id",testId);
+      if(updateError)console.warn("Could not repair test_audio path:",updateError.message);
+    }
+    return url;
+  }catch(e){
+    console.warn("Listening audio recovery failed:",e.message||e);
+    return null;
+  }
+}
 
 async function studentDashboard(){
   setRoute("student-dashboard");
@@ -979,7 +1017,7 @@ async function startStudentTest(id,resume=true,preview=false){
       localStorage.removeItem(legacyExamKey(id));
     }
     d=await ensureWritingQuestions(d);
-    let audioUrl=null;if(d.audio?.audio_path)audioUrl=await signed("listening-audio",d.audio.audio_path);
+    let audioUrl=null;if(d.test.module==="listening"&&d.audio?.audio_path)audioUrl=await resolveListeningAudio(id,d.audio);
     if(d.sections?.length){for(const sec of d.sections){const raw=sec.image_path||sec.image_url;if(raw&&!String(raw).startsWith("http")){try{sec.image_url=await signed("question-images",raw)}catch(e){console.warn("Section image could not be signed",e)}}}}
     if(d.groups?.length){for(const g of d.groups){if(g.image_path){try{g.image_url=await signed("question-images",g.image_path)}catch(e){console.warn("Group image could not be signed",e)}}}}
     if(d.questions?.length){for(const q of d.questions){if(q.image_url&&!String(q.image_url).startsWith("http")){try{q.image_url=await signed("question-images",q.image_url)}catch(e){console.warn("Question image could not be signed",e)}}}}
@@ -1012,7 +1050,14 @@ async function startStudentTest(id,resume=true,preview=false){
     if(!preview&&!review&&endAt<=Date.now())return submitExam(true);
     if(!review) startTimer();
     if(mListening(exam)&&!review)initStudentListeningAudio(!preview);
-  }catch(e){alert(e.message)}
+  }catch(e){
+    console.error("Student test load failed:",e);
+    clearRoute();
+    if(currentProfile?.role==="student"){
+      alert(e.message||"Could not open the test.");
+      try{await studentDashboard()}catch(_){/* keep the original error visible */}
+    }else alert(e.message||"Could not open the test.");
+  }
 }
 function previewCurrentTest(){startStudentTest(admin.test.id,false,true)}
 function headerExam(){return `<div class="topbar"><div><div class="brand">${esc(exam.data.test.title)}</div><div class="subbrand">${exam.preview?"Student Preview":exam.review?"Submitted Test — Read Only":exam.data.test.module.toUpperCase()+" Test"}</div></div><div class="userbox"><span id="timer" class="timer">${exam.preview?"PREVIEW":exam.review?"SUBMITTED":fmtTime(Math.max(0,exam.endAt-Date.now()))}</span><button class="btn secondary" onclick="exitExam()">${exam.preview?"Close Preview":"Exit"}</button></div></div>`}
@@ -1042,13 +1087,13 @@ function initStudentListeningAudio(autoplay){
   }
   if(autoplay&&!examAudioEnded&&examAudio.paused)examAudio.play().catch(()=>{});
 }
-function setAns(k,v){if(!exam||exam.locked)return;exam.answers[k]=v;saveExam();queueAnswerSave(k,v)}
-function toggleAns(k,v,on){if(!exam||exam.locked)return;let a=Array.isArray(exam.answers[k])?[...exam.answers[k]]:[];if(on&&!a.includes(v))a.push(v);if(!on)a=a.filter(x=>x!==v);exam.answers[k]=a;saveExam();queueAnswerSave(k,a)}
+function setAns(k,v){if(!exam||exam.locked)return;if(!exam.answers||typeof exam.answers!=="object")exam.answers={};exam.answers[k]=v;saveExam();queueAnswerSave(k,v)}
+function toggleAns(k,v,on){if(!exam||exam.locked)return;if(!exam.answers||typeof exam.answers!=="object")exam.answers={};let a=Array.isArray(exam.answers[k])?[...exam.answers[k]]:[];if(on&&!a.includes(v))a.push(v);if(!on)a=a.filter(x=>x!==v);exam.answers[k]=a;saveExam();queueAnswerSave(k,a)}
 function switchExamSection(i){if(exam?.locked&&!exam?.review)return;exam.currentSection=Math.max(0,Math.min(i,exam.data.sections.length-1));saveExam();renderExam();window.scrollTo({top:0,behavior:"instant"});if(!exam?.review){startTimer();if(mListening(exam))initStudentListeningAudio(!exam.preview)}}
 function switchTask(i){if(exam?.locked&&!exam?.review)return;exam.currentTask=Math.max(0,Math.min(i,1));saveExam();renderExam();window.scrollTo({top:0,behavior:"instant"});if(!exam?.review)startTimer()}
 function tabs(label){return `<div class="section-tabs">${exam.data.sections.map((s,i)=>`<button class="btn ${i===exam.currentSection?"primary":"secondary"}" onclick="switchExamSection(${i})">${label} ${i+1}</button>`).join("")}</div>`}
 function qnav(qs){return `<div class="qnav">${qs.map(q=>`<button class="${hasAns(q.id)?"done":""}" onclick="document.getElementById('q-${q.id}')?.scrollIntoView({behavior:'smooth'})">${q.question_number}</button>`).join("")}</div>`}
-function hasAns(id){const v=exam.answers[id];return Array.isArray(v)?v.length>0:String(v??"").trim()!==""}
+function hasAns(id){const v=exam?.answers?.[id];return Array.isArray(v)?v.length>0:String(v??"").trim()!==""}
 function renderExam(){
   const m=exam.data.test.module;if(m==="writing")return renderWritingExam();
   const s=exam.data.sections[exam.currentSection];
@@ -1181,53 +1226,57 @@ function bandForAttempt(module,questions,answers,readingType="academic"){
   return {...summary,band:scoreBand(module,summary.score,readingType)};
 }
 async function submitExam(auto=false){
+  if(!exam)return;
   if(exam.preview)return exitExam();
   if(exam.locked)return;
-  if(!auto&&!confirm("Submit test? Answers will be locked."))return;
+  const activeExam=exam;
+  if(!activeExam.resultId) { alert("This test attempt could not be identified. Please return to the dashboard and resume the test."); return; }
+  if(!auto&&!confirm("You can not change answers after submitting the test.\n\nAre you sure you want to submit?"))return;
+  if(!activeExam.answers||typeof activeExam.answers!=="object")activeExam.answers={};
   stopStudentListeningAudio();
   try{
-    exam.locked=true;saveExam();if(timerHandle)clearInterval(timerHandle);for(const t of answerSaveTimers.values())clearTimeout(t);answerSaveTimers.clear();
-    const mod=exam.data.test.module;
-    const qs=mod==="writing"?validModuleQuestions(exam.data):(mod==="listening"?listeningQuestions40(exam.data):readingQuestions40(exam.data));
+    activeExam.locked=true;saveExam();if(timerHandle)clearInterval(timerHandle);for(const t of answerSaveTimers.values())clearTimeout(t);answerSaveTimers.clear();
+    const mod=activeExam.data.test.module;
+    const qs=mod==="writing"?validModuleQuestions(activeExam.data):(mod==="listening"?listeningQuestions40(activeExam.data):readingQuestions40(activeExam.data));
     for(const q of qs){
       const key=mod==="writing"?`task_${q.question_config?.writingTaskId||q.id}`:q.id;
-      const value=exam.answers[key]??"";
+      const value=activeExam.answers[key]??"";
       const answerText=Array.isArray(value)?value.join(", "):String(value??"");
       const correct=mod==="writing"?null:evalQ(q,value);
       // IELTS Listening and Reading award exactly 1 mark per correct question.
       const marks=mod==="writing"?0:(correct?1:0);
-      const {data:existing,error:findErr}=await sb.from("answers").select("id").eq("result_id",exam.resultId).eq("question_id",q.id).maybeSingle();if(findErr)throw findErr;
-      const payload={result_id:exam.resultId,question_id:q.id,answer_text:answerText,is_correct:correct,marks_obtained:marks};
+      const {data:existing,error:findErr}=await sb.from("answers").select("id").eq("result_id",activeExam.resultId).eq("question_id",q.id).maybeSingle();if(findErr)throw findErr;
+      const payload={result_id:activeExam.resultId,question_id:q.id,answer_text:answerText,is_correct:correct,marks_obtained:marks};
       if(existing?.id){const {error}=await sb.from("answers").update(payload).eq("id",existing.id);if(error)throw error}
       else {const {error}=await sb.from("answers").insert(payload);if(error)throw error}
     }
     if(mod==="writing"){
       const now=new Date().toISOString();
-      for(const wt of (exam.data.writingTasks||[])){
+      for(const wt of (activeExam.data.writingTasks||[])){
         const key=`task_${wt.id}`;
-        const finalAnswer=String(exam.answers[key]??"");
+        const finalAnswer=String(activeExam.answers[key]??"");
         await persistWritingAttempt(Number(wt.part),finalAnswer,true,now);
       }
     }
-    const summary=mod==="writing"?null:calculateObjectiveScore(qs,exam.answers);
+    const summary=mod==="writing"?null:calculateObjectiveScore(qs,activeExam.answers);
     const score=summary?.score??null;
     // Submit through a SECURITY DEFINER RPC so RLS cannot silently discard the status update.
     // The RPC verifies that the authenticated user owns the attempt and only changes submission fields.
     const {data:submittedResult,error:submitError}=await sb.rpc("submit_exam_result",{
-      p_result_id:exam.resultId,
+      p_result_id:activeExam.resultId,
       p_listening_score:mod==="listening"?score:null,
       p_reading_score:mod==="reading"?score:null
     });
     if(submitError)throw submitError;
     if(!submittedResult || submittedResult.status!=="submitted") throw new Error("The test could not be marked as submitted.");
-    const resultId=exam.resultId;clearExam(exam.testId,exam.studentId,exam.resultId);clearRoute();exam=null;
-    // After successful submission, go directly to the student's saved-answer review.
-    // The score/result card is still available from the dashboard, but is not shown in the post-submit flow.
-    await studentReviewAnswers(resultId);
+    const resultId=activeExam.resultId;clearExam(activeExam.testId,activeExam.studentId,activeExam.resultId);clearRoute();exam=null;
+    // Submission is final: the test session is exited immediately and the calculated score is shown.
+    // The dashboard will no longer offer Resume Test for this submitted attempt.
+    await studentResultPage(resultId,true);
   }catch(e){
     console.error(e);
-    if(exam){exam.locked=true;saveExam();renderExam();}
-    alert("Submission failed: "+e.message+"\nYour answers are locked locally. Please contact the administrator.");
+    if(exam===activeExam){activeExam.locked=false;saveExam();renderExam();}
+    alert("Submission failed: "+(e?.message||e)+"\nYour answers are still saved. Please try Submit Test again.");
   }
 }
 function exitExam(){if(timerHandle)clearInterval(timerHandle);stopStudentListeningAudio();if(exam?.preview){exam=null;return openBuilder(admin.test.id)}saveExam();exam=null;clearRoute();studentDashboard()}
