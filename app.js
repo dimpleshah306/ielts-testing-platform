@@ -346,7 +346,9 @@ function staffDashboard(){
     <button class="dashbtn" onclick="testsPage('listening')">🎧<strong>Listening</strong><span class="muted">4 Parts • 40 Questions</span></button>
     <button class="dashbtn" onclick="testsPage('reading')">📖<strong>Reading</strong><span class="muted">3 Passages • 40 Questions</span></button>
     <button class="dashbtn" onclick="testsPage('writing')">✍️<strong>Writing</strong><span class="muted">Task 1 + Task 2</span></button>
-    <button class="dashbtn" onclick="resultsPage()">📊<strong>Results</strong><span class="muted">Scores and writing evaluation</span></button>
+    <button class="dashbtn" onclick="testsPage('speaking')">🗣️<strong>Speaking</strong><span class="muted">Faculty Band Assessment</span></button>
+    <button class="dashbtn" onclick="resultsPage()">📊<strong>Results</strong><span class="muted">Module Results</span></button>
+    <button class="dashbtn" onclick="overallResultsPage()">🏆<strong>Overall Results</strong><span class="muted">4-module IELTS score</span></button>
   </div>`);
 }
 
@@ -462,22 +464,24 @@ async function saveAnswerKey(testId){
   }catch(e){alert('Could not save Answer Key: '+e.message)}
 }
 function newTestForm(module="all"){
-  const m=["listening","reading","writing"].includes(module)?module:"listening";
+  const m=["listening","reading","writing","speaking"].includes(module)?module:"listening";
   shell(`<div class="actions"><button class="btn secondary" onclick="testsPage('${module}')">← Back</button></div><h2>Create New Test</h2><div class="card">
   <div class="grid"><div><label>Title</label><input id="ntTitle" value="${m[0].toUpperCase()+m.slice(1)} Test"></div><div><label>Module</label><select id="ntModule" onchange="syncNewTestDefaults()">
-  <option value="listening" ${m==="listening"?"selected":""}>Listening</option><option value="reading" ${m==="reading"?"selected":""}>Reading</option><option value="writing" ${m==="writing"?"selected":""}>Writing</option></select></div></div>
-  <label>Description</label><textarea id="ntDesc"></textarea><div class="grid"><div><label>Duration</label><input id="ntDur" type="number" value="${m==="listening"?40:60}"></div><div><label>Total Questions</label><input id="ntTotal" type="number" value="${m==="writing"?2:40}"></div></div>
+  <option value="listening" ${m==="listening"?"selected":""}>Listening</option><option value="reading" ${m==="reading"?"selected":""}>Reading</option><option value="writing" ${m==="writing"?"selected":""}>Writing</option><option value="speaking" ${m==="speaking"?"selected":""}>Speaking — Faculty Assessment</option></select></div></div>
+  <label>Description</label><textarea id="ntDesc"></textarea><div class="grid"><div><label>Duration</label><input id="ntDur" type="number" value="${m==="listening"?40:m==="speaking"?0:60}" ${m==="speaking"?"disabled":""}></div><div><label>Total Questions</label><input id="ntTotal" type="number" value="${m==="writing"?2:m==="speaking"?0:40}" ${m==="speaking"?"disabled":""}></div></div>
+  <label>Overall Result Group</label><input id="ntOverallGroup" value="${attr(m[0].toUpperCase()+m.slice(1)+" Mock")}" placeholder="Use the same group name for Listening, Reading, Writing and Speaking">
+  <div class="inline-help">Use the same Overall Result Group for all four module tests belonging to one IELTS mock.</div>
   ${m==="reading"?`<div style="margin-top:12px"><label>Reading Test Type</label><select id="ntReadingType"><option value="academic" selected>IELTS Academic Reading</option><option value="general">IELTS General Training Reading</option></select><div class="inline-help">This setting controls the Reading raw-score → band conversion for every student attempt of this test.</div></div>`:""}
   <div class="actions" style="margin-top:14px"><button class="btn primary" onclick="createTest()">Create & Open Builder</button></div></div>`);
 }
-function syncNewTestDefaults(){const m=$("ntModule").value;$("ntDur").value=m==="listening"?40:60;$("ntTotal").value=m==="writing"?2:40}
+function syncNewTestDefaults(){const m=$("ntModule").value;$("ntDur").value=m==="listening"?40:m==="speaking"?0:60;$("ntTotal").value=m==="writing"?2:m==="speaking"?0:40;$("ntDur").disabled=m==="speaking";$("ntTotal").disabled=m==="speaking"}
 async function createTest(){
   try{
     const uid=(await sb.auth.getUser()).data.user.id,m=$("ntModule").value;
-    const settings=m==="reading"?{reading_type:$("ntReadingType")?.value||"academic"}:{};
+    const settings={...(m==="reading"?{reading_type:$("ntReadingType")?.value||"academic"}:{}),overall_group:$("ntOverallGroup")?.value.trim()||$("ntTitle").value.trim()};
     const {data:t,error}=await sb.from("tests").insert({title:$("ntTitle").value.trim(),module:m,description:$("ntDesc").value.trim(),duration_minutes:+$("ntDur").value,total_questions:+$("ntTotal").value,is_published:false,created_by:uid,settings}).select().single();if(error)throw error;
     const count=m==="listening"?4:m==="reading"?3:1;
-    const rows=Array.from({length:count},(_,i)=>({test_id:t.id,section_number:i+1,title:m==="listening"?`Part ${i+1}`:m==="reading"?`Passage ${i+1}`:"Writing Tasks",instructions:"",content:""}));
+    const rows=Array.from({length:count},(_,i)=>({test_id:t.id,section_number:i+1,title:m==="listening"?`Part ${i+1}`:m==="reading"?`Passage ${i+1}`:m==="writing"?"Writing Tasks":"Speaking Assessment",instructions:"",content:""}));
     const {error:e2}=await sb.from("sections").insert(rows);if(e2)throw e2;openBuilder(t.id);
   }catch(e){alert(e.message)}
 }
@@ -499,6 +503,7 @@ async function validateTest(id){
   if(d.test.module==="listening"&&d.sections.length!==4)issues.push("Listening must have 4 Parts.");
   if(d.test.module==="reading"&&d.sections.length!==3)issues.push("Reading must have 3 Passages.");
   if(d.test.module==="writing"&&d.writingTasks.length<2)issues.push("Writing requires Task 1 and Task 2.");
+  if(d.test.module==="speaking"){if(d.sections.length!==1)issues.push("Speaking assessment must have one assessment section.");return issues;}
   if(["listening","reading"].includes(d.test.module)){
     const expected=Array.from({length:40},(_,i)=>i+1);
     const validQs=validModuleQuestions(d);
@@ -598,6 +603,7 @@ function renderBuilder(){
   shell(`<div class="actions"><button class="btn secondary" onclick="testsPage('${t.module}')">← Tests</button><button class="btn primary" onclick="answerKeyPage('${t.id}')">🔑 Answer Key</button><button class="btn primary" onclick="previewCurrentTest()">👁 Preview</button></div>
   <h2>Edit: ${esc(t.title)}</h2><div class="card"><h3>Test Details</h3><div class="grid"><div><label>Title</label><input id="btTitle" value="${attr(t.title)}"></div><div><label>Duration</label><input id="btDur" type="number" value="${t.duration_minutes}"></div></div>
   <label>Description</label><textarea id="btDesc">${esc(t.description||"")}</textarea>
+  <label>Overall Result Group</label><input id="btOverallGroup" value="${attr((t.settings||{}).overall_group||t.title||"")}" placeholder="Same group name across the 4 modules">
   ${t.module==="reading"?`<div style="margin-top:12px"><label>Reading Test Type</label><select id="btReadingType"><option value="academic" ${getReadingType(t)==="academic"?"selected":""}>IELTS Academic Reading</option><option value="general" ${getReadingType(t)==="general"?"selected":""}>IELTS General Training Reading</option></select><div class="inline-help">The selected type controls the Reading raw-score → band conversion for this test.</div></div>`:""}
   <button class="btn primary" onclick="saveTestHeader()">Save Test Details</button></div>
   ${t.module==="listening"?renderAudioAdmin():""}
@@ -606,7 +612,7 @@ function renderBuilder(){
   ${t.module==="reading"?`<div class="media-upload-box"><label><strong>Passage Image / Chart / Diagram</strong></label><input id="bsImageFile" type="file" accept="image/*"><div class="inline-help">Upload, replace or remove a passage-level image. This is useful for Reading charts, diagrams, figures and visual material.</div>${s.image_url?`<div class="editor-block" style="margin-top:8px"><strong>Current image:</strong><br><img class="media" style="max-width:420px;max-height:220px;object-fit:contain" src="${attr(s.image_url)}" onerror="this.style.display='none'"><label style="display:inline-flex;gap:6px;align-items:center;margin-top:6px"><input id="bsRemoveImage" type="checkbox"> Remove current image</label></div>`:""}</div>`:""}
   <label>Instructions</label>${richEditor("bsInstEditor",s.instructions||"",140)}<label>${t.module==="reading"?"Passage Text":"Content / Notes"}</label>${richEditor("bsContentEditor",s.content||"",260)}
   <div class="actions"><button class="btn primary" onclick="saveSection('${s.id}')">Save ${t.module==="reading"?"Passage":"Part"}</button></div></div>`:""}
-  ${t.module==="writing"?renderWritingAdmin(qs):renderQuestionAdmin(gs,qs)}`);
+  ${t.module==="writing"?renderWritingAdmin(qs):t.module==="speaking"?`<div class="card" style="margin-top:12px"><h3>Speaking Faculty Assessment</h3><p class="muted">This Speaking module is assessment-only. Students do not take a timed Speaking test here. Faculty assigns the Speaking band from Overall Results.</p><p class="muted">Use the same Overall Result Group as the corresponding Listening, Reading and Writing tests.</p></div>`:renderQuestionAdmin(gs,qs)}`);
 }
 function renderAudioAdmin(){
   return `<div class="card" style="margin-top:12px"><h3>Listening Audio</h3><p class="muted">Use one complete Listening audio file for the test.</p>
@@ -627,7 +633,7 @@ function renderWritingAdmin(qs){
   ${tasks.map(q=>`<div class="editor-block"><strong>Task ${q.part} • ${esc(q.task_type||'task')}</strong><div>${esc(q.prompt||'')}</div><div class="muted">Minimum: ${q.minimum||'-'} • Maximum: ${q.maximum||'-'} • Evaluation: ${esc(q.evaluation_status||'pending')}</div><div class="actions"><button class="btn secondary" onclick="writingTaskForm(${q.part})">Edit</button><button class="btn danger" onclick="deleteWritingTask('${q.id}')">Delete</button></div></div>`).join("")||`<p class="muted">No writing tasks yet.</p>`}</div>`;
 }
 function switchAdminSection(i){admin.sectionIndex=i;renderBuilder()}
-async function saveTestHeader(){const current=admin.test.settings||{};const settings=admin.test.module==="reading"?{...current,reading_type:$("btReadingType")?.value||getReadingType(admin.test)}:current;const {error}=await sb.from("tests").update({title:$("btTitle").value.trim(),description:$("btDesc").value.trim(),duration_minutes:+$("btDur").value,settings,updated_at:new Date().toISOString()}).eq("id",admin.test.id);if(error)alert(error.message);else openBuilder(admin.test.id)}
+async function saveTestHeader(){const current=admin.test.settings||{};const settings={...current,overall_group:$("btOverallGroup")?.value.trim()||admin.test.title};if(admin.test.module==="reading")settings.reading_type=$("btReadingType")?.value||getReadingType(admin.test);const {error}=await sb.from("tests").update({title:$("btTitle").value.trim(),description:$("btDesc").value.trim(),duration_minutes:+$("btDur").value,settings,updated_at:new Date().toISOString()}).eq("id",admin.test.id);if(error)alert(error.message);else openBuilder(admin.test.id)}
 async function saveSection(id){
   try{
     const s=admin.sections.find(x=>x.id===id), isReading=admin.test.module==="reading";
@@ -946,6 +952,32 @@ async function resolveListeningAudio(testId,audio){
   }
 }
 
+async function overallBandFromComponents(listening,reading,writing,speaking){
+  const vals=[listening,reading,writing,speaking].map(Number);
+  if(vals.some(v=>!Number.isFinite(v)))return null;
+  const avg=vals.reduce((a,b)=>a+b,0)/4;
+  return Math.round(avg*2)/2;
+}
+function overallGroup(test){return String(test?.settings?.overall_group||test?.title||"").trim()||"Ungrouped";}
+async function ensureSpeakingResult(testId,studentId){
+  const {data:existing,error}=await sb.from("results").select("id,speaking_score").eq("student_id",studentId).eq("test_id",testId).maybeSingle();
+  if(error)throw error;
+  if(existing)return existing;
+  const {data:created,error:ce}=await sb.from("results").insert({student_id:studentId,test_id:testId,status:"faculty_review",started_at:new Date().toISOString()}).select("id,speaking_score").single();
+  if(ce)throw ce;
+  return created;
+}
+async function getStudentOverallGroups(userId,tests,attempts){
+  const byGroup=new Map();
+  (tests||[]).forEach(t=>{
+    const g=overallGroup(t);
+    if(!byGroup.has(g))byGroup.set(g,{group:g,tests:[],attempts:[]});
+    byGroup.get(g).tests.push(t);
+  });
+  const amap=new Map((attempts||[]).map(a=>[a.test_id,a]));
+  byGroup.forEach(x=>x.attempts=x.tests.map(t=>amap.get(t.id)).filter(Boolean));
+  return [...byGroup.values()].filter(x=>x.attempts.length);
+}
 async function studentDashboard(){
   setRoute("student-dashboard");
   const user=(await sb.auth.getUser()).data.user;
@@ -954,24 +986,40 @@ async function studentDashboard(){
   const allowedIds=(access||[]).map(x=>x.test_id);
   let tests=[];
   if(allowedIds.length){const tq=await sb.from("tests").select("id,title,module,description,duration_minutes,total_questions,settings").eq("is_published",true).in("id",allowedIds).order("module");if(tq.error)return alert(tq.error.message);tests=tq.data||[]}
-  const ids=(tests||[]).map(t=>t.id);
+  const ids=tests.map(t=>t.id);
   let attempts=[];
-  if(ids.length){const a=await sb.from("results").select("id,test_id,status,started_at,submitted_at,listening_score,reading_score,writing_score,created_at").eq("student_id",user.id).in("test_id",ids).order("created_at",{ascending:false});if(a.error)return alert(a.error.message);attempts=a.data||[]}
+  if(ids.length){const a=await sb.from("results").select("id,test_id,status,started_at,submitted_at,listening_score,reading_score,writing_score,speaking_score,created_at").eq("student_id",user.id).in("test_id",ids).order("created_at",{ascending:false});if(a.error)return alert(a.error.message);attempts=a.data||[]}
   const latest=new Map();
-  attempts.forEach(a=>{
-    const prev=latest.get(a.test_id);
-    // Prefer a submitted attempt over an older/newer in-progress row. This prevents a stale
-    // draft attempt from masking a completed submission on the student dashboard.
-    if(!prev || a.status==="submitted" || (prev.status!=="submitted" && new Date(a.created_at||0)>new Date(prev.created_at||0))) latest.set(a.test_id,a);
-  });
-  shell(`<h2>Student Dashboard</h2><p class="muted">Published tests are shown below. After submission, the result and the submitted test can be reviewed again in read-only mode.</p><div class="dashboard-grid">${(tests||[]).map(t=>{
-    const a=latest.get(t.id);
-    const icon=t.module==="listening"?"🎧":t.module==="reading"?"📖":"✍️";
+  attempts.forEach(a=>{const prev=latest.get(a.test_id);if(!prev||a.status==="submitted"||(prev.status!=="submitted"&&new Date(a.created_at||0)>new Date(prev.created_at||0)))latest.set(a.test_id,a)});
+  for(const t of tests){if(normalizeModule(t.module)==="speaking"){try{await ensureSpeakingResult(t.id,user.id)}catch(e){console.warn("Could not initialize Speaking review:",e.message)}}}
+  if(tests.some(t=>normalizeModule(t.module)==="speaking")){
+    const refreshed=await sb.from("results").select("id,test_id,status,started_at,submitted_at,listening_score,reading_score,writing_score,speaking_score,created_at").eq("student_id",user.id).in("test_id",ids).order("created_at",{ascending:false});
+    if(!refreshed.error)attempts=refreshed.data||attempts;
+  }
+  const groups=await getStudentOverallGroups(user.id,tests,attempts);
+  const groupCards=groups.map(g=>{
+    const scores={listening:null,reading:null,writing:null,speaking:null};
+    g.attempts.forEach(a=>{
+      const t=g.tests.find(x=>x.id===a.test_id);if(!t)return;
+      const m=normalizeModule(t.module);if(m==="listening")scores.listening=a.listening_score!=null?bandFromRaw("listening",a.listening_score,getReadingType(t)):null;
+      if(m==="reading")scores.reading=a.reading_score!=null?bandFromRaw("reading",a.reading_score,getReadingType(t)):null;
+      if(m==="writing")scores.writing=a.writing_score!=null?Number(a.writing_score):null;
+      if(m==="speaking")scores.speaking=a.speaking_score!=null?Number(a.speaking_score):null;
+    });
+    const overall=overallBandFromComponents(scores.listening,scores.reading,scores.writing,scores.speaking);
+    const complete=overall!=null;
+    return `<div class="card" style="margin-bottom:14px"><div class="actions" style="justify-content:space-between"><div><h3 style="margin:0">🏆 ${esc(g.group)}</h3><p class="muted" style="margin:4px 0">Listening ${scores.listening??"Pending"} • Reading ${scores.reading??"Pending"} • Writing ${scores.writing??"Pending"} • Speaking ${scores.speaking??"Pending"}</p></div><button class="btn ${complete?"primary":"warning"}" onclick="studentOverallResult('${attr(g.group)}')">${complete?"View Overall Score":"Test in Review"}</button></div></div>`;
+  }).join("");
+  const testCards=tests.map(t=>{
+    const a=latest.get(t.id),m=normalizeModule(t.module),icon=m==="listening"?"🎧":m==="reading"?"📖":m==="writing"?"✍️":"🗣️";
+    if(m==="speaking")return `<div class="dashbtn"><div style="font-size:32px">${icon}</div><strong>${esc(t.title)}</strong><span class="muted">SPEAKING • Faculty Assessment</span><div style="margin-top:10px"><span class="status warning">Faculty Score Pending / Assigned</span></div></div>`;
     let action=a?.status==="submitted"?`<div class="actions"><button class="btn primary" onclick="studentResultPage('${a.id}')">View Result</button><button class="btn secondary" onclick="startStudentTest('${t.id}',true)">View Submitted Test</button></div>`:a?.status==="in_progress"?`<button class="btn warning" onclick="startStudentTest('${t.id}',true)">Resume Test</button>`:`<button class="btn primary" onclick="startStudentTest('${t.id}',true)">Start Test</button>`;
     const status=a?.status==="submitted"?`<span class="status published">Completed</span>`:a?.status==="in_progress"?`<span class="status draft">In Progress</span>`:`<span class="status draft">Not Started</span>`;
-    // Keep the dashboard clean: scores/bands are shown only inside View Result.
-    return `<div class="dashbtn"><div style="font-size:32px">${icon}</div><strong>${esc(t.title)}</strong><span class="muted">${t.module.toUpperCase()} • ${t.duration_minutes} min</span><div style="margin-top:10px">${status}</div><div class="actions" style="margin-top:10px">${action}</div></div>`;
-  }).join("")||`<div class="card">No published tests are available.</div>`}</div>`);
+    return `<div class="dashbtn"><div style="font-size:32px">${icon}</div><strong>${esc(t.title)}</strong><span class="muted">${m.toUpperCase()} • ${t.duration_minutes} min</span><div style="margin-top:10px">${status}</div><div class="actions" style="margin-top:10px">${action}</div></div>`;
+  }).join("");
+  shell(`<h2>Student Dashboard</h2><p class="muted">Complete your module tests. Writing and Speaking are finalized by Faculty.</p>
+    ${groups.length?`<h3 style="margin-top:22px">Overall IELTS Results</h3>${groupCards}`:""}
+    <h3 style="margin-top:22px">Module Tests</h3><div class="dashboard-grid">${testCards||`<div class="card">No published tests are available.</div>`}</div>`);
 }
 async function createAttempt(test){
   const user=(await sb.auth.getUser()).data.user;
@@ -993,7 +1041,9 @@ async function ensureWritingQuestions(d){
 }
 async function startStudentTest(id,resume=true,preview=false){
   try{
-    let d=await loadTestBundle(id);if(!d.test.is_published&&!preview)throw new Error("This test is not published.");
+    let d=await loadTestBundle(id);
+    if(normalizeModule(d.test.module)==="speaking"&&!preview)throw new Error("Speaking is a Faculty-assessment module. Please use Overall Results.");
+if(!d.test.is_published&&!preview)throw new Error("This test is not published.");
     let saved=null,attempt=null,user=null,review=false;
     if(!preview){
       user=(await sb.auth.getUser()).data.user;
@@ -1281,6 +1331,77 @@ async function submitExam(auto=false){
 }
 function exitExam(){if(timerHandle)clearInterval(timerHandle);stopStudentListeningAudio();if(exam?.preview){exam=null;return openBuilder(admin.test.id)}saveExam();exam=null;clearRoute();studentDashboard()}
 
+
+async function findOverallTests(group){
+  const {data,error}=await sb.from("tests").select("id,title,module,settings,is_published").order("created_at",{ascending:true});
+  if(error)throw error;
+  const target=String(group||"").trim();
+  return (data||[]).filter(t=>overallGroup(t)===target);
+}
+async function loadOverallForStudent(studentId,group){
+  const tests=await findOverallTests(group),ids=tests.map(t=>t.id);
+  if(!ids.length)return {group,tests,results:[],scores:{listening:null,reading:null,writing:null,speaking:null},resultIds:{}};
+  const {data,error}=await sb.from("results").select("id,test_id,status,submitted_at,created_at,listening_score,reading_score,writing_score,speaking_score").eq("student_id",studentId).in("test_id",ids).order("created_at",{ascending:false});
+  if(error)throw error;
+  const latest=new Map();
+  (data||[]).forEach(r=>{const prev=latest.get(r.test_id);if(!prev||r.status==="submitted"||(prev.status!=="submitted"&&new Date(r.created_at||0)>new Date(prev.created_at||0)))latest.set(r.test_id,r)});
+  const scores={listening:null,reading:null,writing:null,speaking:null},resultIds={};
+  tests.forEach(t=>{
+    const r=latest.get(t.id);if(!r)return;const m=normalizeModule(t.module);resultIds[m]=r.id;
+    if(m==="listening"&&r.listening_score!=null)scores.listening=bandFromRaw("listening",r.listening_score,getReadingType(t));
+    if(m==="reading"&&r.reading_score!=null)scores.reading=bandFromRaw("reading",r.reading_score,getReadingType(t));
+    if(m==="writing"&&r.writing_score!=null)scores.writing=Number(r.writing_score);
+    if(m==="speaking"&&r.speaking_score!=null)scores.speaking=Number(r.speaking_score);
+  });
+  return {group,tests,results:[...latest.values()],scores,resultIds,overall:overallBandFromComponents(scores.listening,scores.reading,scores.writing,scores.speaking)};
+}
+async function studentOverallResult(group){
+  try{
+    const user=(await sb.auth.getUser()).data.user;if(!user)throw new Error("Please login again.");
+    const o=await loadOverallForStudent(user.id,group);
+    const s=o.scores,complete=o.overall!=null;
+    shell(`<div class="actions"><button class="btn secondary" onclick="studentDashboard()">← Dashboard</button></div>
+      <div class="card" style="max-width:900px;margin:20px auto"><div style="text-align:center"><div style="font-size:48px">🏆</div><h2>${complete?"Overall IELTS Result":"Test in Review"}</h2><h3>${esc(group)}</h3>
+      ${complete?`<div style="font-size:64px;font-weight:800;margin:18px 0">${Number(o.overall).toFixed(1)}</div><div class="muted">Overall Band Score</div>`:`<div class="notice" style="margin:18px 0"><strong>Your test is currently in review.</strong><br>Overall score will appear after Faculty assigns the Writing and Speaking scores.</div>`}</div>
+      <div class="dashboard-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-top:24px">
+        ${[["Listening",s.listening],["Reading",s.reading],["Writing",s.writing],["Speaking",s.speaking]].map(([n,v])=>`<div class="card"><strong>${n}</strong><div style="font-size:30px;margin-top:8px">${v==null?"Pending":Number(v).toFixed(1)}</div></div>`).join("")}
+      </div>
+      <p class="muted" style="margin-top:20px">Overall Band is the average of the four module band scores, rounded to the nearest whole or half band according to IELTS scoring rules.</p></div>`);
+  }catch(e){alert("Could not load Overall Result: "+e.message)}
+}
+async function overallResultsPage(){
+  try{
+    setRoute("overall-results");
+    const {data:tests,error:te}=await sb.from("tests").select("id,title,module,settings").order("created_at",{ascending:true});if(te)throw te;
+    const {data:results,error:re}=await sb.from("results").select("id,student_id,test_id,status,created_at,listening_score,reading_score,writing_score,speaking_score").order("created_at",{ascending:false});if(re)throw re;
+    const studentIds=[...new Set((results||[]).map(r=>r.student_id).filter(Boolean))];
+    let profiles=[];if(studentIds.length){const p=await sb.from("profiles").select("id,full_name,student_code").in("id",studentIds);if(p.error)throw p.error;profiles=p.data||[]}
+    const pm=new Map(profiles.map(p=>[p.id,p]));
+    const tmap=new Map((tests||[]).map(t=>[t.id,t]));
+    const groups=new Map();
+    (results||[]).forEach(r=>{const t=tmap.get(r.test_id);if(!t)return;const g=overallGroup(t),key=`${r.student_id}||${g}`;if(!groups.has(key))groups.set(key,{studentId:r.student_id,group:g,rows:[]});groups.get(key).rows.push(r)});
+    const rows=[...groups.values()].map(g=>`<tr><td><strong>${esc(pm.get(g.studentId)?.full_name||g.studentId)}</strong><br><small>${esc(pm.get(g.studentId)?.student_code||"")}</small></td><td>${esc(g.group)}</td><td>${g.rows.some(r=>r.listening_score!=null)?"✓":"Pending"}</td><td>${g.rows.some(r=>r.reading_score!=null)?"✓":"Pending"}</td><td>${g.rows.some(r=>r.writing_score!=null)?"✓":"Pending"}</td><td>${g.rows.some(r=>r.speaking_score!=null)?"✓":"Pending"}</td><td><button class="btn primary" onclick="overallResultDetails('${g.studentId}','${attr(g.group)}')">Open</button></td></tr>`).join("");
+    shell(`<div class="actions"><button class="btn secondary" onclick="staffDashboard()">← Dashboard</button></div><h2>Overall IELTS Results</h2><p class="muted">Faculty can review Writing and Speaking scores here. Overall Band becomes available only when all four modules have scores.</p><div class="card table-wrap"><table><thead><tr><th>Student</th><th>Overall Group</th><th>Listening</th><th>Reading</th><th>Writing</th><th>Speaking</th><th>Action</th></tr></thead><tbody>${rows||`<tr><td colspan="7">No module attempts found.</td></tr>`}</tbody></table></div>`);
+  }catch(e){alert("Could not load Overall Results: "+e.message)}
+}
+async function overallResultDetails(studentId,group){
+  try{
+    const o=await loadOverallForStudent(studentId,group),p=(await sb.from("profiles").select("full_name,student_code").eq("id",studentId).single()).data;
+    const findTest=m=>o.tests.find(t=>normalizeModule(t.module)===m), findResult=m=>o.results.find(r=>r.id===o.resultIds[m]);
+    const wr=findResult("writing"),sp=findResult("speaking"),s=o.scores;
+    shell(`<div class="actions"><button class="btn secondary" onclick="overallResultsPage()">← Overall Results</button></div><h2>${esc(p?.full_name||studentId)}</h2><p class="muted">${esc(p?.student_code||"")} • ${esc(group)}</p>
+      <div class="dashboard-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));margin:14px 0">${[["Listening",s.listening],["Reading",s.reading],["Writing",s.writing],["Speaking",s.speaking]].map(([n,v])=>`<div class="card"><strong>${n}</strong><div style="font-size:28px;margin-top:6px">${v==null?"Pending":Number(v).toFixed(1)}</div></div>`).join("")}</div>
+      <div class="card"><h3>Writing Faculty Score</h3><p class="muted">${wr?"Writing submission exists. Enter the final Writing band.":"Student has not submitted a Writing test in this group yet."}</p><input id="overallWritingBand" type="number" step="0.5" min="0" max="9" value="${wr?.writing_score??""}" ${wr?"":"disabled"}><div class="actions" style="margin-top:10px"><button class="btn primary" onclick="saveOverallWritingScore('${wr?.id||""}','${studentId}','${attr(group)}')" ${wr?"":"disabled"}>Save Writing Score</button></div></div>
+      <div class="card"><h3>Speaking Faculty Score</h3><p class="muted">Enter the student's final Speaking band from the faculty assessment.</p><input id="overallSpeakingBand" type="number" step="0.5" min="0" max="9" value="${sp?.speaking_score??""}"><div class="actions" style="margin-top:10px"><button class="btn primary" onclick="saveOverallSpeakingScore('${sp?.id||""}','${findTest("speaking")?.id||""}','${studentId}','${attr(group)}')">Save Speaking Score</button></div></div>
+      <div class="card" style="text-align:center"><h3>Overall IELTS Band</h3><div style="font-size:44px;font-weight:800">${o.overall==null?"TEST IN REVIEW":Number(o.overall).toFixed(1)}</div><p class="muted">Overall score is calculated automatically from Listening, Reading, Writing and Speaking.</p></div>`);
+  }catch(e){alert("Could not open Overall Result: "+e.message)}
+}
+async function saveOverallWritingScore(resultId,studentId,group){
+  try{const v=Number($("overallWritingBand").value);if(!Number.isFinite(v)||v<0||v>9||Math.round(v*2)!==v*2)throw new Error("Enter a valid Writing band from 0 to 9 in 0.5 steps.");if(!resultId)throw new Error("Writing result not found.");const {error}=await sb.from("results").update({writing_score:v,writing_score_source:"faculty"}).eq("id",resultId);if(error)throw error;alert("Writing score saved. Overall result updated.");overallResultDetails(studentId,group)}catch(e){alert("Could not save Writing score: "+e.message)}
+}
+async function saveOverallSpeakingScore(resultId,testId,studentId,group){
+  try{const v=Number($("overallSpeakingBand").value);if(!Number.isFinite(v)||v<0||v>9||Math.round(v*2)!==v*2)throw new Error("Enter a valid Speaking band from 0 to 9 in 0.5 steps.");let rid=resultId;if(rid){const {error}=await sb.from("results").update({speaking_score:v,speaking_score_source:"faculty",status:"submitted",submitted_at:new Date().toISOString()}).eq("id",rid);if(error)throw error}else{if(!testId)throw new Error("Speaking test is not configured in this Overall Result Group.");const {data:user}=await sb.auth.getUser();if(!user?.user)throw new Error("Faculty session not found.");const ins=await sb.from("results").insert({student_id:studentId,test_id:testId,status:"submitted",speaking_score:v,speaking_score_source:"faculty",submitted_at:new Date().toISOString()}).select("id").single();if(ins.error)throw ins.error}alert("Speaking score saved. Overall result updated.");overallResultDetails(studentId,group)}catch(e){alert("Could not save Speaking score: "+e.message)}
+}
 async function renderStudentWritingResultCard(result){
   const band=result.writing_score==null?'Pending':Number(result.writing_score).toFixed(1);
   return `<div class="card"><strong>Final Writing Band</strong><div style="font-size:34px;margin-top:6px">${band}</div><p class="muted">Writing result is evaluated by Faculty.</p></div>`;
@@ -1288,11 +1409,11 @@ async function renderStudentWritingResultCard(result){
 async function studentResultPage(resultId,justSubmitted=false){
   try{
     const {data:r,error:re}=await sb.from("results").select("*,tests(title,module,total_questions,settings)").eq("id",resultId).single();if(re)throw re;
-    const mod=normalizeModule(r.tests?.module);let raw=mod==="listening"?r.listening_score:mod==="reading"?r.reading_score:null;if(r.status==="submitted"&&(mod==="listening"||mod==="reading")) raw=await recalculateStoredScore(r);const readingType=getReadingType(r.tests);const band=scoreBand(mod,raw,readingType);
+    const mod=normalizeModule(r.tests?.module);let raw=mod==="listening"?r.listening_score:mod==="reading"?r.reading_score:mod==="writing"?r.writing_score:mod==="speaking"?r.speaking_score:null;if(r.status==="submitted"&&(mod==="listening"||mod==="reading")) raw=await recalculateStoredScore(r);const readingType=getReadingType(r.tests);const band=(mod==="listening"||mod==="reading")?scoreBand(mod,raw,readingType):raw;
     shell(`<div class="actions"><button class="btn secondary" onclick="studentDashboard()">← Dashboard</button></div><div class="card" style="max-width:760px;margin:20px auto;text-align:center">
       <div style="font-size:52px">✅</div><h2>${justSubmitted?"Test Submitted":"Test Result"}</h2><h3>${esc(r.tests?.title||"")}</h3>
-      ${mod==="writing"?await renderStudentWritingResultCard(r):`<div class="dashboard-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:18px"><div class="card"><strong>Score</strong><div style="font-size:34px;margin-top:6px">${esc(raw??"-")} / 40</div></div><div class="card"><strong>Band Score</strong><div style="font-size:34px;margin-top:6px">${esc(band==null?"—":Number(band).toFixed(1))}</div></div></div>`}
-      <div class="actions" style="justify-content:center;margin-top:20px"><button class="btn secondary" onclick="studentReviewAnswers('${r.id}')">View My Saved Answers</button><button class="btn primary" onclick="studentDashboard()">Back to Dashboard</button></div>
+      ${mod==="writing"?await renderStudentWritingResultCard(r):`<div class="dashboard-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:18px"><div class="card"><strong>${mod==="speaking"?"Faculty Band":"Score"}</strong><div style="font-size:34px;margin-top:6px">${esc(raw??"-")}${mod==="listening"||mod==="reading"?" / 40":""}</div></div><div class="card"><strong>Band Score</strong><div style="font-size:34px;margin-top:6px">${esc(band==null?"Pending":Number(band).toFixed(1))}</div></div></div>`}
+      <div class="actions" style="justify-content:center;margin-top:20px"><button class="btn secondary" onclick="studentReviewAnswers('${r.id}')">View My Saved Answers</button><button class="btn primary" onclick="studentOverallResult('${attr(overallGroup(r.tests))}')">View Overall Score</button><button class="btn primary" onclick="studentDashboard()">Back to Dashboard</button></div>
     </div>`);
   }catch(e){alert("Could not load result: "+e.message)}
 }
@@ -1456,5 +1577,5 @@ async function resultDetails(resultId){
   }catch(e){alert("Could not load result details: "+e.message)}
 }
 
-window.staffDashboard=staffDashboard;window.studentDashboard=studentDashboard;window.studentsPage=studentsPage;window.newStudentForm=newStudentForm;window.createStudent=createStudent;window.manageStudent=manageStudent;window.saveStudent=saveStudent;window.toggleStudent=toggleStudent;window.setTestAccess=setTestAccess;window.deleteStudent=deleteStudent;window.testsPage=testsPage;window.answerKeyPage=answerKeyPage;window.saveAnswerKey=saveAnswerKey;window.newTestForm=newTestForm;window.syncNewTestDefaults=syncNewTestDefaults;window.createTest=createTest;window.togglePublish=togglePublish;window.deleteTest=deleteTest;window.openBuilder=openBuilder;window.renderBuilder=renderBuilder;window.switchAdminSection=switchAdminSection;window.saveTestHeader=saveTestHeader;window.saveSection=saveSection;window.groupForm=groupForm;window.saveGroup=saveGroup;window.deleteGroup=deleteGroup;window.questionForm=questionForm;window.saveQuestion=saveQuestion;window.deleteQuestion=deleteQuestion;window.writingTaskForm=writingTaskForm;window.saveWritingTask=saveWritingTask;window.deleteWritingTask=deleteWritingTask;window.uploadAudio=uploadAudio;window.removeAudio=removeAudio;window.previewCurrentTest=previewCurrentTest;window.startStudentTest=startStudentTest;window.switchExamSection=switchExamSection;window.switchTask=switchTask;window.setAns=setAns;window.toggleAns=toggleAns;window.setWriting=setWriting;window.submitExam=submitExam;window.exitExam=exitExam;window.resultsPage=resultsPage;window.resultDetails=resultDetails;window.studentResultPage=studentResultPage;window.studentReviewAnswers=studentReviewAnswers;window.deleteResult=deleteResult;window.downloadWritingSubmission=downloadWritingSubmission;window.saveWritingFacultyEvaluation=saveWritingFacultyEvaluation;window.logout=logout;
+window.staffDashboard=staffDashboard;window.studentDashboard=studentDashboard;window.studentsPage=studentsPage;window.newStudentForm=newStudentForm;window.createStudent=createStudent;window.manageStudent=manageStudent;window.saveStudent=saveStudent;window.toggleStudent=toggleStudent;window.setTestAccess=setTestAccess;window.deleteStudent=deleteStudent;window.testsPage=testsPage;window.answerKeyPage=answerKeyPage;window.saveAnswerKey=saveAnswerKey;window.newTestForm=newTestForm;window.syncNewTestDefaults=syncNewTestDefaults;window.createTest=createTest;window.togglePublish=togglePublish;window.deleteTest=deleteTest;window.openBuilder=openBuilder;window.renderBuilder=renderBuilder;window.switchAdminSection=switchAdminSection;window.saveTestHeader=saveTestHeader;window.saveSection=saveSection;window.groupForm=groupForm;window.saveGroup=saveGroup;window.deleteGroup=deleteGroup;window.questionForm=questionForm;window.saveQuestion=saveQuestion;window.deleteQuestion=deleteQuestion;window.writingTaskForm=writingTaskForm;window.saveWritingTask=saveWritingTask;window.deleteWritingTask=deleteWritingTask;window.uploadAudio=uploadAudio;window.removeAudio=removeAudio;window.previewCurrentTest=previewCurrentTest;window.startStudentTest=startStudentTest;window.switchExamSection=switchExamSection;window.switchTask=switchTask;window.setAns=setAns;window.toggleAns=toggleAns;window.setWriting=setWriting;window.submitExam=submitExam;window.exitExam=exitExam;window.resultsPage=resultsPage;window.overallResultsPage=overallResultsPage;window.overallResultDetails=overallResultDetails;window.saveOverallWritingScore=saveOverallWritingScore;window.saveOverallSpeakingScore=saveOverallSpeakingScore;window.studentOverallResult=studentOverallResult;window.resultDetails=resultDetails;window.studentResultPage=studentResultPage;window.studentReviewAnswers=studentReviewAnswers;window.deleteResult=deleteResult;window.downloadWritingSubmission=downloadWritingSubmission;window.saveWritingFacultyEvaluation=saveWritingFacultyEvaluation;window.logout=logout;
 document.addEventListener("DOMContentLoaded",init);
