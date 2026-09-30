@@ -1175,7 +1175,7 @@ function switchTask(i){if(exam?.locked&&!exam?.review)return;exam.currentTask=Ma
 function tabs(label){return `<div class="section-tabs">${exam.data.sections.map((s,i)=>`<button class="btn ${i===exam.currentSection?"primary":"secondary"}" onclick="switchExamSection(${i})">${label} ${i+1}</button>`).join("")}</div>`}
 function qnav(qs){return `<div class="qnav">${qs.map(q=>`<button class="${hasAns(q.id)?"done":""}" onclick="document.getElementById('q-${q.id}')?.scrollIntoView({behavior:'smooth'})">${q.question_number}</button>`).join("")}</div>`}
 function hasAns(id){const v=exam?.answers?.[id];return Array.isArray(v)?v.length>0:String(v??"").trim()!==""}
-function renderExam(){
+function renderExamBase(){
   const m=exam.data.test.module;if(m==="writing")return renderWritingExam();
   const s=exam.data.sections[exam.currentSection];
   const [rangeLo,rangeHi]=sectionQuestionRange(m,s.section_number,exam.data);
@@ -1923,7 +1923,7 @@ function renderListeningAudioBox(){
   return `<div class="audio-box"><strong>🎧 Listening Audio</strong><audio id="ueListeningPlayer" preload="auto" ${exam.review?'':'controls'} controlsList="nodownload noplaybackrate nofullscreen"></audio><div id="ueListeningStatus" class="muted" style="margin-top:6px">${status}</div></div>`;
 }
 
-const _v13RenderExamBase=renderExam;
+const _v13RenderExamBase=renderExamBase;
 function renderExam(){
   _v13RenderExamBase();
   if(exam?.data?.test?.module==='listening'){
