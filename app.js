@@ -952,7 +952,7 @@ async function resolveListeningAudio(testId,audio){
   }
 }
 
-async function overallBandFromComponents(listening,reading,writing,speaking){
+function overallBandFromComponents(listening,reading,writing,speaking){
   const vals=[listening,reading,writing,speaking].map(Number);
   if(vals.some(v=>!Number.isFinite(v)))return null;
   const avg=vals.reduce((a,b)=>a+b,0)/4;
@@ -1978,7 +1978,7 @@ window.staffDashboard=staffDashboard;window.studentDashboard=studentDashboard;wi
 document.addEventListener("DOMContentLoaded",init);
 
 /* =========================================================
-   V13.1 MOCK-CENTRIC FINAL ARCHITECTURE
+   V13.1.3 MOCK-CENTRIC FINAL ARCHITECTURE
    - One Student ID can have unlimited Mock/Exam Sets.
    - Each Mock contains Listening + Reading + Writing tests.
    - Speaking is NOT a student test; Faculty records a Speaking band
@@ -2000,24 +2000,26 @@ function v131MockOverall(es,results,mockAttempt){
   const mods=(es.modules||[]).filter(x=>x.module!=='speaking');
   const latest=new Map();
   for(const r of (results||[])){
-    if(!latest.has(r.test_id)||r.status==='submitted' || (latest.get(r.test_id)?.status!=='submitted'&&new Date(r.created_at||0)>new Date(latest.get(r.test_id)?.created_at||0))) latest.set(r.test_id,r);
+    const prev=latest.get(r.test_id);
+    if(!prev || (r.status==='submitted' && prev.status!=='submitted') || (r.status===prev.status && new Date(r.created_at||0)>new Date(prev.created_at||0))) latest.set(r.test_id,r);
   }
   const by={};
   for(const m of ['listening','reading','writing']){
     const x=mods.find(z=>z.module===m), test=x?tm.get(x.test_id):null, r=x?latest.get(x.test_id):null;
     let band=null;
     if(r?.status==='submitted'){
-      if(m==='listening'&&r.listening_score!=null)band=scoreBand('listening',Number(r.listening_score),getReadingType(test));
-      if(m==='reading'&&r.reading_score!=null)band=scoreBand('reading',Number(r.reading_score),getReadingType(test));
-      if(m==='writing'&&r.writing_score!=null)band=Number(r.writing_score);
+      if(m==='listening'&&r.listening_score!=null) band=scoreBand('listening',Number(r.listening_score),getReadingType(test));
+      if(m==='reading'&&r.reading_score!=null) band=scoreBand('reading',Number(r.reading_score),getReadingType(test));
+      if(m==='writing'&&r.writing_score!=null) band=Number(r.writing_score);
     }
     by[m]={test,result:r||null,band:v13RoundBand(band)};
   }
   const speaking=mockAttempt?.speaking_score==null?null:Number(mockAttempt.speaking_score);
   by.speaking={test:null,result:null,band:v13RoundBand(speaking)};
-  const vals=[by.listening.band,by.reading.band,by.writing.band,by.speaking.band];
-  const complete=vals.every(v=>Number.isFinite(Number(v)));
-  return {by,overall:complete?overallBandFromComponents(...vals):null,complete,mockAttempt};
+  const vals=[by.listening.band,by.reading.band,by.writing.band,by.speaking.band].map(Number);
+  const complete=vals.every(v=>Number.isFinite(v));
+  const overall=complete ? overallBandFromComponents(...vals) : null;
+  return {by,overall,complete,mockAttempt};
 }
 async function v131LoadStudentMocks(studentId){
   const a=await sb.from('student_exam_sets').select('exam_set_id,assigned_at').eq('student_id',studentId);if(a.error)throw a.error;
