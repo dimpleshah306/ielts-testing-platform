@@ -403,7 +403,7 @@ async function testsPage(module="all"){
   <div class="card table-wrap"><table><thead><tr><th>Title</th><th>Module</th><th>Duration</th><th>Status</th><th>Actions</th></tr></thead><tbody>
   ${(data||[]).map(t=>`<tr><td><strong>${esc(t.title)}</strong><br><small>${esc(t.description||"")}</small></td><td>${esc(t.module)}${t.module==="reading"?`<br><small>${getReadingType(t)==="general"?"General Training":"Academic"}</small>`:""}</td><td>${t.duration_minutes} min</td>
   <td><span class="status ${t.is_published?"published":"draft"}">${t.is_published?"Published":"Draft"}</span></td><td><div class="actions">
-  <button class="btn secondary" onclick="editTest('${t.id}')">Edit</button><button class="btn primary" onclick="answerKeyPage('${t.id}')">Answer Key</button><button class="btn ${t.is_published?"warning":"success"}" onclick="togglePublish('${t.id}',${!t.is_published})">${t.is_published?"Unpublish":"Publish"}</button>
+  <button class="btn secondary" onclick="openBuilder('${t.id}')">Edit</button><button class="btn primary" onclick="answerKeyPage('${t.id}')">Answer Key</button><button class="btn ${t.is_published?"warning":"success"}" onclick="togglePublish('${t.id}',${!t.is_published})">${t.is_published?"Unpublish":"Publish"}</button>
   <button class="btn danger" onclick="deleteTest('${t.id}')">Delete</button></div></td></tr>`).join("")||`<tr><td colspan="5">No tests.</td></tr>`}</tbody></table></div>`);
 }
 async function answerKeyPage(testId){
@@ -548,26 +548,13 @@ async function loadTestBundle(id){
   return {test,sections:sections||[],groups,questions,audio,writingTasks};
 }
 async function openBuilder(id,sectionIndex=0,scrollTop=0){
-  try{
-    if(!id) throw new Error("Test ID is missing.");
-    setRoute("builder",{testId:id});
-    admin=await loadTestBundle(id);
-    const requested=Number.isFinite(Number(sectionIndex))?Number(sectionIndex):0;
-    admin.sectionIndex=Math.min(Math.max(0,requested),Math.max(0,admin.sections.length-1));
-    renderBuilder();
-    setTimeout(()=>window.scrollTo({top:Math.max(0,Number(scrollTop)||0),behavior:"instant"}),0);
-  }catch(e){
-    console.error("Could not open Test Builder",e);
-    alert("Could not open Test Builder: "+(e?.message||e));
-    try{testsPage(admin?.test?.module||"all")}catch(_){}
-  }
+  setRoute("builder",{testId:id});
+  admin=await loadTestBundle(id);
+  const requested=Number.isFinite(Number(sectionIndex))?Number(sectionIndex):0;
+  admin.sectionIndex=Math.min(Math.max(0,requested),Math.max(0,admin.sections.length-1));
+  renderBuilder();
+  setTimeout(()=>window.scrollTo({top:Math.max(0,Number(scrollTop)||0),behavior:"instant"}),0);
 }
-window.openBuilder=openBuilder;
-
-async function editTest(id){
-  return openBuilder(id,0,0);
-}
-window.editTest=editTest;
 
 function parseOptionLines(raw){
   const lines=String(raw||"").split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
@@ -2217,7 +2204,7 @@ async function testsPage(module='all'){
       shell(`<div class="actions"><button class="btn secondary" onclick="staffDashboard()">← Dashboard</button></div><h2>🗣️ Speaking — Faculty Assessment</h2><div class="notice"><strong>No Speaking student test is required.</strong><br>For every Mock, Faculty records the student's Speaking band directly from <b>Overall Results → Mock → Speaking Faculty Assessment</b>.</div><div class="card"><h3>How Speaking works</h3><ol><li>Create the Mock with Listening + Reading + Writing.</li><li>Assign the Student ID to the Mock.</li><li>Faculty conducts the Speaking interview separately.</li><li>Faculty enters the Speaking band against that Student + Mock.</li><li>The Overall Band updates automatically.</li></ol></div>`);return;
     }
     let q=sb.from('tests').select('*').neq('module','speaking').order('created_at',{ascending:false});if(module!=='all')q=q.eq('module',module);const {data,error}=await q;if(error)throw error;
-    shell(`<div class="actions"><button class="btn secondary" onclick="staffDashboard()">← Dashboard</button><button class="btn primary" onclick="newTestForm('${module}')">+ Create Test</button></div><h2>${module==='all'?'All Student Tests':module[0].toUpperCase()+module.slice(1)+' Tests'}</h2><p class="muted">Speaking is handled separately as Faculty Assessment and is not created or assigned as a student test.</p><div class="card table-wrap"><table><thead><tr><th>Title</th><th>Module</th><th>Duration</th><th>Status</th><th>Actions</th></tr></thead><tbody>${(data||[]).map(t=>`<tr><td><strong>${esc(t.title)}</strong><br><small>${esc(t.description||'')}</small></td><td>${esc(t.module)}${t.module==='reading'?`<br><small>${getReadingType(t)==='general'?'General Training':'Academic'}</small>`:''}</td><td>${t.duration_minutes} min</td><td><span class="status ${t.is_published?'published':'draft'}">${t.is_published?'Published':'Draft'}</span></td><td><div class="actions"><button class="btn secondary" onclick="editTest('${t.id}')">Edit</button><button class="btn primary" onclick="answerKeyPage('${t.id}')">Answer Key</button><button class="btn ${t.is_published?'warning':'success'}" onclick="togglePublish('${t.id}',${!t.is_published})">${t.is_published?'Unpublish':'Publish'}</button><button class="btn danger" onclick="deleteTest('${t.id}')">Delete</button></div></td></tr>`).join('')||'<tr><td colspan="5">No tests.</td></tr>'}</tbody></table></div>`);
+    shell(`<div class="actions"><button class="btn secondary" onclick="staffDashboard()">← Dashboard</button><button class="btn primary" onclick="newTestForm('${module}')">+ Create Test</button></div><h2>${module==='all'?'All Student Tests':module[0].toUpperCase()+module.slice(1)+' Tests'}</h2><p class="muted">Speaking is handled separately as Faculty Assessment and is not created or assigned as a student test.</p><div class="card table-wrap"><table><thead><tr><th>Title</th><th>Module</th><th>Duration</th><th>Status</th><th>Actions</th></tr></thead><tbody>${(data||[]).map(t=>`<tr><td><strong>${esc(t.title)}</strong><br><small>${esc(t.description||'')}</small></td><td>${esc(t.module)}${t.module==='reading'?`<br><small>${getReadingType(t)==='general'?'General Training':'Academic'}</small>`:''}</td><td>${t.duration_minutes} min</td><td><span class="status ${t.is_published?'published':'draft'}">${t.is_published?'Published':'Draft'}</span></td><td><div class="actions"><button class="btn secondary" onclick="openBuilder('${t.id}')">Edit</button><button class="btn primary" onclick="answerKeyPage('${t.id}')">Answer Key</button><button class="btn ${t.is_published?'warning':'success'}" onclick="togglePublish('${t.id}',${!t.is_published})">${t.is_published?'Unpublish':'Publish'}</button><button class="btn danger" onclick="deleteTest('${t.id}')">Delete</button></div></td></tr>`).join('')||'<tr><td colspan="5">No tests.</td></tr>'}</tbody></table></div>`);
   }catch(e){alert('Could not load Tests: '+(e.message||e))}
 }
 function newTestForm(module='all'){
