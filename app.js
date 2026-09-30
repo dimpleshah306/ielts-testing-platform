@@ -2278,11 +2278,12 @@ function staffDashboard(){
       <button class="dashbtn" onclick="testsPage('writing')"><span style="font-size:24px">✍️</span><strong>Writing</strong><span class="muted">Task 1 + Task 2 • Faculty Evaluation</span></button>
     </div>
 
-    <h3 style="margin-top:22px">📊 Results & Faculty</h3>
+    <h3 style="margin-top:22px">📊 Results</h3>
     <div class="dashboard-grid">
-      <button class="dashbtn" onclick="overallResultsPage()"><span style="font-size:24px">🏆</span><strong>Overall Results</strong><span class="muted">One row per Student + Mock • Speaking score • Overall Band</span></button>
-      <button class="dashbtn" onclick="resultsPage()"><span style="font-size:24px">📊</span><strong>Module Results</strong><span class="muted">Open individual Listening / Reading / Writing submissions</span></button>
-      <button class="dashbtn" onclick="testsPage('speaking')"><span style="font-size:24px">🗣️</span><strong>Speaking Assessment</strong><span class="muted">Faculty enters Speaking score directly inside each Mock</span></button>
+      <button class="dashbtn" onclick="overallResultsPage()"><span style="font-size:24px">🏆</span><strong>Overall Results</strong><span class="muted">Student + Mock • 4 module scores • Speaking • Overall Band</span></button>
+    </div>
+    <div class="notice" style="margin-top:14px">
+      <strong>Faculty work is inside Overall Results.</strong> Open a Student + Mock to enter the Speaking band, review the Writing submission, and view the Listening / Reading / Writing results. No separate Module Results or Speaking Assessment page is required.
     </div>
   `);
 }
