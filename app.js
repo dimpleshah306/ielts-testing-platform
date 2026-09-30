@@ -2210,3 +2210,202 @@ function newTestForm(module='all'){
   shell(`<div class="actions"><button class="btn secondary" onclick="testsPage('${module}')">← Back</button></div><h2>Create New ${m[0].toUpperCase()+m.slice(1)} Test</h2><div class="card"><div class="grid"><div><label>Title</label><input id="ntTitle" value="${m[0].toUpperCase()+m.slice(1)} Test"></div><div><label>Module</label><select id="ntModule" onchange="syncNewTestDefaults()"><option value="listening" ${m==='listening'?'selected':''}>Listening</option><option value="reading" ${m==='reading'?'selected':''}>Reading</option><option value="writing" ${m==='writing'?'selected':''}>Writing</option></select></div></div><label>Description</label><textarea id="ntDesc"></textarea><div class="grid"><div><label>Duration</label><input id="ntDur" type="number" value="${m==='listening'?30:60}"></div><div><label>Total Questions</label><input id="ntTotal" type="number" value="${m==='writing'?2:40}"></div></div><div class="notice">Listening uses one continuous audio track for the complete 30-minute test. Speaking is handled by Faculty in each Mock and is not created here.</div><div class="actions" style="margin-top:14px"><button class="btn primary" onclick="createTest()">Create & Open Builder</button></div></div>`);
 }
 function syncNewTestDefaults(){const m=$('ntModule').value;$('ntDur').value=m==='listening'?30:60;$('ntTotal').value=m==='writing'?2:40}
+
+/* =========================================================
+   V13.1.2 UX + OVERALL HARDENING
+   - Admin dashboard simplified around the Mock-centric workflow.
+   - Never treat null/pending module scores as 0.
+   - Overall is calculated only from the same Student + Mock.
+   - Speaking is Faculty-only and stored in mock_attempts.
+   ========================================================= */
+function v1312SafeBand(v){
+  const n=Number(v);
+  return v===null||v===undefined||v===''||!Number.isFinite(n)?null:v13RoundBand(n);
+}
+function v1312Overall(listening,reading,writing,speaking){
+  const vals=[listening,reading,writing,speaking].map(v=>v1312SafeBand(v));
+  if(vals.some(v=>v===null)) return null;
+  return overallBandFromComponents(...vals);
+}
+function v1312MockOverall(es,results,mockAttempt){
+  const tm=new Map((es?.tests||[]).map(t=>[t.id,t]));
+  const mods=(es?.modules||[]).filter(x=>x.module!=='speaking');
+  const latest=new Map();
+  for(const r of (results||[])){
+    const prev=latest.get(r.test_id);
+    if(!prev || (r.status==='submitted' && prev.status!=='submitted') ||
+      (r.status===prev.status && new Date(r.created_at||0)>new Date(prev.created_at||0))) latest.set(r.test_id,r);
+  }
+  const by={};
+  for(const m of ['listening','reading','writing']){
+    const x=mods.find(z=>z.module===m);
+    const test=x?tm.get(x.test_id):null;
+    const r=x?latest.get(x.test_id):null;
+    let band=null;
+    if(r?.status==='submitted'){
+      if(m==='listening' && r.listening_score!=null) band=scoreBand('listening',Number(r.listening_score),getReadingType(test));
+      if(m==='reading' && r.reading_score!=null) band=scoreBand('reading',Number(r.reading_score),getReadingType(test));
+      if(m==='writing' && r.writing_score!=null) band=Number(r.writing_score);
+    }
+    by[m]={test,result:r||null,band:v1312SafeBand(band)};
+  }
+  const speaking=v1312SafeBand(mockAttempt?.speaking_score);
+  by.speaking={test:null,result:null,band:speaking};
+  const overall=v1312Overall(by.listening.band,by.reading.band,by.writing.band,by.speaking.band);
+  return {by,overall,complete:overall!==null,mockAttempt:mockAttempt||null};
+}
+
+function staffDashboard(){
+  setRoute('dashboard');
+  shell(`
+    <h2>Admin Dashboard</h2>
+    <p class="muted">Use this order: <strong>1. Create module tests → 2. Create Mock → 3. Assign Students → 4. Faculty checks → 5. Overall Results.</strong></p>
+    <div class="notice"><strong>Important:</strong> A Student ID can receive unlimited Mocks. Each Mock has its own Listening + Reading + Writing results and one Faculty Speaking score. Different Mocks are never mixed.</div>
+
+    <h3 style="margin-top:22px">👥 Setup</h3>
+    <div class="dashboard-grid">
+      <button class="dashbtn" onclick="studentsPage()"><span style="font-size:24px">👨‍🎓</span><strong>Students</strong><span class="muted">Create / manage Student IDs and reset accounts</span></button>
+      <button class="dashbtn" onclick="examSetsPage()"><span style="font-size:24px">🏆</span><strong>IELTS Mock / Exam Sets</strong><span class="muted">Create Mock 01, Mock 02, assign students and link modules</span></button>
+    </div>
+
+    <h3 style="margin-top:22px">📝 Test Builder</h3>
+    <div class="dashboard-grid">
+      <button class="dashbtn" onclick="testsPage('all')"><span style="font-size:24px">📝</span><strong>All Student Tests</strong><span class="muted">Create, edit, publish and manage Listening / Reading / Writing</span></button>
+      <button class="dashbtn" onclick="testsPage('listening')"><span style="font-size:24px">🎧</span><strong>Listening</strong><span class="muted">4 Sections • 40 Questions • 30 minutes</span></button>
+      <button class="dashbtn" onclick="testsPage('reading')"><span style="font-size:24px">📖</span><strong>Reading</strong><span class="muted">3 Passages • 40 Questions</span></button>
+      <button class="dashbtn" onclick="testsPage('writing')"><span style="font-size:24px">✍️</span><strong>Writing</strong><span class="muted">Task 1 + Task 2 • Faculty Evaluation</span></button>
+    </div>
+
+    <h3 style="margin-top:22px">📊 Results & Faculty</h3>
+    <div class="dashboard-grid">
+      <button class="dashbtn" onclick="overallResultsPage()"><span style="font-size:24px">🏆</span><strong>Overall Results</strong><span class="muted">One row per Student + Mock • Speaking score • Overall Band</span></button>
+      <button class="dashbtn" onclick="resultsPage()"><span style="font-size:24px">📊</span><strong>Module Results</strong><span class="muted">Open individual Listening / Reading / Writing submissions</span></button>
+      <button class="dashbtn" onclick="testsPage('speaking')"><span style="font-size:24px">🗣️</span><strong>Speaking Assessment</strong><span class="muted">Faculty enters Speaking score directly inside each Mock</span></button>
+    </div>
+  `);
+}
+
+async function studentDashboard(){
+  try{
+    setRoute('student-dashboard');
+    const user=(await sb.auth.getUser()).data.user;
+    if(!user)throw new Error('Please login again.');
+    const sets=await v131LoadStudentMocks(user.id);
+    if(!sets.length){
+      shell(`<h2>Student Dashboard</h2><p class="muted">Student ID: <strong>${esc(currentProfile?.student_code||user.id)}</strong></p><div class="card"><h3>No Mock Tests Assigned</h3><p class="muted">Your Student ID has no published Mock Test assignment yet.</p></div>`);
+      return;
+    }
+    const fmt=v=>v===null||v===undefined?'Pending':Number(v).toFixed(1);
+    const cards=sets.map(es=>{
+      const o=v1312MockOverall(es,es.results,es.mockAttempt);
+      const modRows=['listening','reading','writing'].map(m=>{
+        const x=o.by[m],r=x.result,t=x.test;
+        let action='—';
+        if(r?.status==='submitted') action=`<button class="btn secondary" onclick="studentResultPage('${r.id}')">View Result</button>`;
+        else if(r?.status==='in_progress') action=t?`<button class="btn warning" onclick="startStudentTest('${t.id}',true,false,'${es.id}')">Resume</button>`:'—';
+        else if(t) action=`<button class="btn primary" onclick="startStudentTest('${t.id}',true,false,'${es.id}')">Start Test</button>`;
+        return `<tr><td>${v13Icon(m)} <strong>${v13ModuleLabel(m)}</strong></td><td>${esc(t?.title||'Not configured')}</td><td>${r?.status==='submitted'?fmt(x.band):r?.status==='in_progress'?'In Progress':'Not Started'}</td><td>${action}</td></tr>`;
+      }).join('');
+      const speaking=o.by.speaking.band===null?'<span class="status warning">Faculty Pending</span>':`<span class="status success">${fmt(o.by.speaking.band)}</span>`;
+      const status=o.complete?'<span class="status success">Overall Complete</span>':'<span class="status draft">TEST IN REVIEW</span>';
+      return `<div class="card" style="margin-bottom:18px">
+        <div class="actions" style="justify-content:space-between;align-items:flex-start"><div><h3 style="margin:0">🏆 ${esc(es.title)}</h3><p class="muted" style="margin:5px 0">${esc(es.description||'')}</p></div><button class="btn primary" onclick="studentOverallResult('${es.id}')">View Overall Score</button></div>
+        <div class="dashboard-grid" style="grid-template-columns:repeat(5,minmax(0,1fr));margin:14px 0">${[['Listening',o.by.listening.band],['Reading',o.by.reading.band],['Writing',o.by.writing.band],['Speaking',o.by.speaking.band],['Overall',o.overall]].map(([n,v])=>`<div class="card" style="text-align:center;padding:12px"><strong>${n}</strong><div style="font-size:24px;margin-top:5px">${fmt(v)}</div></div>`).join('')}</div>
+        <div class="table-wrap"><table><thead><tr><th>Module</th><th>Test</th><th>Band / Status</th><th>Action</th></tr></thead><tbody>${modRows}<tr><td>🗣️ <strong>Speaking</strong></td><td>Faculty Assessment</td><td>${speaking}</td><td>—</td></tr></tbody></table></div>
+        <div style="margin-top:10px">${status}</div>
+      </div>`;
+    }).join('');
+    shell(`<h2>Student Dashboard</h2><p class="muted">Student ID: <strong>${esc(currentProfile?.student_code||user.id)}</strong> • Each Mock has its own independent Overall.</p><h3>My Mock Test Results</h3>${cards}`);
+  }catch(e){alert('Could not load Student Dashboard: '+(e.message||e))}
+}
+
+async function studentOverallResultsPage(examSetId=''){
+  try{
+    const user=(await sb.auth.getUser()).data.user;if(!user)throw new Error('Please login again.');
+    const sets=await v131LoadStudentMocks(user.id);if(!sets.length){await studentDashboard();return;}
+    const es=examSetId?sets.find(x=>x.id===examSetId):sets[0];if(!es)throw new Error('Mock not found.');
+    const o=v1312MockOverall(es,es.results,es.mockAttempt),fmt=v=>v===null||v===undefined?'Pending':Number(v).toFixed(1);
+    const rows=['listening','reading','writing'].map(m=>{const x=o.by[m],r=x.result;return `<tr><td>${v13Icon(m)} <strong>${v13ModuleLabel(m)}</strong></td><td>${esc(x.test?.title||'Not configured')}</td><td>${r?.status==='submitted'?'Completed':r?.status==='in_progress'?'In Progress':'Not Started'}</td><td><strong>${fmt(x.band)}</strong></td><td>${r?.id?`<button class="btn secondary" onclick="studentResultPage('${r.id}')">View Result</button>`:'—'}</td></tr>`}).join('');
+    shell(`<div class="actions"><button class="btn secondary" onclick="studentDashboard()">← Dashboard</button>${sets.length>1?`<select onchange="studentOverallResultsPage(this.value)">${sets.map(x=>`<option value="${x.id}" ${x.id===es.id?'selected':''}>${esc(x.title)}</option>`).join('')}</select>`:''}</div><h2>🏆 ${esc(es.title)} — Overall IELTS Score</h2><p class="muted">Student ID: <strong>${esc(currentProfile?.student_code||user.id)}</strong> • This result uses only this Mock.</p>
+    <div class="card" style="max-width:920px;margin:18px auto;text-align:center;border:2px solid #2563eb"><div style="font-size:42px">🏆</div><h2>${o.complete?'Overall IELTS Band':'TEST IN REVIEW'}</h2><div style="font-size:64px;font-weight:800">${o.overall===null?'—':Number(o.overall).toFixed(1)}</div><p class="muted">Listening + Reading + Writing + Faculty Speaking are combined only after all four final bands are available.</p></div>
+    <div class="dashboard-grid" style="grid-template-columns:repeat(5,minmax(0,1fr));margin:18px 0">${['listening','reading','writing','speaking','overall'].map(m=>{const v=m==='overall'?o.overall:o.by[m].band;return `<div class="card" style="text-align:center"><strong>${m==='overall'?'Overall':v13ModuleLabel(m)}</strong><div style="font-size:30px;margin-top:8px">${fmt(v)}</div></div>`}).join('')}</div>
+    <div class="card table-wrap"><h3>Module Results</h3><table><thead><tr><th>Module</th><th>Test</th><th>Status</th><th>Band</th><th>Result</th></tr></thead><tbody>${rows}<tr><td>🗣️ <strong>Speaking</strong></td><td>Faculty Assessment</td><td>${o.by.speaking.band===null?'Faculty Pending':'Faculty Checked'}</td><td><strong>${fmt(o.by.speaking.band)}</strong></td><td>—</td></tr></tbody></table></div>`);
+  }catch(e){alert('Could not load Overall Score: '+(e.message||e))}
+}
+async function studentOverallResult(examSetId=''){return studentOverallResultsPage(examSetId)}
+
+async function overallResultsPage(){
+  try{
+    setRoute('overall-results');
+    const {data:sets,error}=await sb.from('exam_sets').select('*').order('created_at',{ascending:false});if(error)throw error;
+    const ids=(sets||[]).map(x=>x.id);let assigns=[],mods=[],results=[],mocks=[];
+    if(ids.length){
+      const a=await sb.from('student_exam_sets').select('exam_set_id,student_id').in('exam_set_id',ids);if(a.error)throw a.error;assigns=a.data||[];
+      const m=await sb.from('exam_set_modules').select('exam_set_id,module,test_id').in('exam_set_id',ids);if(m.error)throw m.error;mods=m.data||[];
+      const r=await sb.from('results').select('id,student_id,exam_set_id,test_id,status,submitted_at,created_at,listening_score,reading_score,writing_score').in('exam_set_id',ids);if(r.error)throw r.error;results=r.data||[];
+      const ma=await sb.from('mock_attempts').select('*').in('exam_set_id',ids);if(ma.error)throw ma.error;mocks=ma.data||[];
+    }
+    const studentIds=[...new Set(assigns.map(x=>x.student_id))];let profiles=[];
+    if(studentIds.length){const p=await sb.from('profiles').select('id,full_name,student_code').in('id',studentIds);if(p.error)throw p.error;profiles=p.data||[]}
+    const pm=new Map(profiles.map(x=>[x.id,x]));const rows=[];
+    for(const es of sets||[]){
+      for(const sid of [...new Set(assigns.filter(a=>a.exam_set_id===es.id).map(a=>a.student_id))]){
+        const eMods=mods.filter(x=>x.exam_set_id===es.id&&x.module!=='speaking'),tids=eMods.map(x=>x.test_id);let tests=[];
+        if(tids.length){const t=await sb.from('tests').select('id,title,module,settings').in('id',tids);if(t.error)throw t.error;tests=t.data||[]}
+        const esObj={...es,modules:eMods,tests,results:results.filter(r=>r.exam_set_id===es.id&&r.student_id===sid)};
+        const ma=mocks.find(x=>x.exam_set_id===es.id&&x.student_id===sid),o=v1312MockOverall(esObj,esObj.results,ma),p=pm.get(sid);
+        rows.push(`<tr><td><strong>${esc(p?.full_name||sid)}</strong><br><small>${esc(p?.student_code||'')}</small></td><td>${esc(es.title)}</td><td>${o.by.listening.band==null?'—':Number(o.by.listening.band).toFixed(1)}</td><td>${o.by.reading.band==null?'—':Number(o.by.reading.band).toFixed(1)}</td><td>${o.by.writing.band==null?'—':Number(o.by.writing.band).toFixed(1)}</td><td>${o.by.speaking.band==null?'—':Number(o.by.speaking.band).toFixed(1)}</td><td><strong>${o.overall===null?'TEST IN REVIEW':Number(o.overall).toFixed(1)}</strong></td><td><button class="btn primary" onclick="overallResultDetails('${sid}','${es.id}')">Open</button></td></tr>`);
+      }
+    }
+    shell(`<div class="actions"><button class="btn secondary" onclick="staffDashboard()">← Dashboard</button></div><h2>🏆 Overall IELTS Results</h2><p class="muted">One row per <strong>Student + Mock</strong>. Listening, Reading, Writing and Speaking never mix between different Mocks.</p><div class="card table-wrap"><table><thead><tr><th>Student</th><th>Mock</th><th>Listening</th><th>Reading</th><th>Writing</th><th>Speaking</th><th>Overall</th><th>Details</th></tr></thead><tbody>${rows.join('')||'<tr><td colspan="8">No Mock results found.</td></tr>'}</tbody></table></div>`);
+  }catch(e){alert('Could not load Overall Results: '+(e.message||e))}
+}
+
+async function saveV13SpeakingScore(resultId,testId,studentId,examSetId){
+  try{
+    const v=Number($('overallSpeakingBand')?.value);
+    if(!Number.isFinite(v)||v<0||v>9||Math.round(v*2)!==v*2)throw new Error('Enter a valid Speaking band from 0 to 9 in 0.5 steps.');
+    const q=await v131EnsureMockAttempt(examSetId,studentId);
+    const u=await sb.from('mock_attempts').update({speaking_score:v,speaking_score_source:'faculty',speaking_scored_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',q.id);
+    if(u.error)throw u.error;
+    alert('Speaking score saved. Overall result updated.');
+    overallResultDetails(studentId,examSetId);
+  }catch(e){alert('Could not save Speaking score: '+(e.message||e))}
+}
+
+window.staffDashboard=staffDashboard;
+window.studentDashboard=studentDashboard;
+window.studentOverallResultsPage=studentOverallResultsPage;
+window.studentOverallResult=studentOverallResult;
+window.overallResultsPage=overallResultsPage;
+window.saveV13SpeakingScore=saveV13SpeakingScore;
+
+
+/* V13.1.2: final Overall Details override - Speaking is mock_attempt, never a test. */
+async function overallResultDetails(studentId,examSetId){
+  try{
+    const sets=await v131LoadStudentMocks(studentId);
+    const es=sets.find(x=>x.id===examSetId);
+    if(!es)throw new Error('Mock not found for this Student ID.');
+    const o=v1312MockOverall(es,es.results,es.mockAttempt);
+    const p=(await sb.from('profiles').select('full_name,student_code').eq('id',studentId).single()).data;
+    const detailButtons=['listening','reading','writing'].map(m=>{
+      const id=o.by[m].result?.id;
+      return id?`<button class="btn secondary" onclick="studentResultPage('${id}')">${v13ModuleLabel(m)} Details</button>`:`<button class="btn secondary" disabled>${v13ModuleLabel(m)} Pending</button>`;
+    }).join('');
+    const wr=o.by.writing.result;
+    let wtBands={};
+    if(wr){
+      const wa=await sb.from('writing_attempts').select('part,band_score,faculty_feedback,checked_answer').eq('test_id',wr.test_id).eq('student_id',studentId).order('part');
+      if(wa.error)throw wa.error;
+      (wa.data||[]).forEach(x=>wtBands[Number(x.part)]=x);
+    }
+    const scoreCards=[['Listening',o.by.listening.band],['Reading',o.by.reading.band],['Writing',o.by.writing.band],['Speaking',o.by.speaking.band],['Overall',o.overall]].map(([n,v])=>`<div class="card"><strong>${n}</strong><div style="font-size:28px;margin-top:6px">${v===null?'Pending':Number(v).toFixed(1)}</div></div>`).join('');
+    const writingCard=wr?`<div class="card"><h3>✍️ Writing Faculty Evaluation</h3><p class="muted">Task 2 carries double weighting. Final Writing Band is calculated automatically.</p><div class="grid"><div><label>Task 1 Band</label><input id="wtTask1Band" type="number" step="0.5" min="0" max="9" value="${wtBands[1]?.band_score??''}"></div><div><label>Task 2 Band</label><input id="wtTask2Band" type="number" step="0.5" min="0" max="9" value="${wtBands[2]?.band_score??''}"></div></div><p class="muted">Calculated Final Writing Band: <strong id="v13WritingCalc">Enter both task bands</strong></p><div class="actions"><button class="btn primary" onclick="saveV131WritingEvaluation('${wr.id}','${wr.test_id}','${studentId}','${examSetId}')">Save Writing Evaluation</button></div><p class="muted" style="margin-top:8px">After saving, the student's Writing Result can show the original essay, checked essay and Faculty feedback.</p></div>`:`<div class="card"><h3>✍️ Writing Faculty Evaluation</h3><p class="muted">Writing is not submitted yet.</p></div>`;
+    const speakingCard=`<div class="card"><h3>🗣️ Speaking Faculty Assessment</h3><p class="muted">No Speaking student test is assigned. Enter the Speaking band directly for this Student + Mock.</p><input id="overallSpeakingBand" type="number" step="0.5" min="0" max="9" value="${o.by.speaking.band??''}" placeholder="e.g. 6.5"><div class="actions" style="margin-top:10px"><button class="btn primary" onclick="saveV13SpeakingScore('','','${studentId}','${examSetId}')">Save Speaking Score</button></div></div>`;
+    shell(`<div class="actions"><button class="btn secondary" onclick="overallResultsPage()">← Overall Results</button></div><h2>${esc(p?.full_name||studentId)} — ${esc(es.title)}</h2><p class="muted">Student ID: ${esc(p?.student_code||studentId)} • One Overall Result for this Mock</p><div class="dashboard-grid" style="grid-template-columns:repeat(5,minmax(0,1fr));margin:14px 0">${scoreCards}</div><div class="card"><h3>Module Details</h3><div class="actions">${detailButtons}</div></div>${writingCard}${speakingCard}<div class="card" style="text-align:center"><h3>🏆 Overall IELTS Band</h3><div style="font-size:44px;font-weight:800">${o.overall===null?'TEST IN REVIEW':Number(o.overall).toFixed(1)}</div><p class="muted">Overall is calculated only after Listening, Reading, Writing and Speaking are all finalized for this Mock.</p></div>`);
+    setTimeout(()=>{const a=$('wtTask1Band'),b=$('wtTask2Band'),out=$('v13WritingCalc');const f=()=>{const v=v13WritingFinalBand(a?.value,b?.value);if(out)out.textContent=v==null?'Enter both task bands':v.toFixed(1)};a?.addEventListener('input',f);b?.addEventListener('input',f);f()},0);
+  }catch(e){alert('Could not open Overall Result: '+(e.message||e))}
+}
+window.overallResultDetails=overallResultDetails;
+
