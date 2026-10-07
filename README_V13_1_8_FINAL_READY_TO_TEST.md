@@ -102,3 +102,17 @@ Only `index.html` and `app.js` are used by the live website. The SQL file is for
 - `index.html` references the current cache-busted `app.js` version.
 - No local CSS, image, JS, audio or PDF file is required by `index.html`; the frontend is contained in `app.js`.
 - Package contents were reduced to the four required files listed above.
+
+
+## V13.1.8 Option Entry UX Fix
+- Admin question/group Options are entered one per line; option letters A, B, C... are generated automatically.
+- Existing saved options in legacy `A|Option Text` format are displayed as plain option text while editing.
+- Alternative Accepted Answers are entered one answer per line.
+- Student option rendering remains A, B, C... and is unchanged.
+- Database schema is unchanged for this UI-only improvement.
+
+## V13.1.8 Options Display Final Fix
+- Admin question/group options are entered one option per line; legacy `A|Apple` input remains readable for compatibility.
+- Student-facing Listening/Reading options display only the option text (for example Apple, Banana, Orange) with no A./B./C. labels.
+- Student dropdowns, inline blank dropdowns, multiple-choice radio/checkbox options, and shared/group word lists all use text-only display.
+- Internal option keys remain unchanged for answer storage and scoring, so no database schema migration is required for this UI change.

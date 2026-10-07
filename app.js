@@ -421,7 +421,7 @@ async function answerKeyPage(testId){
       if(!q) return `<tr class="missing-row"><td><strong>Q${no}</strong></td><td colspan="6"><span class="status warning">Question not configured</span> — Add Question ${no} in the Test Builder before publishing.</td></tr>`;
       const cfg=q.question_config||{};
       const accepted=Array.isArray(cfg.acceptedAnswers)?cfg.acceptedAnswers:[];
-      const opts=(q.options||[]).map(o=>`${esc(o.option_key)} — ${esc(o.option_text)}`).join('<br>');
+      const opts=(q.options||[]).map(o=>`${esc(o.option_text)}`).join('<br>');
       return `<tr>
         <td><strong>Q${no}</strong><div class="inline-help">${esc(q.question_type||'')}</div></td>
         <td style="min-width:240px"><strong>${esc(q.question_text||'')}</strong>${opts?`<div class="answer-options"><strong>Options:</strong><br>${opts}</div>`:''}</td>
@@ -684,7 +684,7 @@ function groupForm(id=null){
     ${current ? `<div class="editor-block" style="margin-top:8px"><strong>Current image:</strong> ${esc(current)}<br><img class="media" style="max-width:420px;max-height:220px;object-fit:contain" src="${attr(current)}" onerror="this.style.display='none'"><label style="display:inline-flex;gap:6px;align-items:center;margin-top:6px"><input id="gRemoveImage" type="checkbox"> Remove current image</label></div>` : ""}
     <input id="gImage" type="hidden" value="${attr(current)}">
   </div>
-  <label>Shared Option Bank <span class="muted">(one option per line — simply type the option text, or use A|Option text)</span></label><textarea id="gOptions">${esc((g?.options||[]).map(o=>`${o.option_key}|${o.option_text}`).join("\n"))}</textarea>
+  <label>Shared Options <span class="muted">(enter one option per line — e.g. Apple, Banana, Orange)</span></label><textarea id="gOptions" placeholder="Apple\nBanana\nOrange">${esc((g?.options||[]).map(o=>o.option_text||"").join("\n"))}</textarea>
   <div class="inline-help"><strong>Matching Features / Matching Information / Matching Headings / Matching Sentence Endings:</strong> the same option may be used more than once automatically. No extra setting is required.</div>
   <div class="actions" style="margin-top:12px"><button class="btn primary" onclick="saveGroup('${id||""}','${s.id}')">Save Group</button>${g?`<button class="btn secondary" onclick="duplicateGroup('${g.id}')">Duplicate Group</button>`:""}</div></div>`);
 }
@@ -726,9 +726,9 @@ function questionForm(id=null){
   const s=admin.sections[admin.sectionIndex],q=id?admin.questions.find(x=>x.id===id):null;
   shell(`<div class="actions"><button class="btn secondary" onclick="renderBuilder()">← Builder</button></div><h2>${q?"Edit":"Add"} Question</h2><div class="card">
   <div class="grid3"><div><label>Question No.</label><input id="qNo" type="number" value="${q?.question_number||1}"></div><div><label>Question Type</label><select id="qType">${Object.entries(typeMap()).map(([k,v])=>`<option value="${k}" ${normalizeType(q?.question_type)===k?"selected":""}>${esc(v)}</option>`).join("")}</select></div><div><label>Marks</label><input id="qMarks" type="number" value="${q?.marks||1}"></div></div>
-  <label>Question Text</label>${richEditor("qTextEditor",q?.question_text||"",140)}<label>Correct Answer</label><input id="qCorrect" value="${attr(q?.correct_answer||"")}"><p class="inline-help">For multiple accepted answers, separate with ||, e.g. centre||center</p>
-  <label>Alternative Accepted Answers (optional)</label><input id="qAccepted" value="${attr((q?.config?.acceptedAnswers||[]).join("||"))}"><div class="grid"><div><label>Word Limit</label><input id="qLimit" type="number" value="${q?.config?.wordLimit||""}"></div><div><label>Case Sensitive</label><select id="qCase"><option value="false" ${q?.config?.caseSensitive?"":"selected"}>No</option><option value="true" ${q?.config?.caseSensitive?"selected":""}>Yes</option></select></div></div>
-  <label>Options <span class="muted">(one option per line — simply type TRUE, FALSE, NOT GIVEN, etc.; A|Option text is also supported)</span></label><textarea id="qOptions">${esc((q?.options||[]).map(o=>`${o.option_key}|${o.option_text}`).join("\n"))}</textarea>
+  <label>Question Text</label>${richEditor("qTextEditor",q?.question_text||"",140)}<label>Correct Answer</label><input id="qCorrect" value="${attr(q?.correct_answer||"")}" placeholder="For MCQ enter A / B / C; for text enter the correct answer"><p class="inline-help">For multiple correct/accepted answers, enter one answer per line in Alternative Accepted Answers below.</p>
+  <label>Alternative Accepted Answers <span class="muted">(one answer per line)</span></label><textarea id="qAccepted" rows="4" placeholder="centre\ncenter\ncentral">${esc((q?.config?.acceptedAnswers||[]).join("\n"))}</textarea><div class="grid"><div><label>Word Limit</label><input id="qLimit" type="number" value="${q?.config?.wordLimit||""}"></div><div><label>Case Sensitive</label><select id="qCase"><option value="false" ${q?.config?.caseSensitive?"":"selected"}>No</option><option value="true" ${q?.config?.caseSensitive?"selected":""}>Yes</option></select></div></div>
+  <label>Options <span class="muted">(one option per line — A, B, C are generated automatically)</span></label><textarea id="qOptions" placeholder="First option\nSecond option\nThird option">${esc((q?.options||[]).map(o=>o.option_text||"").join("\n"))}</textarea>
   <div class="media-upload-box">
     <label><strong>Question Image</strong></label>
     <input id="qImageFile" type="file" accept="image/*">
@@ -740,7 +740,7 @@ function questionForm(id=null){
 }
 async function saveQuestion(id,sid){
   try{
-    const accepted=$("qAccepted").value.split("||").map(x=>x.trim()).filter(Boolean);
+    const accepted=$("qAccepted").value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
     const parsedOptions=parseOptionLines($("qOptions").value);
     const normalizedCorrect=normalizeCorrectForOptions($("qCorrect").value.trim(),parsedOptions);
     const normalizedAccepted=accepted.map(a=>normalizeCorrectForOptions(a,parsedOptions)).join("||").split("||").map(x=>x.trim()).filter(Boolean);
@@ -1214,7 +1214,7 @@ function renderInlineRich(txt,qs){
     const opts=(q?.options||[]);
     if(opts.length){
       const current=exam.answers[k]??"";
-      tokenMap.push(`<select style="display:inline-block;min-width:180px;margin:0 4px" onchange="setAns('${k}',this.value)" ${exam.locked?"disabled":""}><option value="">Select answer</option>${opts.map(o=>`<option value="${attr(o.option_key)}" ${String(current)===String(o.option_key)?"selected":""}>${esc(o.option_key)}. ${esc(o.option_text)}</option>`).join("")}</select>`);
+      tokenMap.push(`<select style="display:inline-block;min-width:180px;margin:0 4px" onchange="setAns('${k}',this.value)" ${exam.locked?"disabled":""}><option value="">Select answer</option>${opts.map(o=>`<option value="${attr(o.option_key)}" ${String(current)===String(o.option_key)?"selected":""}>${esc(o.option_text)}</option>`).join("")}</select>`);
     }else{
       tokenMap.push(`<input style="display:inline-block;width:130px;margin:0 4px" value="${attr(exam.answers[k]||"")}" oninput="setAns('${k}',this.value)" ${exam.locked?"disabled":""}>`);
     }
@@ -1232,14 +1232,14 @@ function renderGroup(g,qs){
     return out;
   })() : [];
   const hasQuestionWordList=wordList.length>0;
-  return `<div class="group"><strong>Questions ${g.start_question}–${g.end_question}</strong>${g.instructions?`<div class="instructions student-rich" data-highlight-key="${attr(highlightKey("group-instructions",g.id))}">${richTextSanitize(g.instructions)}</div>`:""}${g.image_url?`<img class="media" src="${attr(g.image_url)}">`:""}${hasQuestionWordList?`<div class="notice"><strong>Word List:</strong>${wordList.map(o=>`<div><strong>${esc(o.option_key)}.</strong> ${esc(o.option_text)}</div>`).join("")}</div>`:""}${g.content?`<div class="student-rich" data-highlight-key="${attr(highlightKey("group-content",g.id))}">${renderInlineRich(g.content,sub)}</div>`:""}
-  ${(g.options||[]).length?`<div class="notice">${g.options.map(o=>`<div><strong>${esc(o.option_key)}.</strong> ${esc(o.option_text)}</div>`).join("")}</div>`:""}${inline?"":sub.map(q=>renderQuestion(q,g.options||[],g.question_type)).join("")}</div>`;
+  return `<div class="group"><strong>Questions ${g.start_question}–${g.end_question}</strong>${g.instructions?`<div class="instructions student-rich" data-highlight-key="${attr(highlightKey("group-instructions",g.id))}">${richTextSanitize(g.instructions)}</div>`:""}${g.image_url?`<img class="media" src="${attr(g.image_url)}">`:""}${hasQuestionWordList?`<div class="notice"><strong>Word List:</strong>${wordList.map(o=>`<div>${esc(o.option_text)}</div>`).join("")}</div>`:""}${g.content?`<div class="student-rich" data-highlight-key="${attr(highlightKey("group-content",g.id))}">${renderInlineRich(g.content,sub)}</div>`:""}
+  ${(g.options||[]).length?`<div class="notice">${g.options.map(o=>`<div>${esc(o.option_text)}</div>`).join("")}</div>`:""}${inline?"":sub.map(q=>renderQuestion(q,g.options||[],g.question_type)).join("")}</div>`;
 }
 function renderQuestion(q,shared=[],groupType=null){
   const opts=(q.options||[]).length?q.options:shared,s=exam.answers[q.id]??"",t=normalizeType(groupType||q.question_type);let c="";
-  if(t==="single"||["tfng","yng","title"].includes(t)){c=opts.map(o=>`<label style="font-weight:400"><input style="width:auto" type="radio" name="r-${q.id}" value="${attr(o.option_key)}" ${s===o.option_key?"checked":""} onchange="setAns('${q.id}',this.value)" ${exam.locked?"disabled":""}> <strong>${esc(o.option_key)}.</strong> ${esc(o.option_text)}</label>`).join("")}
-  else if(t==="multi"||t==="list"){const a=Array.isArray(s)?s:[];c=opts.map(o=>`<label style="font-weight:400"><input style="width:auto" type="checkbox" value="${attr(o.option_key)}" ${a.includes(o.option_key)?"checked":""} onchange="toggleAns('${q.id}',this.value,this.checked)" ${exam.locked?"disabled":""}> ${esc(o.option_key)}. ${esc(o.option_text)}</label>`).join("")}
-  else if((["matching","map","headings","information","features","endings"].includes(t) || (COMPLETION_TYPES.includes(t)&&opts.length))&&opts.length){c=`<select onchange="setAns('${q.id}',this.value)" ${exam.locked?"disabled":""}><option value="">Select answer</option>${opts.map(o=>`<option value="${attr(o.option_key)}" ${s===o.option_key?"selected":""}>${esc(o.option_key)} — ${esc(o.option_text)}</option>`).join("")}</select>`}
+  if(t==="single"||["tfng","yng","title"].includes(t)){c=opts.map(o=>`<label style="font-weight:400"><input style="width:auto" type="radio" name="r-${q.id}" value="${attr(o.option_key)}" ${s===o.option_key?"checked":""} onchange="setAns('${q.id}',this.value)" ${exam.locked?"disabled":""}> ${esc(o.option_text)}</label>`).join("")}
+  else if(t==="multi"||t==="list"){const a=Array.isArray(s)?s:[];c=opts.map(o=>`<label style="font-weight:400"><input style="width:auto" type="checkbox" value="${attr(o.option_key)}" ${a.includes(o.option_key)?"checked":""} onchange="toggleAns('${q.id}',this.value,this.checked)" ${exam.locked?"disabled":""}> ${esc(o.option_text)}</label>`).join("")}
+  else if((["matching","map","headings","information","features","endings"].includes(t) || (COMPLETION_TYPES.includes(t)&&opts.length))&&opts.length){c=`<select onchange="setAns('${q.id}',this.value)" ${exam.locked?"disabled":""}><option value="">Select answer</option>${opts.map(o=>`<option value="${attr(o.option_key)}" ${s===o.option_key?"selected":""}>${esc(o.option_text)}</option>`).join("")}</select>`}
   else c=`<input value="${attr(Array.isArray(s)?s.join(", "):s)}" oninput="setAns('${q.id}',this.value)" placeholder="Type your answer" ${exam.locked?"disabled":""}>`;
   return `<div id="q-${q.id}" class="question"><div class="student-rich" data-highlight-key="${attr(highlightKey("question",q.id))}"><strong>${q.question_number}. </strong>${richTextSanitize(q.question_text||"")}</div>${q.image_url?`<img class="media" src="${attr(q.image_url)}">`:""}<div style="margin-top:8px">${c}</div></div>`;
 }
