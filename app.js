@@ -1,4 +1,4 @@
-// UNIVERSAL EDUCATION IELTS — COMPLETE V12.3.6 CUMULATIVE
+// UNIVERSAL EDUCATION IELTS — V14.0.2 CUMULATIVE
 const SUPABASE_URL = "https://fmwcvwgcwisdxiudlstq.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_ibtCq2hamnZkRNWPsxlddQ_JfexwHYM";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
@@ -356,6 +356,10 @@ async function login(e){
     const p=await getProfile(data.user.id); if(!p.active) throw new Error("Account inactive.");
     if(loginMode==="student"&&p.role!=="student") throw new Error("Use Student login.");
     if(loginMode==="staff"&&!['admin','tutor'].includes(p.role)) throw new Error("Use Admin / Tutor login.");
+    if(p.role!=="student"){
+      const {data:permRows}=await sb.from("staff_permissions").select("permissions").eq("user_id",p.id).maybeSingle();
+      p.permissions=permRows?.permissions||{};
+    }
     currentProfile=p; clearRoute(); p.role==="student"?studentDashboard():staffDashboard();
   }catch(err){msg.textContent=err.message;msg.style.color="#dc2626"}finally{btn.disabled=false}
 }
@@ -366,6 +370,74 @@ async function edgeStudentAdmin(payload){
   const {data,error}=await sb.functions.invoke("student-admin",{body:payload});
   if(error) throw error; if(!data?.success) throw new Error(data?.error||"Student management request failed."); return data;
 }
+
+const STAFF_PERMISSION_LABELS={
+  students:"View / Manage Students", tests:"Create / Edit Tests", publish:"Publish / Unpublish Tests", exam_sets:"Manage IELTS Mocks / Assign Students",
+  results:"View Module Results", writing:"Writing Faculty Evaluation", speaking:"Speaking Faculty Assessment", overall:"View / Manage Overall Results"
+};
+function isMainAdmin(){return currentProfile?.role==='admin'}
+function canStaff(permission){return isMainAdmin() || !!currentProfile?.permissions?.[permission]}
+function guardStaff(permission){if(!canStaff(permission)){alert('You do not have permission for this section. Please contact the Main Admin.');return false}return true}
+async function changeMyPassword(){
+  if(!currentProfile)return;
+  const current=prompt('Enter your current password:'); if(current===null)return;
+  const next=prompt('Enter your new password (minimum 6 characters):'); if(next===null)return;
+  const confirmPass=prompt('Confirm your new password:'); if(confirmPass===null)return;
+  if(next.length<6)return alert('Password must be at least 6 characters.');
+  if(next!==confirmPass)return alert('New passwords do not match.');
+  try{
+    const {error:verifyError}=await sb.auth.signInWithPassword({email:currentProfile.email,password:current});
+    if(verifyError)throw new Error('Current password is incorrect.');
+    const {error}=await sb.auth.updateUser({password:next});
+    if(error)throw error;
+    alert('Password changed successfully.');
+  }catch(e){alert('Could not change password: '+(e.message||e))}
+}
+async function staffAdminApi(payload){
+  const {data:{session}}=await sb.auth.getSession(); if(!session)throw new Error('Admin session expired. Please login again.');
+  const {data,error}=await sb.functions.invoke('staff-admin',{body:payload});
+  if(error)throw error; if(!data?.success)throw new Error(data?.error||'Staff management request failed.'); return data;
+}
+async function staffManagementPage(){
+  if(!guardStaff('staff_management') && !isMainAdmin())return;
+  try{
+    setRoute('staff-management');
+    const {data,error}=await sb.from('profiles').select('id,full_name,email,role,active,created_at').in('role',['admin','tutor']).order('created_at',{ascending:true});
+    if(error)throw error;
+    const rows=[];
+    for(const u of (data||[])){
+      const {data:pr}=await sb.from('staff_permissions').select('permissions').eq('user_id',u.id).maybeSingle();
+      const perms=pr?.permissions||{};
+      const pnames=isMainAdmin()&&u.role==='admin'?'All permissions':Object.entries(STAFF_PERMISSION_LABELS).filter(([k])=>perms[k]).map(([,v])=>v).join(', ')||'No permissions';
+      rows.push(`<tr><td><strong>${esc(u.full_name||'')}</strong><br><small>${esc(u.email||'')}</small></td><td>${u.role==='admin'?'Main Admin':'Sub Admin'}</td><td>${u.active?'Active':'Inactive'}</td><td><small>${esc(pnames)}</small></td><td><div class="actions">${u.role==='admin'?'<span class="muted">Protected</span>':`<button class="btn secondary" onclick="editSubAdmin('${u.id}')">Edit</button><button class="btn ${u.active?'warning':'success'}" onclick="toggleSubAdmin('${u.id}',${!u.active})">${u.active?'Deactivate':'Activate'}</button><button class="btn danger" onclick="deleteSubAdmin('${u.id}','${attr(u.full_name||u.email||'')}')">Delete</button>`}</div></td></tr>`);
+    }
+    shell(`<div class="actions"><button class="btn secondary" onclick="staffDashboard()">← Dashboard</button><button class="btn primary" onclick="newSubAdminForm()">+ Create Sub Admin</button></div><h2>Staff / Sub Admin Management</h2><p class="muted">Main Admin has full control. Sub Admins can be given individual permissions.</p><div class="card table-wrap"><table><thead><tr><th>Staff</th><th>Role</th><th>Status</th><th>Permissions</th><th>Actions</th></tr></thead><tbody>${rows.join('')||'<tr><td colspan="5">No staff accounts.</td></tr>'}</tbody></table></div>`);
+  }catch(e){alert('Could not load staff: '+(e.message||e))}
+}
+function permissionChecksHtml(selected={}){return Object.entries(STAFF_PERMISSION_LABELS).map(([k,v])=>`<label class="checkline"><input type="checkbox" class="staff-perm" value="${k}" ${selected[k]?'checked':''}> ${esc(v)}</label>`).join('')}
+function collectStaffPermissions(){const o={};document.querySelectorAll('.staff-perm:checked').forEach(x=>o[x.value]=true);return o}
+function newSubAdminForm(){
+  if(!isMainAdmin())return alert('Only the Main Admin can create Sub Admins.');
+  shell(`<div class="actions"><button class="btn secondary" onclick="staffManagementPage()">← Staff</button></div><h2>Create Sub Admin</h2><div class="card"><div class="grid"><div><label>Full Name</label><input id="saName"></div><div><label>Email</label><input id="saEmail" type="email"></div></div><div class="grid"><div><label>Password</label><input id="saPass" type="password" autocomplete="new-password"></div><div><label>Confirm Password</label><input id="saPass2" type="password" autocomplete="new-password"></div></div><h3>Permissions</h3><div class="permission-grid">${permissionChecksHtml()}</div><div class="actions"><button class="btn primary" onclick="createSubAdmin()">Create Sub Admin</button></div></div>`);
+}
+async function createSubAdmin(){
+  const name=$("saName").value.trim(),email=$("saEmail").value.trim().toLowerCase(),pass=$("saPass").value,pass2=$("saPass2").value;
+  if(!name||!email)return alert('Enter name and email.'); if(pass.length<6)return alert('Password must be at least 6 characters.'); if(pass!==pass2)return alert('Passwords do not match.');
+  try{await staffAdminApi({action:'create',full_name:name,email,password:pass,permissions:collectStaffPermissions()});alert('Sub Admin created successfully.');staffManagementPage()}catch(e){alert('Could not create Sub Admin: '+(e.message||e))}
+}
+async function editSubAdmin(id){
+  if(!isMainAdmin())return alert('Only the Main Admin can edit Sub Admins.');
+  const {data:u,error}=await sb.from('profiles').select('id,full_name,email,active').eq('id',id).single();if(error)return alert(error.message);
+  const {data:pr}=await sb.from('staff_permissions').select('permissions').eq('user_id',id).maybeSingle();
+  shell(`<div class="actions"><button class="btn secondary" onclick="staffManagementPage()">← Staff</button></div><h2>Edit Sub Admin</h2><div class="card"><div class="grid"><div><label>Full Name</label><input id="saName" value="${attr(u.full_name||'')}"></div><div><label>Email</label><input value="${attr(u.email||'')}" disabled></div></div><label>New Password (optional)</label><input id="saPass" type="password" placeholder="Leave blank to keep current password"><h3>Permissions</h3><div class="permission-grid">${permissionChecksHtml(pr?.permissions||{})}</div><div class="actions"><button class="btn primary" onclick="saveSubAdmin('${id}')">Save Sub Admin</button></div></div>`);
+}
+async function saveSubAdmin(id){
+  const name=$("saName").value.trim(),pass=$("saPass").value; if(!name)return alert('Enter name.'); if(pass&&pass.length<6)return alert('Password must be at least 6 characters.');
+  try{await staffAdminApi({action:'update',id,full_name:name,permissions:collectStaffPermissions(),...(pass?{password:pass}:{})});alert('Sub Admin updated.');staffManagementPage()}catch(e){alert('Could not update Sub Admin: '+(e.message||e))}
+}
+async function toggleSubAdmin(id,active){if(!isMainAdmin())return alert('Only the Main Admin can activate/deactivate Sub Admins.');try{await staffAdminApi({action:'toggle',id,active});staffManagementPage()}catch(e){alert('Could not update status: '+(e.message||e))}}
+async function deleteSubAdmin(id,name){if(!isMainAdmin())return alert('Only the Main Admin can delete Sub Admins.');if(!confirm(`Delete Sub Admin ${name}? This will remove the login account.`))return;try{await staffAdminApi({action:'delete',id});alert('Sub Admin deleted.');staffManagementPage()}catch(e){alert('Could not delete Sub Admin: '+(e.message||e))}}
+
 async function logout(){stopStudentListeningAudio();clearRoute();if(exam)clearExam(exam.testId,exam.studentId,exam.resultId);exam=null;currentProfile=null;await sb.auth.signOut();location.reload()}
 
 function staffDashboard(){
@@ -384,6 +456,7 @@ function staffDashboard(){
 }
 
 async function studentsPage(){
+  if(!guardStaff('students'))return;
   setRoute("students");
   const {data,error}=await sb.from("profiles").select("id,student_code,full_name,role,active,created_at").eq("role","student").order("created_at",{ascending:false});
   if(error)return alert(error.message);
@@ -1473,6 +1546,7 @@ async function studentOverallResult(group){
   }catch(e){alert("Could not load Overall Result: "+e.message)}
 }
 async function overallResultsPage(){
+  if(!guardStaff('overall'))return;
   try{
     setRoute("overall-results");
     const {data:tests,error:te}=await sb.from("tests").select("id,title,module,settings,is_published").order("created_at",{ascending:true});if(te)throw te;
@@ -1604,6 +1678,7 @@ async function saveWritingFacultyEvaluation(resultId,testId,studentId){
 }
 
 async function resultsPage(){
+  if(!guardStaff('results'))return;
   try{
     setRoute("results");
     const {data:tests,error:te}=await sb.from("tests").select("id,title,module,total_questions,settings,is_published").order("created_at",{ascending:true});
@@ -1742,6 +1817,7 @@ async function v13GetExamSet(id){
   return {...data,modules:mods.data||[],assignments:students.data||[],tests,profiles,tm,pm};
 }
 async function examSetsPage(){
+  if(!guardStaff('exam_sets'))return;
   try{
     setRoute('exam-sets');
     const {data:sets,error}=await sb.from('exam_sets').select('*').order('created_at',{ascending:false});if(error)throw error;
@@ -1889,6 +1965,7 @@ async function studentOverallResultsPage(examSetId=''){
 async function studentOverallResult(examSetId=''){return studentOverallResultsPage(examSetId)}
 
 async function overallResultsPage(){
+  if(!guardStaff('overall'))return;
   try{setRoute('overall-results');const {data:sets,error}=await sb.from('exam_sets').select('*').order('created_at',{ascending:false});if(error)throw error;const ids=(sets||[]).map(x=>x.id);let assigns=[],mods=[],results=[];if(ids.length){const a=await sb.from('student_exam_sets').select('exam_set_id,student_id').in('exam_set_id',ids);if(a.error)throw a.error;assigns=a.data||[];const m=await sb.from('exam_set_modules').select('exam_set_id,module,test_id').in('exam_set_id',ids);if(m.error)throw m.error;mods=m.data||[];const tids=[...new Set(mods.map(x=>x.test_id))];if(tids.length){const r=await sb.from('results').select('id,student_id,exam_set_id,test_id,status,submitted_at,created_at,listening_score,reading_score,writing_score,speaking_score').in('exam_set_id',ids);if(r.error)throw r.error;results=r.data||[]}}
     const studentIds=[...new Set(assigns.map(x=>x.student_id))];let profiles=[];if(studentIds.length){const p=await sb.from('profiles').select('id,full_name,student_code').in('id',studentIds);if(p.error)throw p.error;profiles=p.data||[]}const pm=new Map(profiles.map(x=>[x.id,x]));const rows=[];for(const es of sets||[]){for(const sid of [...new Set(assigns.filter(a=>a.exam_set_id===es.id).map(a=>a.student_id))]){const eMods=mods.filter(x=>x.exam_set_id===es.id),tids=eMods.map(x=>x.test_id);let tests=[];if(tids.length){const t=await sb.from('tests').select('id,title,module,settings').in('id',tids);if(t.error)throw t.error;tests=t.data||[]}const esObj={...es,modules:eMods,tests,results:results.filter(r=>r.exam_set_id===es.id&&r.student_id===sid)};const o=v13ExamSetOverall(esObj),p=pm.get(sid);rows.push(`<tr><td><strong>${esc(p?.full_name||sid)}</strong><br><small>${esc(p?.student_code||'')}</small></td><td>${esc(es.title)}</td><td>${o.by.listening.band==null?'—':Number(o.by.listening.band).toFixed(1)}</td><td>${o.by.reading.band==null?'—':Number(o.by.reading.band).toFixed(1)}</td><td>${o.by.writing.band==null?'—':Number(o.by.writing.band).toFixed(1)}</td><td>${o.by.speaking.band==null?'—':Number(o.by.speaking.band).toFixed(1)}</td><td><strong>${o.overall==null?'TEST IN REVIEW':Number(o.overall).toFixed(1)}</strong></td><td><button class="btn primary" onclick="overallResultDetails('${sid}','${es.id}')">Open</button></td></tr>`)}}
     shell(`<div class="actions"><button class="btn secondary" onclick="staffDashboard()">← Dashboard</button></div><h2>Overall IELTS Results</h2><p class="muted">One result row per <strong>Student + Exam Set</strong>. Module scores never mix between different mocks.</p><div class="card table-wrap"><table><thead><tr><th>Student</th><th>Exam / Mock</th><th>Listening</th><th>Reading</th><th>Writing</th><th>Speaking</th><th>Overall</th><th>Details</th></tr></thead><tbody>${rows.join('')||'<tr><td colspan="8">No Exam Set results found.</td></tr>'}</tbody></table></div>`);
@@ -2131,6 +2208,7 @@ async function v131LoadStudentMocks(studentId){
 }
 
 async function examSetsPage(){
+  if(!guardStaff('exam_sets'))return;
   try{
     setRoute('exam-sets');
     const {data:sets,error}=await sb.from('exam_sets').select('*').order('created_at',{ascending:false});if(error)throw error;
@@ -2215,6 +2293,7 @@ async function studentOverallResultsPage(examSetId=''){
 async function studentOverallResult(examSetId=''){return studentOverallResultsPage(examSetId)}
 
 async function overallResultsPage(){
+  if(!guardStaff('overall'))return;
   try{setRoute('overall-results');const {data:sets,error}=await sb.from('exam_sets').select('*').order('created_at',{ascending:false});if(error)throw error;const ids=(sets||[]).map(x=>x.id);let assigns=[],mods=[],results=[],mocks=[];if(ids.length){const a=await sb.from('student_exam_sets').select('exam_set_id,student_id').in('exam_set_id',ids);if(a.error)throw a.error;assigns=a.data||[];const m=await sb.from('exam_set_modules').select('exam_set_id,module,test_id').in('exam_set_id',ids);if(m.error)throw m.error;mods=m.data||[];const r=await sb.from('results').select('id,student_id,exam_set_id,test_id,status,submitted_at,created_at,listening_score,reading_score,writing_score').in('exam_set_id',ids);if(r.error)throw r.error;results=r.data||[];const ma=await sb.from('mock_attempts').select('*').in('exam_set_id',ids);if(ma.error)throw ma.error;mocks=ma.data||[]}
     const studentIds=[...new Set(assigns.map(x=>x.student_id))];let profiles=[];if(studentIds.length){const p=await sb.from('profiles').select('id,full_name,student_code').in('id',studentIds);if(p.error)throw p.error;profiles=p.data||[]}const pm=new Map(profiles.map(x=>[x.id,x]));const rows=[];
     for(const es of sets||[]){for(const sid of [...new Set(assigns.filter(a=>a.exam_set_id===es.id).map(a=>a.student_id))]){const eMods=mods.filter(x=>x.exam_set_id===es.id&&x.module!=='speaking'),tids=eMods.map(x=>x.test_id);let tests=[];if(tids.length){const t=await sb.from('tests').select('id,title,module,settings').in('id',tids);if(t.error)throw t.error;tests=t.data||[]}const esObj={...es,modules:eMods,tests,results:results.filter(r=>r.exam_set_id===es.id&&r.student_id===sid)},ma=mocks.find(x=>x.exam_set_id===es.id&&x.student_id===sid),o=v131MockOverall(esObj,esObj.results,ma),p=pm.get(sid);rows.push(`<tr><td><strong>${esc(p?.full_name||sid)}</strong><br><small>${esc(p?.student_code||'')}</small></td><td>${esc(es.title)}</td><td>${o.by.listening.band==null?'—':Number(o.by.listening.band).toFixed(1)}</td><td>${o.by.reading.band==null?'—':Number(o.by.reading.band).toFixed(1)}</td><td>${o.by.writing.band==null?'—':Number(o.by.writing.band).toFixed(1)}</td><td>${o.by.speaking.band==null?'—':Number(o.by.speaking.band).toFixed(1)}</td><td><strong>${o.overall==null?'TEST IN REVIEW':Number(o.overall).toFixed(1)}</strong></td><td><button class="btn primary" onclick="overallResultDetails('${sid}','${es.id}')">Open</button></td></tr>`)}}
@@ -2243,6 +2322,7 @@ async function studentResultPage(resultId,justSubmitted=false){
 }
 
 async function studentsPage(){
+  if(!guardStaff('students'))return;
   try{
     setRoute('students');const {data,error}=await sb.from('profiles').select('id,student_code,full_name,role,active,created_at').eq('role','student').order('created_at',{ascending:false});if(error)throw error;
     const rows=(data||[]).map(s=>`<tr><td><strong>${esc(s.student_code||'—')}</strong></td><td>${esc(s.full_name||'')}</td><td>${s.active?'Active':'Inactive'}</td><td>${new Date(s.created_at).toLocaleDateString()}</td><td><div class="actions"><button class="btn secondary" onclick="manageStudent('${s.id}')">Manage</button><button class="btn warning" onclick="resetStudentAccount('${s.id}','${attr(s.student_code||'')}')">Reset Student</button><button class="btn ${s.active?'warning':'success'}" onclick="toggleStudent('${s.id}',${!s.active})">${s.active?'Deactivate':'Activate'}</button><button class="btn danger" onclick="deleteStudent('${s.id}','${attr(s.student_code||'')}')">Delete</button></div></td></tr>`).join('')||'<tr><td colspan="5">No students.</td></tr>';
@@ -2286,6 +2366,7 @@ async function resetStudentAccount(id,code){
 // Existing legacy Speaking test definitions are left untouched in the database
 // for safety, but they are hidden from the new Mock workflow.
 async function testsPage(module='all'){
+  if(!guardStaff('tests'))return;
   try{
     setRoute('tests',{module});
     if(module==='speaking'){
@@ -2347,33 +2428,20 @@ function v1312MockOverall(es,results,mockAttempt){
 
 function staffDashboard(){
   setRoute('dashboard');
-  shell(`
-    <h2>Admin Dashboard</h2>
-    <p class="muted">Use this order: <strong>1. Create module tests → 2. Create Mock → 3. Assign Students → 4. Faculty checks → 5. Overall Results.</strong></p>
-    <div class="notice"><strong>Important:</strong> A Student ID can receive unlimited Mocks. Each Mock has its own Listening + Reading + Writing results and one Faculty Speaking score. Different Mocks are never mixed.</div>
-
-    <h3 style="margin-top:22px">👥 Setup</h3>
-    <div class="dashboard-grid">
-      <button class="dashbtn" onclick="studentsPage()"><span style="font-size:24px">👨‍🎓</span><strong>Students</strong><span class="muted">Create / manage Student IDs and reset accounts</span></button>
-      <button class="dashbtn" onclick="examSetsPage()"><span style="font-size:24px">🏆</span><strong>IELTS Mock / Exam Sets</strong><span class="muted">Create Mock 01, Mock 02, assign students and link modules</span></button>
-    </div>
-
-    <h3 style="margin-top:22px">📝 Test Builder</h3>
-    <div class="dashboard-grid">
-      <button class="dashbtn" onclick="testsPage('all')"><span style="font-size:24px">📝</span><strong>All Student Tests</strong><span class="muted">Create, edit, publish and manage Listening / Reading / Writing</span></button>
-      <button class="dashbtn" onclick="testsPage('listening')"><span style="font-size:24px">🎧</span><strong>Listening</strong><span class="muted">4 Sections • 40 Questions • 30 minutes</span></button>
-      <button class="dashbtn" onclick="testsPage('reading')"><span style="font-size:24px">📖</span><strong>Reading</strong><span class="muted">3 Passages • 40 Questions</span></button>
-      <button class="dashbtn" onclick="testsPage('writing')"><span style="font-size:24px">✍️</span><strong>Writing</strong><span class="muted">Task 1 + Task 2 • Faculty Evaluation</span></button>
-    </div>
-
-    <h3 style="margin-top:22px">📊 Results</h3>
-    <div class="dashboard-grid">
-      <button class="dashbtn" onclick="overallResultsPage()"><span style="font-size:24px">🏆</span><strong>Overall Results</strong><span class="muted">Student + Mock • 4 module scores • Speaking • Overall Band</span></button>
-    </div>
-    <div class="notice" style="margin-top:14px">
-      <strong>Faculty work is inside Overall Results.</strong> Open a Student + Mock to enter the Speaking band, review the Writing submission, and view the Listening / Reading / Writing results. No separate Module Results or Speaking Assessment page is required.
-    </div>
-  `);
+  const setup=[];
+  if(canStaff('students'))setup.push(`<button class="dashbtn" onclick="studentsPage()"><span style="font-size:24px">👨‍🎓</span><strong>Students</strong><span class="muted">Create / manage Student IDs</span></button>`);
+  if(canStaff('exam_sets'))setup.push(`<button class="dashbtn" onclick="examSetsPage()"><span style="font-size:24px">🏆</span><strong>IELTS Mock / Exam Sets</strong><span class="muted">Create Mocks and assign students</span></button>`);
+  if(isMainAdmin())setup.push(`<button class="dashbtn" onclick="staffManagementPage()"><span style="font-size:24px">👥</span><strong>Staff / Sub Admins</strong><span class="muted">Create accounts and set permissions</span></button>`);
+  const tests=[];
+  if(canStaff('tests'))tests.push(`<button class="dashbtn" onclick="testsPage('all')"><span style="font-size:24px">📝</span><strong>All Student Tests</strong><span class="muted">Create and edit Listening / Reading / Writing</span></button>`);
+  if(canStaff('tests'))tests.push(`<button class="dashbtn" onclick="testsPage('listening')"><span style="font-size:24px">🎧</span><strong>Listening</strong><span class="muted">4 Sections • 40 Questions</span></button>`);
+  if(canStaff('tests'))tests.push(`<button class="dashbtn" onclick="testsPage('reading')"><span style="font-size:24px">📖</span><strong>Reading</strong><span class="muted">3 Passages • 40 Questions</span></button>`);
+  if(canStaff('writing'))tests.push(`<button class="dashbtn" onclick="testsPage('writing')"><span style="font-size:24px">✍️</span><strong>Writing</strong><span class="muted">Task 1 + Task 2</span></button>`);
+  const results=[];
+  if(canStaff('results'))results.push(`<button class="dashbtn" onclick="resultsPage()"><span style="font-size:24px">📊</span><strong>Module Results</strong><span class="muted">Individual attempts</span></button>`);
+  if(canStaff('overall'))results.push(`<button class="dashbtn" onclick="overallResultsPage()"><span style="font-size:24px">🏆</span><strong>Overall Results</strong><span class="muted">Listening + Reading + Writing + Speaking</span></button>`);
+  if(canStaff('speaking'))results.push(`<button class="dashbtn" onclick="overallResultsPage()"><span style="font-size:24px">🗣️</span><strong>Speaking Assessment</strong><span class="muted">Faculty score inside Overall Results</span></button>`);
+  shell(`<h2>${isMainAdmin()?'Main Admin':'Sub Admin'} Dashboard</h2><p class="muted">Logged in as <strong>${esc(currentProfile?.full_name||currentProfile?.email||'')}</strong> • ${isMainAdmin()?'Full access':'Permission-based access'}</p><div class="actions"><button class="btn secondary" onclick="changeMyPassword()">🔐 Change My Password</button></div><h3 style="margin-top:22px">👥 Setup</h3><div class="dashboard-grid">${setup.join('')||'<p class="muted">No setup permissions assigned.</p>'}</div><h3 style="margin-top:22px">📝 Test Builder</h3><div class="dashboard-grid">${tests.join('')||'<p class="muted">No test permissions assigned.</p>'}</div><h3 style="margin-top:22px">📊 Results</h3><div class="dashboard-grid">${results.join('')||'<p class="muted">No result permissions assigned.</p>'}</div>`);
 }
 
 async function studentDashboard(){
@@ -2426,6 +2494,7 @@ async function studentOverallResultsPage(examSetId=''){
 async function studentOverallResult(examSetId=''){return studentOverallResultsPage(examSetId)}
 
 async function overallResultsPage(){
+  if(!guardStaff('overall'))return;
   try{
     setRoute('overall-results');
     const {data:sets,error}=await sb.from('exam_sets').select('*').order('created_at',{ascending:false});if(error)throw error;
