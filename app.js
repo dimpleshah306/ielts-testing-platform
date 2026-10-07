@@ -90,17 +90,48 @@ let loginMode="student", currentProfile=null, admin={test:null,sections:[],group
 let examAudio=null, examAudioTestId=null, examAudioEnded=false, examAudioStopping=false;
 
 const L_TYPES = {
- single:"Multiple Choice — Single Answer",multi:"Multiple Choice — Multiple Answers",matching:"Matching",
+ single:"Multiple Choice — Single Answer",multi:"Multiple Choice — Multiple Answers",matching:"Matching / Drag & Drop",drag_drop:"Drag & Drop",
  note:"Note Completion",form:"Form Completion",table:"Table Completion",sentence:"Sentence Completion",
  summary:"Summary Completion",short:"Short Answer",map:"Plan / Map / Diagram Labelling",flow:"Flow-chart Completion",list:"List Selection"
 };
 const R_TYPES = {
- single:"Multiple Choice — Single Answer",multi:"Multiple Choice — Multiple Answers",tfng:"True / False / Not Given",
+ single:"Multiple Choice — Single Answer",multi:"Multiple Choice — Multiple Answers",drag_drop:"Drag & Drop",tfng:"True / False / Not Given",
  yng:"Yes / No / Not Given",headings:"Matching Headings",information:"Matching Information",features:"Matching Features",
  endings:"Matching Sentence Endings",sentence:"Sentence Completion",summary:"Summary Completion",note:"Note Completion",
  table:"Table Completion",flow:"Flow-chart Completion",map:"Diagram Label Completion",short:"Short Answer",title:"Choosing a Title",list:"List Selection"
 };
 const COMPLETION_TYPES=["note","form","table","sentence","summary","flow","short"];
+const OPTION_TYPES=["single","multi","matching","drag_drop","headings","information","features","endings","map","title","list"];
+const MAPPING_TYPES=["matching","drag_drop","headings","information","features","endings","map"];
+
+// Admin guidance shown automatically when a question type is selected.
+const QUESTION_TYPE_TIPS={
+  single:{title:"Multiple Choice — Single Answer",how:"Enter each option on a separate line. Select exactly one correct answer.",tip:"Keep distractors plausible and make sure only one option is fully correct."},
+  multi:{title:"Multiple Choice — Multiple Answers",how:"Enter each option on a separate line. Tick every correct answer.",tip:"State clearly how many answers students must choose, e.g. Choose TWO answers."},
+  matching:{title:"Matching / Drag & Drop",how:"Enter the answer bank one option per line, then select the correct option for this question.",tip:"You can provide more options than questions. Distractors are useful in IELTS matching tasks."},
+  drag_drop:{title:"Drag & Drop",how:"Enter the draggable answer bank one option per line, then choose the correct option for each drop zone.",tip:"For the student view, questions appear on the left and the draggable answer bank appears on the right. Do not type A|text; enter only the answer text."},
+  tfng:{title:"True / False / Not Given",how:"Write the statement and select TRUE, FALSE or NOT GIVEN as the correct answer.",tip:"Use NOT GIVEN only when the passage does not provide enough information to decide."},
+  yng:{title:"Yes / No / Not Given",how:"Write the writer/opinion statement and select YES, NO or NOT GIVEN.",tip:"Use YES/NO for the writer's view; use NOT GIVEN when the writer's view is not stated."},
+  headings:{title:"Matching Headings",how:"Enter the heading options one per line and select the heading that matches this paragraph.",tip:"Use concise headings that summarise the main idea, not a minor detail."},
+  information:{title:"Matching Information",how:"Enter the available paragraph/section options one per line and select the correct one.",tip:"An option may be used more than once if your task instructions allow it."},
+  features:{title:"Matching Features",how:"Enter the people, places, dates or other features one per line and select the correct feature.",tip:"Keep the feature labels short and unambiguous; repeat use is allowed where appropriate."},
+  endings:{title:"Matching Sentence Endings",how:"Enter the sentence-ending options one per line and select the correct ending.",tip:"Make sure only one ending completes the sentence logically and grammatically."},
+  sentence:{title:"Sentence Completion",how:"Enter the correct answer and every accepted spelling/variant on separate lines.",tip:"Set the word limit in the question instructions and include valid spelling variants as alternatives."},
+  summary:{title:"Summary Completion",how:"Write the summary with a blank/question for the student, then enter accepted answers for each blank.",tip:"Keep the summary faithful to the source passage and state the exact word limit."},
+  note:{title:"Note Completion",how:"Create the note text and add the correct answer plus accepted alternatives for each blank.",tip:"Use short answers taken from the passage/audio and keep the grammar of the note correct."},
+  form:{title:"Form Completion",how:"Create the form and add the correct answer plus accepted alternatives for each blank.",tip:"Make labels and surrounding text clear so students know what information belongs in each blank."},
+  table:{title:"Table Completion",how:"Create the table, identify each blank, and add the correct answer plus accepted alternatives.",tip:"Keep row/column headings visible and use a consistent blank numbering scheme."},
+  flow:{title:"Flow-chart Completion",how:"Create each step/blank and enter the correct answer plus accepted alternatives.",tip:"Keep the process order clear and use arrows or numbered steps so the sequence is easy to follow."},
+  short:{title:"Short Answer",how:"Enter the correct answer and all accepted alternatives one per line.",tip:"Set the maximum word limit clearly. Accept only answers that have the same required meaning."},
+  map:{title:"Plan / Map / Diagram Labelling",how:"Upload the visual, enter label options one per line, then map each question to its correct label.",tip:"Use clear label text and make sure every target area is visually identifiable in the uploaded image."},
+  title:{title:"Choosing a Title",how:"Enter the possible titles one per line and select the correct title.",tip:"The correct title should represent the whole text, not just one paragraph or example."},
+  list:{title:"List Selection",how:"Enter the list choices one per line and select the required correct choice(s).",tip:"Use the question instructions to tell students whether they should choose one or several items."}
+};
+function questionTypeTipHtml(t){
+  const key=normalizeType(t),x=QUESTION_TYPE_TIPS[key];
+  if(!x)return "";
+  return `<div class="qtype-tip"><div class="qtype-tip-title">💡 Admin Tip — ${esc(x.title)}</div><div><strong>How to set it:</strong> ${esc(x.how)}</div><div><strong>Tip:</strong> ${esc(x.tip)}</div></div>`;
+}
 
 // IELTS raw-score to band conversion based on the supplied score table.
 const IELTS_BANDS = {
@@ -421,12 +452,18 @@ async function answerKeyPage(testId){
       if(!q) return `<tr class="missing-row"><td><strong>Q${no}</strong></td><td colspan="6"><span class="status warning">Question not configured</span> — Add Question ${no} in the Test Builder before publishing.</td></tr>`;
       const cfg=q.question_config||{};
       const accepted=Array.isArray(cfg.acceptedAnswers)?cfg.acceptedAnswers:[];
-      const opts=(q.options||[]).map(o=>`${esc(o.option_text)}`).join('<br>');
+      const opts=q.options||[], type=normalizeType(q.question_type), rawCorrect=String(q.correct_answer||''), correctVals=rawCorrect.split('||').map(x=>x.trim()).filter(Boolean);
+      let correctControl;
+      if(type==='multi'){correctControl=`<select id="ak-c-${q.id}" multiple size="4" class="answer-key-select">${opts.map(o=>`<option value="${attr(o.option_key)}" ${correctVals.includes(o.option_key)?'selected':''}>${esc(o.option_text)}</option>`).join('')}</select><div class="inline-help">Hold Ctrl/Cmd to choose multiple.</div>`;}
+      else if(opts.length && (OPTION_TYPES.includes(type)||['tfng','yng'].includes(type))){correctControl=`<select id="ak-c-${q.id}" class="answer-key-select"><option value="">Select correct answer</option>${opts.map(o=>`<option value="${attr(o.option_key)}" ${correctVals[0]===o.option_key?'selected':''}>${esc(o.option_text)}</option>`).join('')}</select>`;}
+      else if(['tfng','yng'].includes(type)){const vals=type==='tfng'?['TRUE','FALSE','NOT GIVEN']:['YES','NO','NOT GIVEN'];correctControl=`<select id="ak-c-${q.id}" class="answer-key-select">${vals.map(v=>`<option value="${v}" ${correctVals[0]===v?'selected':''}>${v}</option>`).join('')}</select>`;}
+      else correctControl=`<input id="ak-c-${q.id}" value="${attr(correctVals[0]||'')}" placeholder="Correct answer">`;
+      const optsPreview=opts.map(o=>`<div>${esc(o.option_text)}</div>`).join('');
       return `<tr>
         <td><strong>Q${no}</strong><div class="inline-help">${esc(q.question_type||'')}</div></td>
-        <td style="min-width:240px"><strong>${esc(q.question_text||'')}</strong>${opts?`<div class="answer-options"><strong>Options:</strong><br>${opts}</div>`:''}</td>
-        <td style="min-width:170px"><input id="ak-c-${q.id}" value="${attr(String(q.correct_answer||'').split('||')[0].trim())}" placeholder="Correct answer"></td>
-        <td style="min-width:220px"><textarea id="ak-a-${q.id}" rows="3" placeholder="One alternative answer per line">${esc(accepted.join('\n'))}</textarea><div class="inline-help">All alternatives are accepted automatically.</div></td>
+        <td style="min-width:240px"><strong>${esc(q.question_text||'')}</strong>${optsPreview?`<div class="answer-options"><strong>Options:</strong>${optsPreview}</div>`:''}</td>
+        <td style="min-width:210px">${correctControl}</td>
+        <td style="min-width:220px"><textarea id="ak-a-${q.id}" rows="3" placeholder="One alternative answer per line">${esc(accepted.join('\n'))}</textarea><div class="inline-help">For completion/short answers only. One answer per line.</div></td>
         <td style="width:90px"><input id="ak-w-${q.id}" type="number" min="1" value="${cfg.wordLimit??''}" placeholder="—"></td>
         <td style="width:120px"><select id="ak-case-${q.id}"><option value="false" ${cfg.caseSensitive?'':'selected'}>No</option><option value="true" ${cfg.caseSensitive?'selected':''}>Yes</option></select></td>
         <td><span class="status published">Auto</span></td>
@@ -435,7 +472,7 @@ async function answerKeyPage(testId){
     shell(`<div class="actions"><button class="btn secondary" onclick="testsPage('all')">← All Tests</button><button class="btn secondary" onclick="openBuilder('${t.id}')">Open Builder</button><button class="btn primary" onclick="saveAnswerKey('${t.id}')">💾 Save Answer Key</button></div>
       <h2>Answer Key — ${esc(t.title)}</h2>
       <p class="muted">Set the official answer once here. Student answers matching the Correct Answer or any Alternative Accepted Answer will automatically receive 1 mark. The same key is used for every student attempt.</p>
-      <div class="notice"><strong>${mod==='listening'?'Listening':'Reading'}:</strong> Questions Q1–Q40 are shown. Correct = 1 mark; Wrong/Not Answered = 0. For completion questions, add accepted spelling/synonym variants as alternatives. For MCQ/Matching, enter the option key such as <b>B</b>.</div>
+      <div class="notice"><strong>${mod==='listening'?'Listening':'Reading'}:</strong> Questions Q1–Q40 are shown. Correct = 1 mark; Wrong/Not Answered = 0. For completion questions, add accepted spelling/synonym variants as alternatives. For MCQ/Matching/Drag & Drop, simply select the correct option from the list.</div>
       <div class="card table-wrap"><table><thead><tr><th>Q</th><th>Question / Options</th><th>Correct Answer</th><th>Alternative Accepted Answers</th><th>Word Limit</th><th>Case Sensitive</th><th>Scoring</th></tr></thead><tbody>${rows}</tbody></table></div>
       <div class="actions" style="margin-top:14px"><button class="btn primary" onclick="saveAnswerKey('${t.id}')">💾 Save All Answers</button></div>`);
   }catch(e){alert('Could not load answer key: '+e.message)}
@@ -447,7 +484,8 @@ async function saveAnswerKey(testId){
     const questions=(mod==='listening'?listeningQuestions40(d):readingQuestions40(d));
     if(!questions.length) throw new Error('No questions configured yet.');
     for(const q of questions){
-      const rawCorrect=$("ak-c-"+q.id)?.value?.trim()||'';
+      const correctEl=$("ak-c-"+q.id);
+      const rawCorrect=correctEl?.multiple?[...correctEl.selectedOptions].map(o=>o.value).join('||'):(correctEl?.value||'').trim();
       const rawAlt=$("ak-a-"+q.id)?.value||'';
       const parts=rawCorrect.split('||').map(x=>x.trim()).filter(Boolean);
       const correct=parts.shift()||'';
@@ -605,7 +643,7 @@ function normalizeType(t){
     sentence_completion:'sentence',summary_completion:'summary',flowchart_completion:'flow',flow_chart_completion:'flow',
     diagram_label:'map',diagram_label_completion:'map',plan_map:'map',
     true_false_not_given:'tfng',yes_no_not_given:'yng',
-    matching_headings:'headings',matching_information:'information',matching_features:'features',
+    matching_headings:'headings',matching_information:'information',matching_features:'features',drag_and_drop:'drag_drop',
     matching_sentence_endings:'endings',sentence_endings:'endings'
   };
   return m[x]||x;
@@ -673,7 +711,7 @@ function groupForm(id=null){
   const current=g?.image_path||g?.image_url||"";
   shell(`<div class="actions"><button class="btn secondary" onclick="renderBuilder()">← Builder</button></div><h2>${g?"Edit":"Add"} Question Group</h2><div class="card">
   <div class="grid3"><div><label>Start Question</label><input id="gStart" type="number" value="${g?.start_question||1}"></div><div><label>End Question</label><input id="gEnd" type="number" value="${g?.end_question||1}"></div>
-  <div><label>Question Type</label><select id="gType">${Object.entries(typeMap()).map(([k,v])=>`<option value="${k}" ${normalizeType(g?.question_type)===k?"selected":""}>${esc(v)}</option>`).join("")}</select></div></div>
+  <div><label>Question Type</label><select id="gType">${Object.entries(typeMap()).map(([k,v])=>`<option value="${k}" ${normalizeType(g?.question_type)===k?"selected":""}>${esc(v)}</option>`).join("")}</select></div></div><div id="gTypeTip">${questionTypeTipHtml(g?.question_type||Object.keys(typeMap())[0])}</div>
   <label>Group Title / Heading</label><input id="gTitle" value="${attr(g?.group_title||"")}">
   <label>Instructions</label>${richEditor("gInstEditor",g?.instructions||"",140)}<label>Group Content / Heading / Notes</label>${richEditor("gContentEditor",g?.content||"",260)}
   <p class="inline-help">For completion types use tokens such as: Cheapest properties: £ [BLANK 1] per week</p>
@@ -722,50 +760,75 @@ async function saveGroup(id,sid){
 }
 async function deleteGroup(id){if(!confirm("Delete this group?"))return;const {error}=await sb.from("question_groups").delete().eq("id",id);if(error)alert(error.message);else openBuilder(admin.test.id)}
 
+function questionTypeSettingsHtml(q=null){
+  const t=normalizeType(q?.question_type||"single"), cfg=q?.question_config||{};
+  const opts=q?.options||[];
+  const optionText=opts.map(o=>o.option_text||"").join("\n");
+  const accepted=(cfg.acceptedAnswers||[]).join("\n");
+  const fixed={tfng:["TRUE","FALSE","NOT GIVEN"],yng:["YES","NO","NOT GIVEN"]};
+  if(fixed[t]){
+    const current=String(q?.correct_answer||"").split("||")[0].trim().toUpperCase();
+    return `<div class="qtype-panel"><div class="qtype-badge">${esc(typeMap()[t]||t)}</div>${questionTypeTipHtml(t)}<label>Correct Answer</label><select id="qCorrectSelect">${fixed[t].map(v=>`<option value="${attr(v)}" ${current===v?'selected':''}>${v}</option>`).join("")}</select><p class="inline-help">Fixed IELTS choices for this question type.</p></div>`;
+  }
+  if(OPTION_TYPES.includes(t)){
+    const correctVals=String(q?.correct_answer||"").split("||").map(x=>x.trim()).filter(Boolean);
+    const keyRows=opts.map((o,i)=>({key:o.option_key||String.fromCharCode(65+i),text:o.option_text||""}));
+    const optionsBlock=`<label>Options / Answer Choices <span class="muted">(one option per line)</span></label><textarea id="qOptions" rows="7" placeholder="Apple\nBanana\nOrange\nMango">${esc(optionText)}</textarea><div class="inline-help">Enter only option text. A, B, C... are generated internally and are not shown in the option text.</div>`;
+    if(t==="multi") return `<div class="qtype-panel"><div class="qtype-badge">${esc(typeMap()[t]||t)}</div>${questionTypeTipHtml(t)}${optionsBlock}<label>Correct Answers</label><div id="qCorrectChoices" class="answer-choice-grid">${keyRows.map(o=>`<label class="answer-choice"><input type="checkbox" name="qCorrectMulti" value="${attr(o.key)}" ${correctVals.includes(o.key)?"checked":""}> <span>${esc(o.text)}</span></label>`).join("")||`<div class="muted">Add options above, then select correct answers.</div>`}</div></div>`;
+    if(MAPPING_TYPES.includes(t)) return `<div class="qtype-panel"><div class="qtype-badge">${esc(typeMap()[t]||t)}</div>${questionTypeTipHtml(t)}<div class="mapping-admin-grid"><div>${optionsBlock}</div><div><label>Correct Answer for this Question</label><select id="qCorrectSelect"><option value="">Select correct option</option>${keyRows.map(o=>`<option value="${attr(o.key)}" ${correctVals[0]===o.key?"selected":""}>${esc(o.key)} — ${esc(o.text)}</option>`).join("")}</select><p class="inline-help">For Drag & Drop / Matching, choose the option that belongs in this question's drop zone.</p></div></div><div class="preview-mini"><strong>Student preview</strong><div class="drag-preview"><span class="drop-number">${esc(q?.question_number||1)}</span><span class="drop-zone">Drop answer here</span></div><div class="drag-options-preview">${keyRows.map(o=>`<div><b>${esc(o.key)}.</b> ${esc(o.text)}</div>`).join("")}</div></div></div>`;
+    return `<div class="qtype-panel"><div class="qtype-badge">${esc(typeMap()[t]||t)}</div>${questionTypeTipHtml(t)}${optionsBlock}<label>Correct Answer</label><select id="qCorrectSelect"><option value="">Select correct option</option>${keyRows.map(o=>`<option value="${attr(o.key)}" ${correctVals[0]===o.key?"selected":""}>${esc(o.key)} — ${esc(o.text)}</option>`).join("")}</select></div>`;
+  }
+  return `<div class="qtype-panel"><div class="qtype-badge">${esc(typeMap()[t]||t)}</div>${questionTypeTipHtml(t)}<label>Correct Answer</label><input id="qCorrectText" value="${attr(String(q?.correct_answer||"").split("||")[0]||"")}" placeholder="Enter the correct answer"><label>Alternative Accepted Answers <span class="muted">(one answer per line)</span></label><textarea id="qAccepted" rows="5" placeholder="centre\ncenter\ncentral">${esc(accepted)}</textarea><div class="grid"><div><label>Word Limit</label><input id="qLimit" type="number" value="${cfg.wordLimit||""}"></div><div><label>Case Sensitive</label><select id="qCase"><option value="false" ${cfg.caseSensitive?"":"selected"}>No</option><option value="true" ${cfg.caseSensitive?"selected":""}>Yes</option></select></div></div><p class="inline-help">Add every accepted spelling or valid variant on a separate line.</p></div>`;
+}
+function renderQuestionTypeSettingsFromDom(type){
+  const host=$("qTypeSettings"); if(!host)return;
+  const q={question_type:type,question_number:+$("qNo")?.value||1,options:[],correct_answer:"",question_config:{}};
+  host.innerHTML=questionTypeSettingsHtml(q);
+  const saved=window.__ueQuestionDraftOptions||[];
+  if(OPTION_TYPES.includes(normalizeType(type)) && saved.length){const ta=$("qOptions");if(ta){ta.value=saved.join("\n");refreshQuestionCorrectChoices();}}
+}
+function refreshQuestionCorrectChoices(){
+  const ta=$("qOptions"),type=normalizeType($("qType")?.value||""); if(!ta)return;
+  window.__ueQuestionDraftOptions=String(ta.value||"").split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  const opts=parseOptionLines(ta.value),select=$("qCorrectSelect");
+  if(select){const old=select.value;select.innerHTML=`<option value="">Select correct option</option>`+opts.map(o=>`<option value="${attr(o.option_key)}">${esc(o.option_key)} — ${esc(o.option_text)}</option>`).join("");if(opts.some(o=>o.option_key===old))select.value=old;}
+  if(type==="multi"){const selected=[...document.querySelectorAll('input[name="qCorrectMulti"]:checked')].map(x=>x.value);const box=$("qCorrectChoices");if(box)box.innerHTML=opts.map(o=>`<label class="answer-choice"><input type="checkbox" name="qCorrectMulti" value="${attr(o.option_key)}" ${selected.includes(o.option_key)?"checked":""}> <span>${esc(o.option_text)}</span></label>`).join("")||`<div class="muted">Add options above, then select correct answers.</div>`;}
+}
 function questionForm(id=null){
   const s=admin.sections[admin.sectionIndex],q=id?admin.questions.find(x=>x.id===id):null;
-  shell(`<div class="actions"><button class="btn secondary" onclick="renderBuilder()">← Builder</button></div><h2>${q?"Edit":"Add"} Question</h2><div class="card">
-  <div class="grid3"><div><label>Question No.</label><input id="qNo" type="number" value="${q?.question_number||1}"></div><div><label>Question Type</label><select id="qType">${Object.entries(typeMap()).map(([k,v])=>`<option value="${k}" ${normalizeType(q?.question_type)===k?"selected":""}>${esc(v)}</option>`).join("")}</select></div><div><label>Marks</label><input id="qMarks" type="number" value="${q?.marks||1}"></div></div>
-  <label>Question Text</label>${richEditor("qTextEditor",q?.question_text||"",140)}<label>Correct Answer</label><input id="qCorrect" value="${attr(q?.correct_answer||"")}" placeholder="For MCQ enter A / B / C; for text enter the correct answer"><p class="inline-help">For multiple correct/accepted answers, enter one answer per line in Alternative Accepted Answers below.</p>
-  <label>Alternative Accepted Answers <span class="muted">(one answer per line)</span></label><textarea id="qAccepted" rows="4" placeholder="centre\ncenter\ncentral">${esc((q?.config?.acceptedAnswers||[]).join("\n"))}</textarea><div class="grid"><div><label>Word Limit</label><input id="qLimit" type="number" value="${q?.config?.wordLimit||""}"></div><div><label>Case Sensitive</label><select id="qCase"><option value="false" ${q?.config?.caseSensitive?"":"selected"}>No</option><option value="true" ${q?.config?.caseSensitive?"selected":""}>Yes</option></select></div></div>
-  <label>Options <span class="muted">(one option per line — A, B, C are generated automatically)</span></label><textarea id="qOptions" placeholder="First option\nSecond option\nThird option">${esc((q?.options||[]).map(o=>o.option_text||"").join("\n"))}</textarea>
-  <div class="media-upload-box">
-    <label><strong>Question Image</strong></label>
-    <input id="qImageFile" type="file" accept="image/*">
-    <div class="inline-help">Optional. Upload a question-specific image, chart, diagram or picture. It will be stored in Supabase <b>question-images</b>.</div>
-    ${q?.image_url?`<div class="editor-block" style="margin-top:8px"><strong>Current image:</strong> ${esc(q.image_url)}<br><img class="media" style="max-width:420px;max-height:220px;object-fit:contain" src="${attr(q.image_url)}" onerror="this.style.display='none'"><label style="display:inline-flex;gap:6px;align-items:center;margin-top:6px"><input id="qRemoveImage" type="checkbox"> Remove current image</label></div>`:""}
-    <input id="qImage" type="hidden" value="${attr(q?.image_url||"")}">
-  </div>
+  window.__ueQuestionDraftOptions=(q?.options||[]).map(o=>o.option_text||"");
+  const t=normalizeType(q?.question_type||Object.keys(typeMap())[0]);
+  shell(`<div class="actions"><button class="btn secondary" onclick="renderBuilder()">← Builder</button></div><h2>${q?"Edit":"Add"} Question</h2><div class="card question-editor">
+  <div class="grid3"><div><label>Question No.</label><input id="qNo" type="number" value="${q?.question_number||1}"></div><div><label>Question Type</label><select id="qType" data-question-id="${attr(id||"")}">${Object.entries(typeMap()).map(([k,v])=>`<option value="${k}" ${normalizeType(q?.question_type)===k?"selected":(!q&&k===t?"selected":"")}>${esc(v)}</option>`).join("")}</select></div><div><label>Marks</label><input id="qMarks" type="number" value="${q?.marks||1}"></div></div>
+  <label>Question Text</label>${richEditor("qTextEditor",q?.question_text||"",140)}
+  <div id="qTypeSettings">${questionTypeSettingsHtml(q||{question_type:t,question_number:+(q?.question_number||1),options:[],question_config:{}})}</div>
+  <div class="media-upload-box"><label><strong>Question Image</strong></label><input id="qImageFile" type="file" accept="image/*"><div class="inline-help">Optional. Upload a question-specific image, chart, diagram or picture.</div>${q?.image_url?`<div class="editor-block" style="margin-top:8px"><strong>Current image:</strong> ${esc(q.image_url)}<br><img class="media" style="max-width:420px;max-height:220px;object-fit:contain" src="${attr(q.image_url)}" onerror="this.style.display='none'"><label style="display:inline-flex;gap:6px;align-items:center;margin-top:6px"><input id="qRemoveImage" type="checkbox"> Remove current image</label></div>`:""}<input id="qImage" type="hidden" value="${attr(q?.image_url||"")}"></div>
   <div class="actions" style="margin-top:12px"><button class="btn primary" onclick="saveQuestion('${id||""}','${s.id}')">Save Question</button>${q?`<button class="btn secondary" onclick="duplicateQuestion('${q.id}')">Duplicate Question</button>`:""}</div></div>`);
+  const typeEl=$("qType"); if(typeEl)typeEl.addEventListener('change',()=>{renderQuestionTypeSettingsFromDom(typeEl.value);});
+  const gTypeEl=$("gType"); if(gTypeEl)gTypeEl.addEventListener('change',()=>{const h=$("gTypeTip"); if(h)h.innerHTML=questionTypeTipHtml(gTypeEl.value);});
+  const optHost=$("qTypeSettings"); if(optHost)optHost.addEventListener('input',e=>{if(e.target?.id==='qOptions')refreshQuestionCorrectChoices();});
+}
+function readQuestionEditorValues(){
+  const t=normalizeType($("qType")?.value||""); let correct="",accepted=[],wordLimit=null,caseSensitive=false;
+  const sel=$("qCorrectSelect"),text=$("qCorrectText");
+  if(t==="multi")correct=[...document.querySelectorAll('input[name="qCorrectMulti"]:checked')].map(x=>x.value).join("||");
+  else if(sel)correct=sel.value.trim(); else if(text)correct=text.value.trim();
+  const a=$("qAccepted");if(a)accepted=a.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  const lim=$("qLimit");if(lim)wordLimit=+lim.value||null;const cs=$("qCase");if(cs)caseSensitive=cs.value==="true";
+  const opts=$("qOptions")?parseOptionLines($("qOptions").value):[];return {type:t,correct,accepted,wordLimit,caseSensitive,opts};
 }
 async function saveQuestion(id,sid){
   try{
-    const accepted=$("qAccepted").value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
-    const parsedOptions=parseOptionLines($("qOptions").value);
-    const normalizedCorrect=normalizeCorrectForOptions($("qCorrect").value.trim(),parsedOptions);
-    const normalizedAccepted=accepted.map(a=>normalizeCorrectForOptions(a,parsedOptions)).join("||").split("||").map(x=>x.trim()).filter(Boolean);
-    const config={...(id?((admin.questions.find(x=>x.id===id)||{}).question_config||{}):{}),acceptedAnswers:normalizedAccepted,wordLimit:+$("qLimit").value||null,caseSensitive:$("qCase").value==="true"};
-    const existingImage=$("qImage").value.trim()||null;
-    const remove=$("qRemoveImage")?.checked===true;
+    const v=readQuestionEditorValues(),normalizedCorrect=normalizeCorrectForOptions(v.correct,v.opts),normalizedAccepted=v.accepted.map(a=>normalizeCorrectForOptions(a,v.opts)).join("||").split("||").map(x=>x.trim()).filter(Boolean);
+    const config={...(id?((admin.questions.find(x=>x.id===id)||{}).question_config||{}):{}),acceptedAnswers:normalizedAccepted,wordLimit:v.wordLimit,caseSensitive:v.caseSensitive,ui_version:"question-types-v2"};
+    const existingImage=$("qImage")?.value.trim()||null,remove=$("qRemoveImage")?.checked===true;
     const payload={section_id:sid,question_number:+$("qNo").value,question_type:$("qType").value,question_text:richValue("qTextEditor"),marks:+$("qMarks").value||1,correct_answer:normalizedCorrect,image_url:remove?null:existingImage,question_config:config};
     let qid=id;if(id){const {error}=await sb.from("questions").update(payload).eq("id",id);if(error)throw error}else{const {data,error}=await sb.from("questions").insert(payload).select().single();if(error)throw error;qid=data.id}
-    const file=$("qImageFile")?.files?.[0];
-    let imagePath=remove?null:existingImage;
-    if(remove && existingImage && !String(existingImage).startsWith("http")) await sb.storage.from("question-images").remove([existingImage]);
-    if(file){
-      if(existingImage && !String(existingImage).startsWith("http")) await sb.storage.from("question-images").remove([existingImage]);
-      const ext=(file.name.split(".").pop()||"png").toLowerCase().replace(/[^a-z0-9]/g,"")||"png";
-      imagePath=`${admin.test.id}/${sid}/questions/${qid}-${Date.now()}.${ext}`;
-      const up=await sb.storage.from("question-images").upload(imagePath,file,{upsert:true,contentType:file.type||`image/${ext}`});
-      if(up.error)throw up.error;
-      const {error}=await sb.from("questions").update({image_url:imagePath}).eq("id",qid);if(error)throw error;
-    }
-    await sb.from("options").delete().eq("question_id",qid);
-    const rows=parseOptionLines($("qOptions").value).map(o=>({question_id:qid,option_key:o.option_key,option_text:o.option_text,sort_order:o.sort_order,is_correct:false}));
-    if(rows.length){const {error}=await sb.from("options").insert(rows);if(error)throw error}
-    const currentSection=admin.sectionIndex;
-    const currentScroll=window.scrollY||document.documentElement.scrollTop||0;
-    openBuilder(admin.test.id,currentSection,currentScroll);
+    const file=$("qImageFile")?.files?.[0];let imagePath=remove?null:existingImage;
+    if(remove&&existingImage&&!String(existingImage).startsWith("http"))await sb.storage.from("question-images").remove([existingImage]);
+    if(file){if(existingImage&&!String(existingImage).startsWith("http"))await sb.storage.from("question-images").remove([existingImage]);const ext=(file.name.split(".").pop()||"png").toLowerCase().replace(/[^a-z0-9]/g,"")||"png";imagePath=`${admin.test.id}/${sid}/questions/${qid}-${Date.now()}.${ext}`;const up=await sb.storage.from("question-images").upload(imagePath,file,{upsert:true,contentType:file.type||`image/${ext}`});if(up.error)throw up.error;const {error}=await sb.from("questions").update({image_url:imagePath}).eq("id",qid);if(error)throw error}
+    await sb.from("options").delete().eq("question_id",qid);const rows=v.opts.map(o=>({question_id:qid,option_key:o.option_key,option_text:o.option_text,sort_order:o.sort_order,is_correct:false}));if(rows.length){const {error}=await sb.from("options").insert(rows);if(error)throw error}
+    window.__ueQuestionDraftOptions=[];const currentSection=admin.sectionIndex,currentScroll=window.scrollY||document.documentElement.scrollTop||0;openBuilder(admin.test.id,currentSection,currentScroll);
   }catch(e){alert(e.message)}
 }
 function writingTaskForm(part=null){
@@ -1212,11 +1275,12 @@ function renderInlineRich(txt,qs){
     const q=qs.find(x=>+x.question_number===+n),k=q?.id||`blank_${n}`;
     const token=`__UEBLANK_${tokenMap.length}__`;
     const opts=(q?.options||[]);
+    const badge=`<span class="question-number-box inline-number">${esc(q?.question_number||n)}</span>`;
     if(opts.length){
       const current=exam.answers[k]??"";
-      tokenMap.push(`<select style="display:inline-block;min-width:180px;margin:0 4px" onchange="setAns('${k}',this.value)" ${exam.locked?"disabled":""}><option value="">Select answer</option>${opts.map(o=>`<option value="${attr(o.option_key)}" ${String(current)===String(o.option_key)?"selected":""}>${esc(o.option_text)}</option>`).join("")}</select>`);
+      tokenMap.push(`${badge}<select class="inline-answer-select" onchange="setAns('${k}',this.value)" ${exam.locked?"disabled":""}><option value="">Select answer</option>${opts.map(o=>`<option value="${attr(o.option_key)}" ${String(current)===String(o.option_key)?"selected":""}>${esc(o.option_text)}</option>`).join("")}</select>`);
     }else{
-      tokenMap.push(`<input style="display:inline-block;width:130px;margin:0 4px" value="${attr(exam.answers[k]||"")}" oninput="setAns('${k}',this.value)" ${exam.locked?"disabled":""}>`);
+      tokenMap.push(`${badge}<input class="inline-answer-input" value="${attr(exam.answers[k]||"")}" oninput="setAns('${k}',this.value)" ${exam.locked?"disabled":""}>`);
     }
     return token;
   });
@@ -1226,23 +1290,36 @@ function renderInlineRich(txt,qs){
 }
 function renderGroup(g,qs){
   const sub=qs.filter(q=>q.question_number>=g.start_question&&q.question_number<=g.end_question),t=normalizeType(g.question_type),inline=COMPLETION_TYPES.includes(t)&&/\[BLANK\s*\d+\]/i.test(g.content||"");
-  const wordList=inline ? (()=>{
-    const seen=new Set(),out=[];
-    for(const q of sub){for(const o of (q.options||[])){const key=String(o.option_key||"");if(!seen.has(key)){seen.add(key);out.push(o)}}}
-    return out;
-  })() : [];
-  const hasQuestionWordList=wordList.length>0;
-  return `<div class="group"><strong>Questions ${g.start_question}–${g.end_question}</strong>${g.instructions?`<div class="instructions student-rich" data-highlight-key="${attr(highlightKey("group-instructions",g.id))}">${richTextSanitize(g.instructions)}</div>`:""}${g.image_url?`<img class="media" src="${attr(g.image_url)}">`:""}${hasQuestionWordList?`<div class="notice"><strong>Word List:</strong>${wordList.map(o=>`<div>${esc(o.option_text)}</div>`).join("")}</div>`:""}${g.content?`<div class="student-rich" data-highlight-key="${attr(highlightKey("group-content",g.id))}">${renderInlineRich(g.content,sub)}</div>`:""}
-  ${(g.options||[]).length?`<div class="notice">${g.options.map(o=>`<div>${esc(o.option_text)}</div>`).join("")}</div>`:""}${inline?"":sub.map(q=>renderQuestion(q,g.options||[],g.question_type)).join("")}</div>`;
+  const wordList=inline?(()=>{const seen=new Set(),out=[];for(const q of sub){for(const o of (q.options||[])){const key=String(o.option_key||"");if(!seen.has(key)){seen.add(key);out.push(o)}}}return out;})():[];
+  const isDrag=t==="drag_drop",bank=(g.options||[]).length?g.options:wordList;
+  const common=`<div class="group"><strong>Questions ${g.start_question}–${g.end_question}</strong>${g.instructions?`<div class="instructions student-rich" data-highlight-key="${attr(highlightKey("group-instructions",g.id))}">${richTextSanitize(g.instructions)}</div>`:""}${g.image_url?`<img class="media" src="${attr(g.image_url)}">`:""}${g.content?`<div class="student-rich" data-highlight-key="${attr(highlightKey("group-content",g.id))}">${renderInlineRich(g.content,sub)}</div>`:""}`;
+  if(isDrag&&bank.length){return common+`<div class="drag-group-layout"><div class="drag-group-questions">${sub.map(q=>renderDragDropRow(q,bank)).join("")}</div><div class="drag-bank-panel"><div class="drag-bank-title">Drag and drop an option to fill in each blank</div>${bank.map(dragOptionHtml).join("")}</div></div></div>`;}
+  return common+(bank.length?`<div class="notice">${bank.map(o=>`<div>${esc(o.option_text)}</div>`).join("")}</div>`:"")+(inline?"":sub.map(q=>renderQuestion(q,g.options||[],g.question_type)).join(""))+`</div>`;
+}
+function dragOptionHtml(o){return `<div class="drag-option" draggable="true" data-drag-key="${attr(o.option_key)}" ondragstart="dragStartOption(event,'${attr(o.option_key)}')" onclick="selectDragOption('${attr(o.option_key)}')">${esc(o.option_text)}</div>`}
+function renderDragDropRow(q,opts){
+  const s=exam.answers[q.id]??"",selected=opts.find(o=>String(o.option_key)===String(s));
+  return `<div id="q-${q.id}" class="drag-drop-row"><span class="question-number-box">${esc(q.question_number)}</span><div class="drag-drop-prompt">${richTextSanitize(q.question_text||"")}</div><div class="drag-drop-zone ${selected?'filled':''}" data-drop-q="${attr(q.id)}" ondragover="allowDragDrop(event)" ondrop="dropOption(event,'${attr(q.id)}')" onclick="selectDropTarget('${attr(q.id)}')">${selected?esc(selected.option_text):'Drop answer here'}</div></div>`;
+}
+function renderDragDropQuestion(q,shared=[]){
+  const opts=(q.options||[]).length?q.options:shared;
+  return `<div id="q-${q.id}" class="drag-question">${q.image_url?`<img class="media" src="${attr(q.image_url)}">`:""}${renderDragDropRow(q,opts)}<div class="drag-answer-bank">${opts.map(dragOptionHtml).join("")}</div></div>`;
 }
 function renderQuestion(q,shared=[],groupType=null){
-  const opts=(q.options||[]).length?q.options:shared,s=exam.answers[q.id]??"",t=normalizeType(groupType||q.question_type);let c="";
-  if(t==="single"||["tfng","yng","title"].includes(t)){c=opts.map(o=>`<label style="font-weight:400"><input style="width:auto" type="radio" name="r-${q.id}" value="${attr(o.option_key)}" ${s===o.option_key?"checked":""} onchange="setAns('${q.id}',this.value)" ${exam.locked?"disabled":""}> ${esc(o.option_text)}</label>`).join("")}
-  else if(t==="multi"||t==="list"){const a=Array.isArray(s)?s:[];c=opts.map(o=>`<label style="font-weight:400"><input style="width:auto" type="checkbox" value="${attr(o.option_key)}" ${a.includes(o.option_key)?"checked":""} onchange="toggleAns('${q.id}',this.value,this.checked)" ${exam.locked?"disabled":""}> ${esc(o.option_text)}</label>`).join("")}
+  const opts=(q.options||[]).length?q.options:shared,s=exam.answers[q.id]??"",t=normalizeType(groupType||q.question_type);
+  if(t==="drag_drop")return renderDragDropQuestion(q,shared);
+  let c="";
+  if(t==="single"||["tfng","yng","title"].includes(t)){c=opts.map(o=>`<label class="student-option"><input style="width:auto" type="radio" name="r-${q.id}" value="${attr(o.option_key)}" ${s===o.option_key?"checked":""} onchange="setAns('${q.id}',this.value)" ${exam.locked?"disabled":""}> <span>${esc(o.option_text)}</span></label>`).join("")}
+  else if(t==="multi"||t==="list"){const a=Array.isArray(s)?s:[];c=opts.map(o=>`<label class="student-option"><input style="width:auto" type="checkbox" value="${attr(o.option_key)}" ${a.includes(o.option_key)?"checked":""} onchange="toggleAns('${q.id}',this.value,this.checked)" ${exam.locked?"disabled":""}> <span>${esc(o.option_text)}</span></label>`).join("")}
   else if((["matching","map","headings","information","features","endings"].includes(t) || (COMPLETION_TYPES.includes(t)&&opts.length))&&opts.length){c=`<select onchange="setAns('${q.id}',this.value)" ${exam.locked?"disabled":""}><option value="">Select answer</option>${opts.map(o=>`<option value="${attr(o.option_key)}" ${s===o.option_key?"selected":""}>${esc(o.option_text)}</option>`).join("")}</select>`}
   else c=`<input value="${attr(Array.isArray(s)?s.join(", "):s)}" oninput="setAns('${q.id}',this.value)" placeholder="Type your answer" ${exam.locked?"disabled":""}>`;
-  return `<div id="q-${q.id}" class="question"><div class="student-rich" data-highlight-key="${attr(highlightKey("question",q.id))}"><strong>${q.question_number}. </strong>${richTextSanitize(q.question_text||"")}</div>${q.image_url?`<img class="media" src="${attr(q.image_url)}">`:""}<div style="margin-top:8px">${c}</div></div>`;
+  return `<div id="q-${q.id}" class="question"><div class="student-rich" data-highlight-key="${attr(highlightKey("question",q.id))}"><span class="question-number-box inline-number">${esc(q.question_number)}</span> ${richTextSanitize(q.question_text||"")}</div>${q.image_url?`<img class="media" src="${attr(q.image_url)}">`:""}<div style="margin-top:8px">${c}</div></div>`;
 }
+function allowDragDrop(e){e.preventDefault();if(e.dataTransfer)e.dataTransfer.dropEffect='move'}
+function dragStartOption(e,key){if(exam?.locked)return;if(e.dataTransfer){e.dataTransfer.setData('text/plain',key);e.dataTransfer.effectAllowed='move'}window.__ueDragKey=key}
+function dropOption(e,qid){e.preventDefault();if(exam?.locked)return;const key=e.dataTransfer?.getData('text/plain')||window.__ueDragKey||'';if(key)setAns(qid,key)}
+function selectDragOption(key){if(exam?.locked)return;window.__ueDragKey=key;document.querySelectorAll('.drag-drop-zone').forEach(z=>z.classList.remove('drag-target-active'));document.querySelectorAll('.drag-option').forEach(o=>o.classList.remove('selected'));document.querySelectorAll(`.drag-option[data-drag-key="${CSS.escape(key)}"]`).forEach(o=>o.classList.add('selected'))}
+function selectDropTarget(qid){if(exam?.locked)return;const key=window.__ueDragKey;if(key){setAns(qid,key);window.__ueDragKey=''}}
 function examNav(){return `<div class="actions" style="justify-content:space-between;align-items:center;margin-top:14px"><button class="btn secondary" ${exam.currentSection===0?"disabled":""} onclick="switchExamSection(${exam.currentSection-1})">← Previous</button>${exam.review?`<div class="actions" style="align-items:center"><span class="status published">Submitted — Read Only Review</span>${exam.resultId?`<button class="btn primary" onclick="studentResultPage('${exam.resultId}')">View Your Score</button>`:""}</div>`:exam.locked?`<div class="actions" style="align-items:center"><span class="status warning">Submission completed</span>${exam.resultId?`<button class="btn primary" onclick="studentResultPage('${exam.resultId}')">View Your Score</button>`:""}</div>`:exam.currentSection<exam.data.sections.length-1?`<button class="btn primary" onclick="switchExamSection(${exam.currentSection+1})">Next →</button>`:`<button class="btn success" onclick="${exam.preview?"exitExam()":"submitExam(false)"}">${exam.preview?"Close Preview":"Submit Test"}</button>`}</div>`}
 function renderWritingExam(){
   const tasks=(exam.data.writingTasks||[]).slice().sort((a,b)=>a.part-b.part),q=tasks[Math.min(exam.currentTask,tasks.length-1)];
