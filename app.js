@@ -338,7 +338,7 @@ function bindLogin(){
   const st=$("studentTab"), sf=$("staffTab"), form=$("loginForm");
   if(!st||!sf||!form)return;
   st.onclick=()=>{loginMode="student";st.classList.add("active");sf.classList.remove("active");$("loginIdLabel").textContent="Student ID";$("loginId").type="text";$("loginId").placeholder="e.g. STU001"};
-  sf.onclick=()=>{loginMode="staff";sf.classList.add("active");st.classList.remove("active");$("loginIdLabel").textContent="Admin / Tutor Email";$("loginId").type="email";$("loginId").placeholder="admin@example.com"};
+  sf.onclick=()=>{loginMode="staff";sf.classList.add("active");st.classList.remove("active");$("loginIdLabel").textContent="Admin / Sub Admin Username";$("loginId").type="text";$("loginId").placeholder="e.g. admin"};
   form.onsubmit=login;
 }
 async function getProfile(uid){
@@ -349,8 +349,8 @@ async function login(e){
   e.preventDefault(); const btn=$("loginButton"),msg=$("loginMessage"); btn.disabled=true; msg.textContent="";
   try{
     const raw=$("loginId").value.trim();
-    if(!raw) throw new Error(loginMode==="student"?"Enter Student ID.":"Enter email address.");
-    const email=loginMode==="student" ? studentAuthEmail(raw) : raw;
+    if(!raw) throw new Error(loginMode==="student"?"Enter Student ID.":"Enter username.");
+    const email=loginMode==="student" ? studentAuthEmail(raw) : staffAuthEmail(raw);
     const {data,error}=await sb.auth.signInWithPassword({email,password:$("password").value});
     if(error) throw error;
     const p=await getProfile(data.user.id); if(!p.active) throw new Error("Account inactive.");
@@ -364,6 +364,8 @@ async function login(e){
   }catch(err){msg.textContent=err.message;msg.style.color="#dc2626"}finally{btn.disabled=false}
 }
 function normalizeStudentId(v){return String(v||"").trim().toLowerCase()}
+function staffAuthEmail(v){const id=normalizeStaffUsername(v); if(!/^[a-z0-9][a-z0-9._-]{2,39}$/.test(id)) throw new Error("Username may contain only letters, numbers, dot, underscore or hyphen."); return `${id}@staff.universaleducation.local`}
+function normalizeStaffUsername(v){return String(v||"").trim().toLowerCase()}
 function studentAuthEmail(v){const id=normalizeStudentId(v); if(!/^[a-z0-9][a-z0-9._-]{2,49}$/.test(id)) throw new Error("Student ID may contain only letters, numbers, dot, underscore or hyphen."); return `${id}@students.universaleducation.local`}
 async function edgeStudentAdmin(payload){
   const {data:{session}}=await sb.auth.getSession(); if(!session) throw new Error("Admin session expired. Please login again.");
@@ -386,7 +388,7 @@ async function changeMyPassword(){
   if(next.length<6)return alert('Password must be at least 6 characters.');
   if(next!==confirmPass)return alert('New passwords do not match.');
   try{
-    const {error:verifyError}=await sb.auth.signInWithPassword({email:currentProfile.email,password:current});
+    const {error:verifyError}=await sb.auth.signInWithPassword({email:staffAuthEmail(currentProfile.username),password:current});
     if(verifyError)throw new Error('Current password is incorrect.');
     const {error}=await sb.auth.updateUser({password:next});
     if(error)throw error;
@@ -402,38 +404,38 @@ async function staffManagementPage(){
   if(!guardStaff('staff_management') && !isMainAdmin())return;
   try{
     setRoute('staff-management');
-    const {data,error}=await sb.from('profiles').select('id,full_name,email,role,active,created_at').in('role',['admin','tutor']).order('created_at',{ascending:true});
+    const {data,error}=await sb.from('profiles').select('id,full_name,username,role,active,created_at').in('role',['admin','tutor']).order('created_at',{ascending:true});
     if(error)throw error;
     const rows=[];
     for(const u of (data||[])){
       const {data:pr}=await sb.from('staff_permissions').select('permissions').eq('user_id',u.id).maybeSingle();
       const perms=pr?.permissions||{};
       const pnames=isMainAdmin()&&u.role==='admin'?'All permissions':Object.entries(STAFF_PERMISSION_LABELS).filter(([k])=>perms[k]).map(([,v])=>v).join(', ')||'No permissions';
-      rows.push(`<tr><td><strong>${esc(u.full_name||'')}</strong><br><small>${esc(u.email||'')}</small></td><td>${u.role==='admin'?'Main Admin':'Sub Admin'}</td><td>${u.active?'Active':'Inactive'}</td><td><small>${esc(pnames)}</small></td><td><div class="actions">${u.role==='admin'?'<span class="muted">Protected</span>':`<button class="btn secondary" onclick="editSubAdmin('${u.id}')">Edit</button><button class="btn ${u.active?'warning':'success'}" onclick="toggleSubAdmin('${u.id}',${!u.active})">${u.active?'Deactivate':'Activate'}</button><button class="btn danger" onclick="deleteSubAdmin('${u.id}','${attr(u.full_name||u.email||'')}')">Delete</button>`}</div></td></tr>`);
+      rows.push(`<tr><td><strong>${esc(u.full_name||'')}</strong><br><small>@${esc(u.username||'')}</small></td><td>${u.role==='admin'?'Main Admin':'Sub Admin'}</td><td>${u.active?'Active':'Inactive'}</td><td><small>${esc(pnames)}</small></td><td><div class="actions">${u.role==='admin'?'<span class="muted">Protected</span>':`<button class="btn secondary" onclick="editSubAdmin('${u.id}')">Edit</button><button class="btn ${u.active?'warning':'success'}" onclick="toggleSubAdmin('${u.id}',${!u.active})">${u.active?'Deactivate':'Activate'}</button><button class="btn danger" onclick="deleteSubAdmin('${u.id}','${attr(u.full_name||u.username||'')}')">Delete</button>`}</div></td></tr>`);
     }
-    shell(`<div class="actions"><button class="btn secondary" onclick="staffDashboard()">← Dashboard</button><button class="btn primary" onclick="newSubAdminForm()">+ Create Sub Admin</button></div><h2>Staff / Sub Admin Management</h2><p class="muted">Main Admin has full control. Sub Admins can be given individual permissions.</p><div class="card table-wrap"><table><thead><tr><th>Staff</th><th>Role</th><th>Status</th><th>Permissions</th><th>Actions</th></tr></thead><tbody>${rows.join('')||'<tr><td colspan="5">No staff accounts.</td></tr>'}</tbody></table></div>`);
+    shell(`<div class="actions"><button class="btn secondary" onclick="staffDashboard()">← Dashboard</button><button class="btn primary" onclick="newSubAdminForm()">+ Create Sub Admin</button></div><h2>Staff / Sub Admin Management</h2><p class="muted">Main Admin has full control. Sub Admins can be given individual permissions.</p><div class="card table-wrap"><table><thead><tr><th>Name</th><th>Role</th><th>Status</th><th>Permissions</th><th>Actions</th></tr></thead><tbody>${rows.join('')||'<tr><td colspan="5">No staff accounts.</td></tr>'}</tbody></table></div>`);
   }catch(e){alert('Could not load staff: '+(e.message||e))}
 }
 function permissionChecksHtml(selected={}){return Object.entries(STAFF_PERMISSION_LABELS).map(([k,v])=>`<label class="checkline"><input type="checkbox" class="staff-perm" value="${k}" ${selected[k]?'checked':''}> ${esc(v)}</label>`).join('')}
 function collectStaffPermissions(){const o={};document.querySelectorAll('.staff-perm:checked').forEach(x=>o[x.value]=true);return o}
 function newSubAdminForm(){
   if(!isMainAdmin())return alert('Only the Main Admin can create Sub Admins.');
-  shell(`<div class="actions"><button class="btn secondary" onclick="staffManagementPage()">← Staff</button></div><h2>Create Sub Admin</h2><div class="card"><div class="grid"><div><label>Full Name</label><input id="saName"></div><div><label>Email</label><input id="saEmail" type="email"></div></div><div class="grid"><div><label>Password</label><input id="saPass" type="password" autocomplete="new-password"></div><div><label>Confirm Password</label><input id="saPass2" type="password" autocomplete="new-password"></div></div><h3>Permissions</h3><div class="permission-grid">${permissionChecksHtml()}</div><div class="actions"><button class="btn primary" onclick="createSubAdmin()">Create Sub Admin</button></div></div>`);
+  shell(`<div class="actions"><button class="btn secondary" onclick="staffManagementPage()">← Staff</button></div><h2>Create Sub Admin</h2><div class="card"><div class="grid"><div><label>Full Name</label><input id="saName"></div><div><label>Username</label><input id="saUsername" autocomplete="username" placeholder="e.g. rahul"></div></div><div class="grid"><div><label>Password</label><input id="saPass" type="password" autocomplete="new-password"></div><div><label>Confirm Password</label><input id="saPass2" type="password" autocomplete="new-password"></div></div><h3>Permissions</h3><div class="permission-grid">${permissionChecksHtml()}</div><div class="actions"><button class="btn primary" onclick="createSubAdmin()">Create Sub Admin</button></div></div>`);
 }
 async function createSubAdmin(){
-  const name=$("saName").value.trim(),email=$("saEmail").value.trim().toLowerCase(),pass=$("saPass").value,pass2=$("saPass2").value;
-  if(!name||!email)return alert('Enter name and email.'); if(pass.length<6)return alert('Password must be at least 6 characters.'); if(pass!==pass2)return alert('Passwords do not match.');
-  try{await staffAdminApi({action:'create',full_name:name,email,password:pass,permissions:collectStaffPermissions()});alert('Sub Admin created successfully.');staffManagementPage()}catch(e){alert('Could not create Sub Admin: '+(e.message||e))}
+  const name=$("saName").value.trim(),username=normalizeStaffUsername($("saUsername").value),pass=$("saPass").value,pass2=$("saPass2").value;
+  if(!name||!username)return alert('Enter name and username.'); if(!/^[a-z0-9][a-z0-9._-]{2,39}$/.test(username))return alert('Username may contain only letters, numbers, dot, underscore or hyphen.'); if(pass.length<6)return alert('Password must be at least 6 characters.'); if(pass!==pass2)return alert('Passwords do not match.');
+  try{await staffAdminApi({action:'create',full_name:name,username,password:pass,permissions:collectStaffPermissions()});alert('Sub Admin created successfully.');staffManagementPage()}catch(e){alert('Could not create Sub Admin: '+(e.message||e))}
 }
 async function editSubAdmin(id){
   if(!isMainAdmin())return alert('Only the Main Admin can edit Sub Admins.');
-  const {data:u,error}=await sb.from('profiles').select('id,full_name,email,active').eq('id',id).single();if(error)return alert(error.message);
+  const {data:u,error}=await sb.from('profiles').select('id,full_name,username,active').eq('id',id).single();if(error)return alert(error.message);
   const {data:pr}=await sb.from('staff_permissions').select('permissions').eq('user_id',id).maybeSingle();
-  shell(`<div class="actions"><button class="btn secondary" onclick="staffManagementPage()">← Staff</button></div><h2>Edit Sub Admin</h2><div class="card"><div class="grid"><div><label>Full Name</label><input id="saName" value="${attr(u.full_name||'')}"></div><div><label>Email</label><input value="${attr(u.email||'')}" disabled></div></div><label>New Password (optional)</label><input id="saPass" type="password" placeholder="Leave blank to keep current password"><h3>Permissions</h3><div class="permission-grid">${permissionChecksHtml(pr?.permissions||{})}</div><div class="actions"><button class="btn primary" onclick="saveSubAdmin('${id}')">Save Sub Admin</button></div></div>`);
+  shell(`<div class="actions"><button class="btn secondary" onclick="staffManagementPage()">← Staff</button></div><h2>Edit Sub Admin</h2><div class="card"><div class="grid"><div><label>Full Name</label><input id="saName" value="${attr(u.full_name||'')}"></div><div><label>Username</label><input id="saUsername" value="${attr(u.username||'')}" autocomplete="username"></div></div><label>New Password (optional)</label><input id="saPass" type="password" placeholder="Leave blank to keep current password"><h3>Permissions</h3><div class="permission-grid">${permissionChecksHtml(pr?.permissions||{})}</div><div class="actions"><button class="btn primary" onclick="saveSubAdmin('${id}')">Save Sub Admin</button></div></div>`);
 }
 async function saveSubAdmin(id){
-  const name=$("saName").value.trim(),pass=$("saPass").value; if(!name)return alert('Enter name.'); if(pass&&pass.length<6)return alert('Password must be at least 6 characters.');
-  try{await staffAdminApi({action:'update',id,full_name:name,permissions:collectStaffPermissions(),...(pass?{password:pass}:{})});alert('Sub Admin updated.');staffManagementPage()}catch(e){alert('Could not update Sub Admin: '+(e.message||e))}
+  const name=$("saName").value.trim(),username=normalizeStaffUsername($("saUsername").value),pass=$("saPass").value; if(!name||!username)return alert('Enter name and username.'); if(!/^[a-z0-9][a-z0-9._-]{2,39}$/.test(username))return alert('Username may contain only letters, numbers, dot, underscore or hyphen.'); if(pass&&pass.length<6)return alert('Password must be at least 6 characters.');
+  try{await staffAdminApi({action:'update',id,full_name:name,username,permissions:collectStaffPermissions(),...(pass?{password:pass}:{})});alert('Sub Admin updated.');staffManagementPage()}catch(e){alert('Could not update Sub Admin: '+(e.message||e))}
 }
 async function toggleSubAdmin(id,active){if(!isMainAdmin())return alert('Only the Main Admin can activate/deactivate Sub Admins.');try{await staffAdminApi({action:'toggle',id,active});staffManagementPage()}catch(e){alert('Could not update status: '+(e.message||e))}}
 async function deleteSubAdmin(id,name){if(!isMainAdmin())return alert('Only the Main Admin can delete Sub Admins.');if(!confirm(`Delete Sub Admin ${name}? This will remove the login account.`))return;try{await staffAdminApi({action:'delete',id});alert('Sub Admin deleted.');staffManagementPage()}catch(e){alert('Could not delete Sub Admin: '+(e.message||e))}}
